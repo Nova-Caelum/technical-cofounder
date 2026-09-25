@@ -1,0 +1,29 @@
+filters:
+  and:
+    - file.inFolder("worklog/entries")
+    - file.ext == "md"
+properties:
+  date:
+    displayName: Date
+  author:
+    displayName: Author
+  summary:
+    displayName: Summary
+  tags:
+    displayName: Tags
+views:
+  - type: table
+    name: Recent
+    order:
+      - date
+      - author
+      - summary
+      - tags
+  - type: table
+    name: All
+    order:
+      - file.name
+      - date
+      - author
+      - summary
+      - tags

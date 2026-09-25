@@ -54,7 +54,7 @@ if ! source "$SCRIPT_DIR/lib/rule-disclosure.sh"; then
     rule_disclosure_emit() { :; }
 fi
 
-STATE_ROOT="${TMPDIR:-/tmp}/technical-cofounder/circuit-breaker"
+STATE_ROOT="${TMPDIR:-/tmp}/base-novacaelum/circuit-breaker"
 WARN_EVERY=3
 BLOCK_THRESHOLD=5
 

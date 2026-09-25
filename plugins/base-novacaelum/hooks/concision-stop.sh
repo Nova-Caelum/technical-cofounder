@@ -80,7 +80,7 @@ fi
 BAND=300
 OVERRIDE="none"
 PROMPT_WORDS=-1
-STATE_FILE="${TMPDIR:-/tmp}/technical-cofounder/concision-state/${SESSION_KEY}"
+STATE_FILE="${TMPDIR:-/tmp}/base-novacaelum/concision-state/${SESSION_KEY}"
 if [ -f "$STATE_FILE" ]; then
     STATE_LINE=$(cat "$STATE_FILE" 2>/dev/null) || STATE_LINE=""
     S_BAND=$(printf '%s' "$STATE_LINE" | cut -d'|' -f1)
@@ -109,7 +109,7 @@ if [ "$BLOCKED" = "true" ]; then
     echo '{"decision":"block","reason":"Over 700 words: put the conclusion in chat and move the rest to a file."}'
 fi
 
-LOG_DIR="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}/technical-cofounder}/telemetry"
+LOG_DIR="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}/base-novacaelum}/telemetry"
 if mkdir -p "$LOG_DIR" 2>/dev/null; then
     LOG_FILE="$LOG_DIR/$(date -u +%F).jsonl"
     TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
