@@ -1,0 +1,22 @@
+{
+  "id": "greet-command",
+  "criteria": [
+    {
+      "statement": "greet.py reads its text from greeting.txt",
+      "verification": {
+        "kind": "file_state",
+        "path": "greet.py",
+        "assertion": "contains",
+        "expected": "greeting.txt"
+      }
+    },
+    {
+      "statement": "WHOLE-PATH: the greet test runs greet.py and sees the greeting",
+      "verification": {
+        "kind": "command_check",
+        "check_id": "tests",
+        "target": "tests/test_greet.py"
+      }
+    }
+  ]
+}

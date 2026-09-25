@@ -1,0 +1,22 @@
+{
+  "id": "toy-run-acceptance",
+  "criteria": [
+    {
+      "statement": "greeting.txt holds the greeting Hello, world",
+      "verification": {
+        "kind": "file_state",
+        "path": "greeting.txt",
+        "assertion": "contains",
+        "expected": "Hello, world"
+      }
+    },
+    {
+      "statement": "WHOLE-PATH: running greet.py prints the line stored in greeting.txt",
+      "verification": {
+        "kind": "command_check",
+        "check_id": "tests",
+        "target": "tests/test_greet.py"
+      }
+    }
+  ]
+}
