@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MCP_DIR = REPO_ROOT / "plugins" / "technical-cofounder" / "mcp"
+MCP_DIR = REPO_ROOT / "plugins" / "base-novacaelum" / "mcp"
 sys.path.insert(0, str(MCP_DIR))
 
 import verifier  # noqa: E402

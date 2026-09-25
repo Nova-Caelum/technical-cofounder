@@ -3,20 +3,17 @@
   "owner": {
     "name": "Nova Caelum"
   },
-  "description": "Nova Caelum's technical-cofounder marketplace — a senior technical team for Claude Code, plus no-mistakes as a dependency.",
+  "description": "Nova Caelum's technical-cofounder marketplace — base-novacaelum, a senior technical team for Claude Code, plus super-novacaelum, its opt-in research and documentation extras.",
   "plugins": [
     {
-      "name": "technical-cofounder",
-      "source": "./plugins/technical-cofounder",
+      "name": "base-novacaelum",
+      "source": "./plugins/base-novacaelum",
       "description": "A senior technical team for Claude Code: agents, guardrails, a working loop and a local verifier."
     },
     {
-      "name": "no-mistakes",
-      "source": {
-        "source": "url",
-        "url": "https://github.com/Nova-Caelum/no-mistakes.git"
-      },
-      "description": "Three skills that stop an agent substituting reasoning for evidence: assumption-check catches false premises before you build, sequential-thinking structures the reasoning between, verification-before-completion catches false conclusions before you ship. Bundles the sequential-thinking MCP server."
+      "name": "super-novacaelum",
+      "source": "./plugins/super-novacaelum",
+      "description": "Opt-in extras for the base team — documentation lookup, web research and a cloud browser, using your own keys."
     }
   ]
 }
