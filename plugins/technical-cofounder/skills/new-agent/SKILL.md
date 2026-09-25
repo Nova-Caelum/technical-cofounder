@@ -30,7 +30,7 @@ Never write an agent file before the gate has a written verdict. Take the facts 
    - **Who hands it work.**
 
    If the user is unsure about one, write `DEFERRED` and move on. Never copy a value from a similar agent.
-   Observed failure: the user said "task", and the agent wrote the category it had used for the last similar item. Pattern-completion from a nearby example overrode an explicit instruction.
+   Observed failure: the user said "task", and the agent filed it as a different type, pattern-completed from a similar earlier item. The nearby example overrode an explicit instruction.
 4. **Run the gate, and write the verdict down.** Run `overbloat-review` on the proposal. Then answer the questions below in the spec's Gate section:
    - Does this need a different *identity* (a different standard, different refusals, different authority), or only a different *procedure*? Procedure alone is a skill.
    - Could it be a skill that an existing agent uses? That wins when the tools are already held and the change is a workflow. It loses when the skill would fight its host's character.

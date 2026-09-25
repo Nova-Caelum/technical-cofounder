@@ -36,6 +36,12 @@ Invoke this rule when:
 **Don't:**
 - <a concrete behavior>
 
+## Red flags
+
+If you catch yourself thinking:
+- "<the thought that comes right before breaking this rule>" → <what to do instead>
+- "<…>" → <…>
+
 ## Common rationalizations
 
 | Rationalization | Reality |
