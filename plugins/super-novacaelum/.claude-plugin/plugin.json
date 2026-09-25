@@ -17,5 +17,28 @@
   ],
   "dependencies": [
     "base-novacaelum"
-  ]
+  ],
+  "userConfig": {
+    "context7_api_key": {
+      "type": "string",
+      "title": "Context7 API key",
+      "description": "Optional — raises your Context7 documentation-lookup rate limit. Get one at context7.com/dashboard.",
+      "sensitive": true,
+      "required": false
+    },
+    "exa_api_key": {
+      "type": "string",
+      "title": "Exa API key",
+      "description": "Optional — raises your Exa web-search rate limit. Get one from your Exa dashboard at dashboard.exa.ai.",
+      "sensitive": true,
+      "required": false
+    },
+    "browserbase_api_key": {
+      "type": "string",
+      "title": "Browserbase API key",
+      "description": "Needed to use the cloud browser. Get one from your Browserbase dashboard at browserbase.com.",
+      "sensitive": true,
+      "required": false
+    }
+  }
 }
