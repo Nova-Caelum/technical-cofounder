@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Leak gate for a PUBLIC repo. A hit blocks the commit; there is no advisory mode.
+# Enable once per clone:   git config core.hooksPath .githooks
+# Requires gitleaks (brew install gitleaks) and python3.
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+
+# 1. Secret scan of staged changes.
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks is not installed. Install it (brew install gitleaks) before committing." >&2
+  exit 1
+fi
+gitleaks git --pre-commit --staged --redact --no-banner
+
+# 2. Blocked strings: owner, vault paths, internal system names, secret entry
+#    names, client names. The list lives in scripts/leak-scan.py so CI runs
+#    the exact same check (--tree / --history).
+python3 "$root/scripts/leak-scan.py" --staged

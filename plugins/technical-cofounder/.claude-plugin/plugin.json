@@ -1,0 +1,22 @@
+{
+  "name": "technical-cofounder",
+  "version": "0.1.0",
+  "description": "A senior technical team for Claude Code: agents, guardrails, a working loop and a local verifier — no accounts, no servers.",
+  "author": {
+    "name": "Nova Caelum",
+    "url": "https://novacaelum.com"
+  },
+  "homepage": "https://github.com/Nova-Caelum/technical-cofounder",
+  "repository": "https://github.com/Nova-Caelum/technical-cofounder",
+  "license": "MIT",
+  "keywords": [
+    "agents",
+    "engineering",
+    "verification",
+    "guardrails",
+    "workflow"
+  ],
+  "dependencies": [
+    "no-mistakes"
+  ]
+}
