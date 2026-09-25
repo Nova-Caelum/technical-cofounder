@@ -1,0 +1,33 @@
+{
+  "id": "add-login-page",
+  "criteria": [
+    {
+      "statement": "The login page exists",
+      "verification": {"kind": "file_state", "path": "app/login.html", "assertion": "exists"}
+    },
+    {
+      "statement": "The login form posts to the auth endpoint",
+      "verification": {"kind": "file_state", "path": "app/login.html", "assertion": "contains", "expected": "action=\"/api/login\""}
+    },
+    {
+      "statement": "The old placeholder page is gone",
+      "verification": {"kind": "file_state", "path": "app/login-placeholder.html", "assertion": "not_exists"}
+    },
+    {
+      "statement": "The changelog was updated after the task started",
+      "verification": {"kind": "file_state", "path": "CHANGELOG.md", "assertion": "modified_after", "expected": "2026-09-25T00:00:00Z"}
+    },
+    {
+      "statement": "The login tests pass",
+      "verification": {"kind": "command_check", "check_id": "tests", "target": "tests/test_login.py"}
+    },
+    {
+      "statement": "The work changed something in the repository",
+      "verification": {"kind": "command_check", "check_id": "git_diff_nonempty"}
+    },
+    {
+      "statement": "A person signed in with a test account and reached the dashboard",
+      "verification": {"kind": "manual", "instruction": "Open the login page, sign in with a test account, and confirm you land on the dashboard"}
+    }
+  ]
+}
