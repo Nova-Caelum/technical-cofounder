@@ -1,0 +1,28 @@
+{
+  "tests_file": "../01_understand/tests.json",
+  "deferred_file": "Deferred.md",
+  "principles_file": "principles.json",
+  "components": [
+    {
+      "name": "greeting file",
+      "tests": [
+        "T1"
+      ],
+      "principles": []
+    },
+    {
+      "name": "greet command",
+      "tests": [
+        "T2"
+      ],
+      "principles": [
+        "stdlib-only"
+      ]
+    },
+    {
+      "name": "localized greetings",
+      "tests": [],
+      "principles": []
+    }
+  ]
+}
