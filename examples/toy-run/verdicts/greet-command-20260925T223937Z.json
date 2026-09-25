@@ -1,0 +1,28 @@
+{
+  "id": "greet-command",
+  "overall": "pass",
+  "criteria": [
+    {
+      "statement": "greet.py reads its text from greeting.txt",
+      "verification": {
+        "kind": "file_state",
+        "path": "greet.py",
+        "assertion": "contains",
+        "expected": "greeting.txt"
+      },
+      "result": "pass",
+      "evidence": "looked for 'greeting.txt' in /private/tmp/tmp_qdmr4b2/toy-run/greet.py"
+    },
+    {
+      "statement": "WHOLE-PATH: the greet test runs greet.py and sees the greeting",
+      "verification": {
+        "kind": "command_check",
+        "check_id": "tests",
+        "target": "tests/test_greet.py"
+      },
+      "result": "pass",
+      "evidence": ".\n----------------------------------------------------------------------\nRan 1 test in 0.027s\n\nOK\n"
+    }
+  ],
+  "timestamp": "2026-09-25T22:39:37Z"
+}
