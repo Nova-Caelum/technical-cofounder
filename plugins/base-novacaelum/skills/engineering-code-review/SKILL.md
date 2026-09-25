@@ -22,7 +22,7 @@ A systematic audit that ends in a prioritized findings report someone else can a
 - Find the project's conventions: existing patterns, recorded decisions (ADRs), lint config and the README.
 - Run the tests and the build if they exist. A review that ran nothing must say so.
 
-Observed failure: a change was read, called done and pushed. Nobody ran the build, which was broken, and the site kept serving the old version, so it looked fine.
+Observed failure: a change was called done and pushed without anyone running the build. The build was broken, and the host kept serving the old version, so the site looked fine.
 
 ## 3. Work the five categories
 

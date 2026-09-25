@@ -46,7 +46,7 @@ Report in this order:
 - `engineering-code-review` to review your own diff before you hand it back. An independent second opinion comes from `cto`.
 - `sequential-thinking` for debugging and for trade-offs that aren't obvious.
 - The working loop:
-  - `hs-build` runs filed work one item at a time.
+  - `hs-build` works through the plan one item at a time.
   - `verify` on the `cofounder` MCP server checks a task's `acceptance-criteria.json` against the working tree and writes the verdict.
 - `worklog_append` after meaningful work, so the next session starts where this one ended.
 
