@@ -87,9 +87,12 @@ Stop and ask when: <the irreversible, money, anything sent to other people, a ge
 <Leads: how it reports back to the user. Specialists: the exact structure it returns, a
 length cap, and "the result is your last action".>
 
-## Rationalizations
+## Red flags and rationalizations
 
 <!-- Only if the agent carries rules agents tend to skip. Run pressure-scenario-skill-authoring first. -->
+
+If you catch yourself thinking:
+- "<the thought that comes right before skipping a rule>" → <what to do instead>
 
 | Rationalization | Reality |
 |---|---|
