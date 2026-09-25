@@ -2,7 +2,7 @@
 
 > Preloaded into context at the start of every session by this plugin's
 > SessionStart hook (`hooks/session-preload.sh`).
-> Fill this in yourself, or run `/technical-cofounder:onboard` for a
+> Fill this in yourself, or run `/base-novacaelum:onboard` for a
 > guided, one-question-at-a-time interview.
 
 ---

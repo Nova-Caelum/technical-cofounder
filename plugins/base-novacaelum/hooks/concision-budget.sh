@@ -93,7 +93,7 @@ elif printf '%s' "$PROMPT_LOWER" | grep -Eqw "$DEPTH_RE"; then
 fi
 
 SESSION_KEY="$(sanitize_key "$SESSION_ID" "nosession")"
-STATE_DIR="${TMPDIR:-/tmp}/technical-cofounder/concision-state"
+STATE_DIR="${TMPDIR:-/tmp}/base-novacaelum/concision-state"
 if ! mkdir -p "$STATE_DIR" 2>/dev/null; then
     log_visible "cannot create state dir $STATE_DIR — budget line only, no handoff to Stop hook"
     echo "RESPONSE BUDGET: <=${BAND} words. Conclusion stays in chat; overflow detail -> a file."

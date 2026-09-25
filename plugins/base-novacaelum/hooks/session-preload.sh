@@ -6,7 +6,7 @@
 #
 # If this project has been set up (user.md exists at the project root),
 # inject it plus the 3 most recent worklog entries into context. Otherwise
-# print one line pointing at /technical-cofounder:init.
+# print one line pointing at /base-novacaelum:setup.
 #
 # Plain stdout on SessionStart is added to Claude's context as plain text
 # (code.claude.com/docs/en/hooks-guide) — no JSON needed here.
@@ -25,11 +25,11 @@ USER_MD="$PROJECT_DIR/user.md"
 cat >/dev/null 2>&1 || true
 
 if [ ! -f "$USER_MD" ]; then
-    echo "technical-cofounder: this project hasn't been set up yet — run /technical-cofounder:init to copy the starter workspace in."
+    echo "base-novacaelum: this project hasn't been set up yet — run /base-novacaelum:setup to copy the starter workspace in."
     exit 0
 fi
 
-echo "═══ technical-cofounder session preload ═══"
+echo "═══ base-novacaelum session preload ═══"
 echo
 echo "## user.md"
 echo
