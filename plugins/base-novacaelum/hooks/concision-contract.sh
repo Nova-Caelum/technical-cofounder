@@ -46,7 +46,7 @@ if [ -z "$SESSION_ID" ]; then
     log_visible "session_id unavailable — injecting without a once-per-session guard"
 else
     SESSION_KEY="$(sanitize_key "$SESSION_ID" "nosession")"
-    STATE_DIR="${TMPDIR:-/tmp}/technical-cofounder/concision-state"
+    STATE_DIR="${TMPDIR:-/tmp}/base-novacaelum/concision-state"
     mkdir -p "$STATE_DIR" 2>/dev/null || true
     MARKER_FILE="$STATE_DIR/contract-injected-${SESSION_KEY}"
     if [ -f "$MARKER_FILE" ]; then
