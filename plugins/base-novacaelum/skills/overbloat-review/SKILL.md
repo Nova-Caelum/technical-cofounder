@@ -18,7 +18,7 @@ The signature is a worklist, phase plan or review checklist fossilized into the 
 
 Length is a symptom, never the metric. Never recommend cutting lines, compressing prose or golfing. Recommend **re-derivation**: given everything we know now, what shape does this take? Either fewer moving parts fall out of the better design or they don't. If they don't, the thing was already lean.
 
-Observed failure: a deploy script roughly doubled, from about 1,000 to 2,000 lines, during a hardening pass while every size check stayed quiet. A second model re-derived the same function at about half the size.
+Observed failure: a deploy script roughly doubled, from about 1,000 to 2,000 lines, during a hardening pass while every anti-bloat check stayed quiet. A second model re-derived the same function at about half the size.
 
 ## When to use
 
