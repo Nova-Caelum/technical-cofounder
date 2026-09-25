@@ -1,5 +1,5 @@
 """Unit tests for the technical-cofounder starter workspace: init_workspace.py
-and the guardrail hooks under plugins/technical-cofounder/hooks/.
+and the guardrail hooks under plugins/base-novacaelum/hooks/.
 
 Standard library only.
 """
@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_ROOT = REPO_ROOT / "plugins" / "technical-cofounder"
+PLUGIN_ROOT = REPO_ROOT / "plugins" / "base-novacaelum"
 HOOKS_DIR = PLUGIN_ROOT / "hooks"
 BIN_DIR = PLUGIN_ROOT / "bin"
 TEMPLATE_DIR = PLUGIN_ROOT / "template"
