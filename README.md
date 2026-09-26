@@ -16,16 +16,18 @@ claude plugin install base-novacaelum@technical-cofounder --scope project
 ```
 
 Then open Claude Code in your project and say **"set me up"**. The setup skill asks two questions:
-- Do you use Obsidian? If yes, you get a ready-made filesystem with 
-- Do you want the super plugin? which provides enhancement to core functions through a suite curated tools we love and use everyday. 
+- Do you use Obsidian? If yes, you get a ready-made vault pre-loaded with a structured filesystem and plugins that enhance Obsidian's use as a primary filesystem manager.
+- Do you want the super plugin? It adds a suite of curated tools we love and use every day.
   
 It then adds the rules, a short profile of how you work, a worklog and templates, never overwriting your files.
 
-**Optional: `super-novacaelum`.** An additional add-on plugin that take the agents capabilities to the next level. The suite includes agentic-enhanced web search (Exa), a cloud browser for better agent use of the web (Browserbase), and master instruction manual for hundreds of tools, languages, platforms so the technical agents stay up to date. MCPs and Nova Caelum authored companion skills to better help your agent use them. These tools are free to marginal cost, but require extra user setup to create accounts and download API keys for the services. Optional but encouraged. Your new forward-deployment engineer would be thrilled to help you set it up. 
+**Optional: `super-novacaelum`.** An add-on plugin that takes the agents' capabilities to the next level. The suite includes enhanced web search through Exa, a cloud browser through Browserbase to enable better agent web browsing, and a master, always up to date instruction manual for hundreds of tools, languages and platforms through Context7. Each comes as an MCP server with a Nova Caelum companion skill that helps your agent use it effectively. The tools are free or close to it, but you create your own accounts and API keys. Optional but encouraged. Your new forward-deployed engineer would be thrilled to help you set it up.
 
 ```bash
 claude plugin install super-novacaelum@technical-cofounder --scope project
 ```
+
+New to API keys? Let lead-fde know so he can walk you through accounts, generating keys and storing safely.
 
 **Needs:** Claude Code, `git` and `python3`. Super also needs Node.js.
 
