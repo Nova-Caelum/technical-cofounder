@@ -14,7 +14,7 @@ machine-readable summary line, then exits 0.
 `worklog/worklog.base` are part of the copy (every other `worklog/` file
 copies either way). --super, when set, additionally prints the
 super-novacaelum install command (project scope) and a pointer to the
-get-api-keys skill; it never copies anything itself.
+super-setup skill; it never copies anything itself.
 
 The setup skill always passes both flags explicitly — this script's own
 "ask" path exists only for a bare, human-run CLI invocation. A flag left
@@ -35,8 +35,8 @@ TEMPLATE_DIR = HERE.parent / "template"
 
 SUPER_INSTALL_CMD = "claude plugin install super-novacaelum@technical-cofounder --scope project"
 SUPER_KEY_GUIDE_POINTER = (
-    "Once installed, run the get-api-keys skill (plugins/super-novacaelum) "
-    "to walk through getting a key for each service."
+    "Next, the super-setup skill walks you through accounts and keys for "
+    "each service, starting from zero if you have never used an API key."
 )
 
 

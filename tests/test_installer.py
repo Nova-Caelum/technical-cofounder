@@ -73,10 +73,10 @@ class FourBranchTests(unittest.TestCase):
 
                     if super_:
                         self.assertIn(SUPER_INSTALL_CMD, r.stdout)
-                        self.assertIn("get-api-keys", r.stdout)
+                        self.assertIn("super-setup", r.stdout)
                     else:
                         self.assertNotIn(SUPER_INSTALL_CMD, r.stdout)
-                        self.assertNotIn("get-api-keys", r.stdout)
+                        self.assertNotIn("super-setup", r.stdout)
 
                     self.assertIn(
                         f"INIT_SUMMARY obsidian={str(obsidian).lower()} super={str(super_).lower()}",
