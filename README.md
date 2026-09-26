@@ -63,6 +63,7 @@ This repository was built with the loop it ships. [`examples/toy-run/`](examples
 
 ## Roadmap
 
+- **Hermes and Codex support:** the same team across every harness, alongside Claude Code
 - **A hosted option for super:** one Nova Caelum key instead of three vendor keys
 - **Feedback from `lead-fde`:** send us what broke, with one command
 - An engineering-practice compiler skill and a context-window meter
