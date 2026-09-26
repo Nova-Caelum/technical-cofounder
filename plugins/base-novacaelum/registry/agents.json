@@ -69,9 +69,10 @@
     {
       "name": "lead-fde",
       "role": "executor-setup",
-      "use_when": "Setting up a project or the plugins, onboarding, first-run troubleshooting, explaining how something works in plain words, or building your own agents and skills.",
+      "use_when": "Setting up a project or the plugins (including a first-timer's API keys for super), onboarding, first-run troubleshooting, explaining how something works in plain words, or building your own agents and skills.",
       "skills": [
         "setup",
+        "super-setup",
         "new-agent",
         "pressure-scenario-skill-authoring",
         "option-conception",
