@@ -71,4 +71,4 @@ Run once, with fresh eyes, and fix inline. No second pass, no reviewer.
 | "The criteria can be loose; the tests will catch it." | The criteria file is what closes the task. A loose one closes it without the work. |
 | "The implementer will know which files." | They weren't in the conversation. `produces` names each one. |
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `writing-plans` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `writing-plans` (MIT).

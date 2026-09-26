@@ -86,4 +86,4 @@ Before the announcement: does the state file read `status: live`? Is everything 
 
 Before `confirm`: did the person say the test cleared, not just that the work looks good? Is every finding either written down or an explicit "none"?
 
-Source: Nova Caelum (MIT).
+Source: Nova Caelum (Apache-2.0).

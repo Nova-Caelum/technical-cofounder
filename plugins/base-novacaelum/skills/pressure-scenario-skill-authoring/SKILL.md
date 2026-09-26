@@ -76,4 +76,4 @@ The ritual fails the moment it goes pro forma. Watch for:
 - Whether a tool behaves the way the skill assumes is a question for `assumption-check`.
 - Don't skip because "the failure is obvious". Nobody rationalizes around obvious failures. The ones agents skip under pressure come with plausible excuses.
 
-Source: Nova Caelum (MIT). Adapted from obra/superpowers `writing-skills` (MIT), including its iron law and its practice of matching the form to the failure.
+Source: Nova Caelum (Apache-2.0). Adapted from obra/superpowers `writing-skills` (MIT), including its iron law and its practice of matching the form to the failure.

@@ -51,4 +51,4 @@ Recommend A: <reason, in constraint terms>. Not B, because <line>. Flip cost: <w
 | "The first read is the read. I already know what this is." | Observed failure: a zero-usage count was read as proof that two skills were dead. The kind of work that would use them simply hadn't come up yet. The first framing is the anchor, not the answer, and a differently framed second option is the check on it. |
 | "We're past the design conversation. This is just picking values." | Observed failure: required checks stopped firing once a strategy conversation slid into hands-on value-picking, and the user had to push back twice in one session. The value-pick is where the unexamined alternative bites. |
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `brainstorming` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `brainstorming` (MIT).

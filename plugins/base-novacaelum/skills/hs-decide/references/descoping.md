@@ -41,4 +41,4 @@ Write these, in order:
 | "It's marked v2; the section can stay." | Observed failure: a spec cut its scope in the acceptance section and nowhere else, and shipped a v2-shaped design with a v1 label. |
 | "The sketch is lean; skip the overbloat review." | The review is cheap, and its findings are exactly the plan-inherited components this step misses by eye. |
 
-Source: Nova Caelum (MIT). The two-part cut rule is Nova Caelum's own; `overbloat-review` is called, not adapted.
+Source: Nova Caelum (Apache-2.0). The two-part cut rule is Nova Caelum's own; `overbloat-review` is called, not adapted.

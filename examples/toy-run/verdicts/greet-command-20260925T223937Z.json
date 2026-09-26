@@ -11,7 +11,7 @@
         "expected": "greeting.txt"
       },
       "result": "pass",
-      "evidence": "looked for 'greeting.txt' in /private/tmp/tmp_qdmr4b2/toy-run/greet.py"
+      "evidence": "looked for 'greeting.txt' in greet.py"
     },
     {
       "statement": "WHOLE-PATH: the greet test runs greet.py and sees the greeting",

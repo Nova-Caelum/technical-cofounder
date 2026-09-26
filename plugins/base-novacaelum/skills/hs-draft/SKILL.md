@@ -73,4 +73,4 @@ Come back to the user only for: a test no task can serve (a design gap, so a dou
 - Is every acceptance test served by a task, and does `## Components` name nothing the mapping lacks?
 - Do `## Principles`, `## v2 recap` and `## Closeout` carry content, not just headings?
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `writing-plans` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `writing-plans` (MIT).

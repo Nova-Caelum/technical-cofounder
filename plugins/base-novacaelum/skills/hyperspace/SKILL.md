@@ -64,4 +64,4 @@ Every script call exits `0` passed, `1` refused (fix what it names and run it ag
 
 The user's instructions override this skill and the stage skills; the skills override default behavior. Skip a stage's workflow only when the user says so explicitly.
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `using-superpowers` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `using-superpowers` (MIT).

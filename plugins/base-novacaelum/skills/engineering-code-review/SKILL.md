@@ -111,4 +111,4 @@ Save it where the project keeps reviews, or as `reviews/YYYY-MM-DD-<subject>.md`
 - Write about the code, never about the person.
 - Claim only what you checked. "I ran the tests" and "I didn't run anything" are both fine; implying one when the other happened is not.
 
-Source: Nova Caelum (MIT).
+Source: Nova Caelum (Apache-2.0).

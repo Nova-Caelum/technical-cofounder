@@ -31,4 +31,4 @@ Keep it proportional: bounded is about one screen; architectural as long as the 
 | "I'll leave the components vague; the plan will firm them up." | Build hands each task to a fresh implementer with a brief. A component that can't be briefed from its four lines gets redesigned at build, in the most expensive context. |
 | "Every component has its own test, so testing is covered." | Observed failure: a worker's unit tests passed while it sat unwired. The data flow walks the whole path. |
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `brainstorming` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `brainstorming` (MIT).

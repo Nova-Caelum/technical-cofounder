@@ -32,4 +32,4 @@ Makes a task's change provable before it is claimed: one failing test observed f
 | "I ran the tests; a status word is enough." | Pasted output is evidence; a status word is a claim. |
 | "The work is done; the criteria will sort themselves out." | The verifier runs the criteria as written. Read them first. |
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `test-driven-development` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `test-driven-development` (MIT).

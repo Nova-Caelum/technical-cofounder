@@ -38,4 +38,4 @@ When every branch is resolved, give:
 - Reopen a decision that has already been made and shipped unless the user reopens it.
 - Let a vague answer close a branch. Rephrase the question once, then record it as an open question.
 
-Source: Nova Caelum (MIT). Adapted from mattpocock/skills `grill-me` (MIT).
+Source: Nova Caelum (Apache-2.0). Adapted from mattpocock/skills `grill-me` (MIT).
