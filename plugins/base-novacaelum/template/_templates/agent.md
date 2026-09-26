@@ -7,10 +7,12 @@ AGENT SPEC TEMPLATE, filled in by the new-agent skill
 3. The Frontmatter block and the Body section become .claude/agents/<name>.md. Claude Code
    can create the file from this spec, or you can write it directly. Keep the spec either
    way: it records why the agent is shaped the way it is.
+   The Registry entry goes into .claude/registry/agents.json, so the orchestrator can route
+   work to the new agent.
 4. Word budgets are caps, not targets. A lead's body stays at or under 1,500 words, and a
    specialist's at or under 800. Longer prompts dilute instruction-following.
 
-This template comes from Nova Caelum's technical-cofounder kit (MIT).
+This template comes from Nova Caelum's technical-cofounder kit (Apache-2.0).
 -->
 
 # Agent spec: <name>
@@ -44,6 +46,19 @@ model: inherit
 color: <red | blue | green | yellow | purple | orange | pink | cyan>
 # tools: Read, Grep, Glob, Bash   <- only to RESTRICT tools; omit it to allow everything
 ---
+```
+
+## Registry entry
+
+```json
+{
+  "name": "<same as the frontmatter name>",
+  "role": "<a role declared under the registry's roles, e.g. executor-builder>",
+  "use_when": "<one sentence: the requests that should be routed here>",
+  "skills": ["<each skill it reaches for, by name>"],
+  "mcp_tools": ["<base MCP tools it uses, e.g. worklog_append>"],
+  "with_super": {"skills": ["<skills it gains with super-novacaelum>"], "mcp_servers": ["<servers>"]}
+}
 ```
 
 ## Body
