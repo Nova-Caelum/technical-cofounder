@@ -20,14 +20,7 @@ Fit the rest to their answers.
 
 ## 2. A simple, safe practice
 
-These keys are low-risk: the worst case is someone burning through your quota. No fortress, a few habits:
-
-- **One home for keys:** a password manager (an app that stores passwords safely). If they have one, use it. If not, use the one already on their device (Apple Passwords, Google Password Manager) or a free one, Bitwarden.
-- **One entry per service,** named after the service.
-- **Two places only:** the password manager and Claude Code's protected settings.
-- **Never paste a key into a chat (this one included),** a doc, an email or a screenshot. Never put it in a project file or on the command line.
-- **Turn on any usage or spend limit** the service offers.
-- **If a key leaks:** revoke it (switch it off) in the service's dashboard, create a new one, and enter it as in step 6.
+If they don't have one yet, run `secrets-setup` step 1: a password manager and a few habits. These keys are low-risk (the worst case is someone burning your quota), so keep it light. Then come back here.
 
 ## 3. Choose services
 
@@ -61,7 +54,7 @@ claude plugin install super-novacaelum@technical-cofounder --scope project
 
 ## 6. Enter keys
 
-In Claude Code, opened in the project, run `/plugin configure super-novacaelum@technical-cofounder`, or open `/plugin`, pick super-novacaelum and choose configure. It asks for each key in a hidden field (Claude Code's docs say these fields are masked). Copy the key from the password manager, paste it into that prompt, press Enter. Skip services they didn't choose.
+In Claude Code, opened in the project, run `/plugin configure super-novacaelum@technical-cofounder`, or open `/plugin`, pick super-novacaelum and choose configure. It asks for each key in a hidden field (Claude Code's docs say these fields are masked). Copy the key from the password manager, paste it into that prompt, press Enter. Never paste a key into this chat instead. Skip services they didn't choose.
 
 Where it goes: on a Mac, the login Keychain (the Mac's built-in password store). Tested on macOS, through the store this prompt uses: the key landed there and in no settings or project file. Without a supported keychain, Claude Code's docs say it uses a credentials file in its own settings folder, outside the project.
 
@@ -91,9 +84,9 @@ Three lines:
 
 | What happens | What to do |
 |---|---|
-| The user pastes a key into this chat | Don't use or repeat it. It now counts as leaked: run the leak drill in step 2. |
-| A key is about to go into a project file (`.env`, `.mcp.json`, settings) | Stop. Keys go in only through the configure prompt. |
+| The user pastes a key into this chat | Don't use or repeat it. It now counts as leaked: revoke it, create a new one and enter it as in step 6. |
+| A key is about to go into a project file (`.env`, `.mcp.json`, settings) | Stop. Plugin keys go in only through the configure prompt; keys for the user's own app go through `secrets-setup`. |
 | A key is about to go on the command line (the install's `--config` flag) | Don't. The terminal saves every command in its history file, key included. |
-| The user wants to share a screenshot or their screen | Check first that no key is visible. If one was, run the leak drill. |
+| The user wants to share a screenshot or their screen | Check first that no key is visible. If one was, treat it as leaked (row 1). |
 
 Source: Nova Caelum (Apache-2.0).
