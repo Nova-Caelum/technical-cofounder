@@ -11,7 +11,7 @@ RULE TEMPLATE
    failure.
 4. Replace every <placeholder> and delete these comments.
 
-This template comes from Nova Caelum's technical-cofounder kit (MIT).
+This template comes from Nova Caelum's technical-cofounder kit (Apache-2.0).
 -->
 
 # Rule: <Name>
