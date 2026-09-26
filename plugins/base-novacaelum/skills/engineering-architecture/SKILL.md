@@ -77,7 +77,7 @@ Save it where the project keeps decisions (check first), or as `docs/adr/YYYY-MM
 
 ## 5. Hand off
 
-The ADR anchors the spec; it isn't the implementation. Point the builder (`engineer`) at it along with acceptance criteria. When the decision is expensive to reverse, ask `cto` for an independent review. If `worklog_append` is available, log one line naming the decision and the ADR's path.
+The ADR anchors the spec; it isn't the implementation. Point the builder (`engineer`) at it along with acceptance criteria. When the decision is expensive to reverse, ask `devops-lead` for an independent review. If `worklog_append` is available, log one line naming the decision and the ADR's path.
 
 ## Red flags
 

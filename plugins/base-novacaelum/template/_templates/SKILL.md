@@ -15,7 +15,7 @@ The description holds TRIGGERS ONLY, in under about 280 characters. It loads int
 session. When a description summarizes the workflow, agents follow the summary and skip
 the body.
 
-This template comes from Nova Caelum's technical-cofounder kit (MIT).
+This template comes from Nova Caelum's technical-cofounder kit (Apache-2.0).
 -->
 
 # <Skill Title>
