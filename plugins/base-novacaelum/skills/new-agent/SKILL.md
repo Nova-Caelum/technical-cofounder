@@ -11,7 +11,7 @@ Decide whether an agent should exist. If it should, specify exactly who it is be
 
 ## The rule
 
-Never write an agent file before the gate has a written verdict. Take the facts you can't infer from the user, not from the nearest similar agent. Those facts are what it's for, what it refuses, and its model and tools. Hand the finished spec to Claude Code's own agent creation, or write `.claude/agents/<name>.md` yourself when asked. Prove the agent loads and still carries its reason to exist before you call it done.
+Never write an agent file before the gate has a written verdict. Take the facts you can't infer from the user, not from the nearest similar agent. Those facts are what it's for, what it refuses, and its model and tools. Hand the finished spec to Claude Code's own agent creation, or write `.claude/agents/<name>.md` yourself when asked. Register it, so the team's orchestrator knows it exists. Prove the agent loads and still carries its reason to exist before you call it done.
 
 ## The process
 
@@ -44,13 +44,18 @@ Never write an agent file before the gate has a written verdict. Take the facts 
 
    If the gate has never returned anything but `NEW-AGENT`, it isn't really running.
    Observed failure: once a conversation slid from strategy into building, required checks stopped firing because they depended on someone noticing them. The user had to push back twice in one session. A written verdict either exists or it doesn't.
-5. **Fill in the spec.** Copy `_templates/agent.md` to `agent-specs/<name>.md` and fill in every section. `/technical-cofounder:init` puts `_templates/` in the project, so run it if the folder is missing. Budgets are caps, not targets. Every behavior the agent carries should trace to a failure someone has seen. If the agent gets a red-flags or rationalization section, run `pressure-scenario-skill-authoring` first.
+5. **Fill in the spec.** Copy `_templates/agent.md` to `agent-specs/<name>.md` and fill in every section. The `setup` skill (`/base-novacaelum:setup`) puts `_templates/` in the project, so run it if the folder is missing. Budgets are caps, not targets. Every behavior the agent carries should trace to a failure someone has seen. If the agent gets a red-flags or rationalization section, run `pressure-scenario-skill-authoring` first.
 6. **Hand off the file creation.** By default, give Claude Code the filled spec and ask it to create the agent:
 
    > Create a project agent at `.claude/agents/<name>.md` from `agent-specs/<name>.md`. Take the frontmatter from its Frontmatter block and the body from its Body section.
 
    When the user asks you to write it directly, write `.claude/agents/<name>.md` yourself. Either way, keep the spec: it's the record of why the agent is shaped the way it is.
-7. **Prove it loads and is whole.**
+7. **Register it.** Copy the spec's Registry entry into the registry that sits beside the agents folder the file went into:
+   - a project agent in `.claude/agents/` goes in `.claude/registry/agents.json`. If that file doesn't exist yet, create it with the base registry's shape: a `roles` object (copy the base team's, or declare your own) and an `agents` list.
+   - an agent you add to a plugin goes in that plugin's `registry/agents.json`.
+
+   Then run the check and fix what it names: `python3 "${CLAUDE_PLUGIN_ROOT}/registry/check_registry.py" .claude` for a project, or with the plugin's folder in place of `.claude`. If that path doesn't resolve, find `check_registry.py` inside the installed `base-novacaelum` plugin. `technical-cofounder` routes work by reading the registry, so an agent missing from it is one it never hands anything.
+8. **Prove it loads and is whole.**
    - The frontmatter has `name` (no `:` in it) and a `description` with "Use when…" triggers.
    - Grep the body for the capability that is its whole reason to exist. Zero hits means stop and fix.
      Observed failure: an agent was one step from install with zero mentions of its signature capability. It would have shipped hollow.
@@ -72,6 +77,7 @@ Never write an agent file before the gate has a written verdict. Take the facts 
 - Does the spec's Gate section carry a verdict, and could that verdict have been anything but `NEW-AGENT`?
 - Did the model, tools and shape come from the user, or did I infer any of them?
 - Does the body mention the agent's signature capability?
+- Is it in the registry, and does `check_registry.py` pass?
 - Did it load, and did it do one task in role?
 
 ## Out of scope
@@ -80,4 +86,4 @@ Never write an agent file before the gate has a written verdict. Take the facts 
 - A new skill: `pressure-scenario-skill-authoring`, then `_templates/SKILL.md`.
 - Choosing between third-party agent packs: `option-conception` plus `overbloat-review`.
 
-Source: Nova Caelum (MIT). Merged from its internal agent design, build and install skills, with the spec template adapted from an earlier Nova Caelum client kit.
+Source: Nova Caelum (Apache-2.0). Merged from its internal agent design, build and install skills, with the spec template adapted from an earlier Nova Caelum client kit.
