@@ -5,6 +5,8 @@ description: Use when the user asks how to get or add a Context7, Exa, or Browse
 
 # Get API Keys
 
+First time with an API key? Use `base-novacaelum`'s `super-setup` skill instead: it walks you through a safe way to keep keys, each account and entering them. This page is the per-service reference.
+
 `super-novacaelum` runs three hosted MCP servers — Context7, Exa, and Browserbase — on your own keys. None of the keys ship in this plugin; each is entered through Claude Code's own secure storage, never as a file in this repo. Sequential-thinking, the plugin's fourth server, needs no key at all — it runs as a local process.
 
 ## Context7 — documentation lookup (`find-docs` skill)
@@ -31,9 +33,8 @@ description: Use when the user asks how to get or add a Context7, Exa, or Browse
 
 ## How to enter a key
 
-Either path stores the value in Claude Code's secure credential storage — never in this repo, never in plain settings:
+Inside Claude Code, opened in the project, run `/plugin configure super-novacaelum@technical-cofounder` (or open `/plugin`, pick super-novacaelum, choose configure) and paste each key into its hidden field. Every field is optional. The value goes to Claude Code's secure credential storage (on a Mac, the login Keychain), never this repo or plain settings.
 
-- **At install:** `claude plugin install super-novacaelum@technical-cofounder --scope project --config context7_api_key=YOUR_KEY --config exa_api_key=YOUR_KEY --config browserbase_api_key=YOUR_KEY`. Omit any `--config` flag you don't have a key for yet — each field is optional.
-- **After install:** run `/plugin configure super-novacaelum` inside Claude Code, or enable the plugin fresh, which prompts for each field.
+Don't put a key on the install command line: the terminal keeps it in its history file. Never paste one into chat or a project file either.
 
 Source: Nova Caelum (Apache-2.0).
