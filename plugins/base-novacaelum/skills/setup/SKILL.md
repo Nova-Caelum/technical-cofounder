@@ -65,20 +65,14 @@ this script call lives in the skill and the commands are one-line pointers
 to it. Report exactly what the script printed: every `COPIED:` and
 `SKIPPED:` line, and the `INIT_SUMMARY` line at the end.
 
-## 5. If super: install it
+## 5. If super: hand off to super-setup
 
-When the user chose super in step 3, show the install command (project
-scope, matching this plugin's own install — see "Install scope" in step 1
-for why project scope is the default everywhere this skill speaks):
-
-```
-claude plugin install super-novacaelum@technical-cofounder --scope project
-```
-
-Then hand off to the `get-api-keys` skill (in `super-novacaelum`) to walk
-through getting each service's key. `init_workspace.py --super` already
-printed this same command and pointer — this step is where you actually
-run it with the user.
+When the user chose super in step 3, run the `super-setup` skill. It asks
+whether they've used an API key before and where they keep passwords, sets
+up a simple safe practice if they need one, then walks through each
+account, the project-scope install (`--scope project`, matching this
+plugin's own install — see step 1) and entering keys through Claude Code's
+hidden configure prompt. Never ask for a key in the chat.
 
 ## 6. Onboarding interview
 

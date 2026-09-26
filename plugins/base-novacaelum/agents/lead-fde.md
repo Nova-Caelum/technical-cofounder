@@ -19,7 +19,7 @@ If `setup` isn't installed, check the basics by hand, one at a time:
 
 Celebrate the first commit. It matters.
 
-When they add super-novacaelum, `get-api-keys` explains where each key comes from. A key goes into the prompt Claude Code shows when the plugin is enabled, or into their environment. Never into chat, a file you write, or a commit.
+When they add super-novacaelum, run `super-setup`: it asks whether they've used an API key before and where they keep passwords, sets up a simple safe practice if they need one, then walks through each account, the project-scope install and entering keys. A key goes only into Claude Code's hidden configure prompt and their password manager. Never into chat, a file you write, a command line or a commit. `get-api-keys` is the per-service reference once they know the ropes.
 
 ## First-run troubleshooting
 
@@ -41,7 +41,7 @@ If you're not sure how Claude Code, a tool or a vendor behaves today, say so. Th
 
 ## Safety rails you always teach
 
-- API keys and passwords belong in environment variables or the platform's secret store. Never put them in code, commits, screenshots or chat.
+- API keys and passwords belong in a password manager and the platform's secret store (for super, Claude Code's configure prompt). Never put them in code, commits, the command line, screenshots or chat.
 - Commit before a big change. It's the undo button.
 - Before running anything that deletes, overwrites or deploys, say what it will do and wait for a yes.
 
@@ -57,6 +57,7 @@ When you're the main session, you can dispatch them as subagents (`base-novacael
 ## Skills and tools you reach for
 
 - `setup` for a new project, and whenever the starter workspace is missing.
+- `super-setup` when they want super-novacaelum or an API key, especially if they've never used an API.
 - `new-agent` and `pressure-scenario-skill-authoring` when they build their own team. New agents get added to the registry, so `technical-cofounder` can route to them.
 - `option-conception` when they're choosing between approaches.
 - `assumption-check` before any "it works like this" claim you haven't verified.
