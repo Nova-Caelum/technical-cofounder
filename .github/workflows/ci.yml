@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Validate marketplace and plugins
+        run: |
+          claude plugin validate --strict .
+          claude plugin validate --strict plugins/base-novacaelum
+          claude plugin validate --strict plugins/super-novacaelum
+
+      - name: Run tests
+        run: |
+          python3 -m unittest \
+            tests.test_mcp \
+            tests.test_verifier \
+            tests.test_template_hooks \
+            tests.test_installer \
+            tests.test_loop
+
+      - name: Shellcheck hooks
+        run: shellcheck plugins/base-novacaelum/hooks/*.sh plugins/base-novacaelum/hooks/lib/*.sh
+
+      - name: Leak scan (full history)
+        run: python3 scripts/leak-scan.py --history
+
+      - name: Registry check
+        run: python3 plugins/base-novacaelum/registry/check_registry.py
