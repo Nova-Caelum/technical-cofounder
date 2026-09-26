@@ -10,7 +10,7 @@
         "assertion": "exists"
       },
       "result": "pass",
-      "evidence": "/private/tmp/tmp_qdmr4b2/toy-run/greeting.txt"
+      "evidence": "greeting.txt"
     },
     {
       "statement": "greeting.txt holds Hello, world",
@@ -21,7 +21,7 @@
         "expected": "Hello, world"
       },
       "result": "pass",
-      "evidence": "looked for 'Hello, world' in /private/tmp/tmp_qdmr4b2/toy-run/greeting.txt"
+      "evidence": "looked for 'Hello, world' in greeting.txt"
     }
   ],
   "timestamp": "2026-09-25T22:39:37Z"

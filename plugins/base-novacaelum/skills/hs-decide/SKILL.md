@@ -77,4 +77,4 @@ Come back to the user only for: an option that passes the tests only by violatin
 - Is every deferred component gone from `## Architecture` and bulleted by exact name under `## Deferred`?
 - Was `overbloat-review` run on the sketch, with enough context to know what the goal is replacing?
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `brainstorming` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `brainstorming` (MIT).

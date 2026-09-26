@@ -45,4 +45,4 @@ Tests are numbered `T1..TN` by their position in `criteria`, `manual` ones inclu
 | "It validated, so it's a test." | Observed failure: seven criteria with a `<date>` placeholder in their paths validated, and none could ever be true. Validation is the floor. |
 | "The format can't say it, so I'll write something close that validates." | A reported gap is the most useful thing this step can return. A smoothed one is invisible. |
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `brainstorming` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `brainstorming` (MIT).

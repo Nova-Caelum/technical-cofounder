@@ -85,4 +85,4 @@ The ADR anchors the spec; it isn't the implementation. Point the builder (`engin
 - "The docs say it works that way." → That's a hypothesis. Test it before the design rests on it.
 - "We'll write it up once it's built." → By then the rejected options and the reasons for rejecting them are gone. Write the ADR now.
 
-Source: Nova Caelum (MIT). The ADR layout is modelled on the public MADR format.
+Source: Nova Caelum (Apache-2.0). The ADR layout is modelled on the public MADR format.

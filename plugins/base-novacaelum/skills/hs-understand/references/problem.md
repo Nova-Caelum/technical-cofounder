@@ -33,4 +33,4 @@ Size it to the path: bounded is about one screen; architectural is as long as th
 | "I know what they mean; I'll write the problem from the design in my head." | A problem written from the design has the design's defects one file earlier. |
 | "The assumptions are obvious; I'll list them without checking." | Observed failure: a documentation-sourced conclusion sat on record for a day before a twenty-minute test refuted it. A table typed from memory is a list of hopes with a header. |
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `brainstorming` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `brainstorming` (MIT).

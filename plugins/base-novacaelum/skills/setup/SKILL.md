@@ -106,4 +106,4 @@ Close with three lines, concrete to what was just set up: one thing to ask
 the default agent, one skill worth trying, and where the worklog lives (or
 the worklog.base view, if Obsidian was chosen).
 
-Source: Nova Caelum (MIT).
+Source: Nova Caelum (Apache-2.0).

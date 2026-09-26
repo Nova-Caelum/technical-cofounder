@@ -32,4 +32,4 @@ Create `runs/<slug>/02_decide/Decision.md`:
 | "This option passes once we add a criterion for it." | The tests are frozen. A criterion added now is a double-back to understand. Say so and stop. |
 | "The architecture obviously satisfies the constraints." | Observed failure: a deployment requirement nobody checked against the chosen architecture was found four hours into installation. One line per constraint. |
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `brainstorming` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `brainstorming` (MIT).

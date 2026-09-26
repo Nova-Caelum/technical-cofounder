@@ -78,4 +78,4 @@ Come back to the user only for: a stated constraint you can neither satisfy nor 
 - Is every stated requirement under `## Constraints`, verbatim?
 - Could every criterion fail today, and can I name the change that makes each true?
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `brainstorming` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `brainstorming` (MIT).

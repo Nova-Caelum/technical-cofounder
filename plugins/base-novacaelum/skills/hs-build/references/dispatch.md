@@ -49,4 +49,4 @@ Turns one workplan task into one piece of work: a brief on disk that is the impl
 - [ ] The criteria were read back, and any repair is a ruling in the ledger.
 - [ ] No two implementers were ever on the same file.
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `subagent-driven-development` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `subagent-driven-development` (MIT).

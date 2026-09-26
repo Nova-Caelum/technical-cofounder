@@ -23,7 +23,7 @@ Fires when:
 Does NOT fire for:
 - Writing or changing the spec or the plan: `hs-draft`. Framing or tests: `hs-understand`.
 - A run whose status is `live`. Build is over; that is `hs-live`.
-- Reviewing what was built: `engineering-code-review`, or an independent `cto`.
+- Reviewing what was built: `engineering-code-review`, or an independent `devops-lead`.
 
 ## The process
 
@@ -94,4 +94,4 @@ Come back to the user only for: an irreversible or destructive operation · a se
 - Is every ruling in the ledger with its cost, and reported under "Rulings I made"?
 - Did the build gate exit 0, not just the last verifier run?
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `subagent-driven-development` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `subagent-driven-development` (MIT).

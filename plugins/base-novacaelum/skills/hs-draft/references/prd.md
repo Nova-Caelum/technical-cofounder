@@ -30,4 +30,4 @@ Run once, with fresh eyes, and fix inline. No second pass, no reviewer.
 | "The PRD is where the architecture gets written properly." | Observed failure: a spec shipped a v2-shaped architecture with a v1 label, because the cut happened in its acceptance section and nowhere else. |
 | "Principles and deferrals are recorded elsewhere." | That is the context that gets lost between sessions. They are required sections. |
 
-Source: Nova Caelum (MIT). Derived from obra/superpowers `writing-plans` (MIT).
+Source: Nova Caelum (Apache-2.0). Derived from obra/superpowers `writing-plans` (MIT).

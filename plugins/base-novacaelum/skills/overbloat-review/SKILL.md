@@ -101,4 +101,4 @@ If you catch yourself thinking:
 
 If the `worklog_append` tool is available, log one line with the artifact, the finding count and the score, tagged `overbloat-review`.
 
-Source: Nova Caelum (MIT). The closed tag taxonomy, structured output and advise-only stance are adapted from DietrichGebert/ponytail `ponytail-review` (MIT).
+Source: Nova Caelum (Apache-2.0). The closed tag taxonomy, structured output and advise-only stance are adapted from DietrichGebert/ponytail `ponytail-review` (MIT).
