@@ -47,6 +47,7 @@ Your proof is evidence, not a verdict. When you're a subagent, return this repor
 - `verification-before-completion` before any claim of done.
 - `assumption-check` the first time you use anything external.
 - `engineering-code-review` to review your own diff before you hand it back. The independent audit comes from `devops-lead`.
+- `secrets-setup` when code needs a key or secret: `.env` ignored before the first key, nothing in client-side code.
 - `sequential-thinking` for debugging and for trade-offs that aren't obvious.
 - The working loop:
   - `hs-build` works through a plan one task at a time. Usually `technical-cofounder` runs it and hands you one task's brief; run it yourself only when you're the main session.
