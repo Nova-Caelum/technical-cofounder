@@ -54,7 +54,11 @@ class FourBranchTests(unittest.TestCase):
 
                     # base files always land
                     self.assertTrue((target / "CLAUDE.md").is_file())
-                    self.assertTrue((target / "user.md").is_file())
+                    self.assertTrue((target / "core_text" / "user.md").is_file())
+                    self.assertFalse((target / "user.md").exists())
+                    # the setup record and its guide are rendered on every copy
+                    self.assertTrue((target / "core_text" / "setup.json").is_file())
+                    self.assertTrue((target / "core_text" / "setup-guide.html").is_file())
                     self.assertTrue((target / "worklog" / "README.md").is_file())
                     rules_dir = target / ".claude" / "rules"
                     present = {p.name for p in rules_dir.glob("*.md")}
@@ -105,6 +109,34 @@ class NoOverwriteAcrossBranchesTests(unittest.TestCase):
                     self.assertEqual((target / "CLAUDE.md").read_text(), marker)
                     self.assertIn("SKIPPED: CLAUDE.md", r.stdout)
                     self.assertNotIn("COPIED: CLAUDE.md", r.stdout)
+
+    def test_existing_profile_and_record_kept(self):
+        with tempfile.TemporaryDirectory() as td:
+            target = Path(td)
+            (target / "core_text").mkdir()
+            profile = "# my profile — keep it\n"
+            (target / "core_text" / "user.md").write_text(profile)
+            record = '{"schema_version": 1, "steps": {}, "choices": {"super": "no"}}'
+            (target / "core_text" / "setup.json").write_text(record)
+            r = run_init(target, obsidian=False, super_=False)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual((target / "core_text" / "user.md").read_text(), profile)
+            self.assertEqual((target / "core_text" / "setup.json").read_text(), record)
+            self.assertIn("SKIPPED: core_text/user.md", r.stdout)
+
+    def test_legacy_root_profile_is_not_shadowed(self):
+        # A kept user.md at the project root stays the profile the preload
+        # reads: no blank core_text/user.md is laid beside it.
+        with tempfile.TemporaryDirectory() as td:
+            target = Path(td)
+            legacy = "# my profile at the old location\n"
+            (target / "user.md").write_text(legacy)
+            r = run_init(target, obsidian=False, super_=False)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual((target / "user.md").read_text(), legacy)
+            self.assertFalse((target / "core_text" / "user.md").exists())
+            self.assertIn("SKIPPED: core_text/user.md", r.stdout)
+            self.assertTrue((target / "core_text" / "setup.json").is_file())
 
     def test_second_run_same_branch_is_idempotent(self):
         with tempfile.TemporaryDirectory() as td:

@@ -1,0 +1,95 @@
+{
+  "about": "The setup steps, in order. The setup skill, bin/setup_record.py (the record and the rendered guide) and the session preload all read this file, so adding a step is an edit here. choices lists the only keys a step may record in core_text/setup.json.",
+  "steps": [
+    {
+      "id": "guide",
+      "title": "This guide",
+      "does": "Shows every setup step, how long it takes, and which ones can wait.",
+      "why": "Seeing the whole path first lets you choose what fits the time you have today.",
+      "skippable": false,
+      "if_skipped": "Not skippable, because it is this page and takes a minute.",
+      "minutes": 1,
+      "choices": []
+    },
+    {
+      "id": "prerequisites",
+      "title": "Check the basics",
+      "does": "Checks that Python and Git are installed, and that the plugin is switched on for this project only.",
+      "why": "The plugin's own tools run on Python, and Git is how you save your work and undo a mistake.",
+      "skippable": false,
+      "if_skipped": "Not skippable, because without Python the plugin's tools cannot start.",
+      "minutes": 3,
+      "choices": []
+    },
+    {
+      "id": "editor",
+      "title": "An app for your notes",
+      "does": "Makes sure you can open and edit the notes (Markdown files) this workspace gives you.",
+      "why": "Your profile, the worklog and every plan are notes, so you need a way to read and change them.",
+      "skippable": true,
+      "if_skipped": "You can still work in chat, but you will not be able to read or edit your own notes.",
+      "minutes": 3,
+      "choices": ["editor"]
+    },
+    {
+      "id": "obsidian",
+      "title": "Obsidian (optional)",
+      "does": "Sets up Obsidian, a free notes app, with a ready-made table of your worklog.",
+      "why": "Obsidian shows your notes and worklog as one browsable, searchable view instead of a folder of files.",
+      "skippable": true,
+      "if_skipped": "Your notes still open in any editor, just without the Obsidian worklog table.",
+      "minutes": 5,
+      "choices": ["obsidian"]
+    },
+    {
+      "id": "github",
+      "title": "GitHub",
+      "does": "Connects this computer to a free GitHub account, so your project can be backed up and shared.",
+      "why": "GitHub keeps a safe copy of your project off this computer and is how most people share code.",
+      "skippable": true,
+      "if_skipped": "Your project lives on this computer only until you connect GitHub, which you can do any time.",
+      "minutes": 10,
+      "choices": ["github"]
+    },
+    {
+      "id": "workspace",
+      "title": "Your starter workspace",
+      "does": "Copies the starter files into this project: your profile, the worklog, the rules and the templates.",
+      "why": "These files are how every agent remembers you and what happened in earlier sessions.",
+      "skippable": false,
+      "if_skipped": "Not skippable, because the rest of setup writes into these files.",
+      "minutes": 2,
+      "choices": ["worklog_view"]
+    },
+    {
+      "id": "super",
+      "title": "Research extras (optional)",
+      "does": "Adds super-novacaelum: current documentation lookup, web research and a cloud browser, on your own accounts.",
+      "why": "Agents can check today's documentation and the web instead of relying on what they already know.",
+      "skippable": true,
+      "if_skipped": "Agents use built-in web search instead, and anything that needs a real browser comes back to you.",
+      "minutes": 15,
+      "choices": ["super"]
+    },
+    {
+      "id": "profile",
+      "title": "About you",
+      "does": "A short interview, one question at a time, that fills in your profile.",
+      "why": "Agents read your profile at the start of every session, so they work the way you like from the first message.",
+      "skippable": true,
+      "if_skipped": "Agents fall back to general defaults and will not know your goals or how you like to work.",
+      "minutes": 8,
+      "choices": []
+    },
+    {
+      "id": "first-steps",
+      "title": "What to try first",
+      "does": "Three concrete things to try with your new setup.",
+      "why": "A small first win shows you how the team works before you rely on it for something big.",
+      "skippable": true,
+      "if_skipped": "Nothing breaks, you just start without a suggested first task.",
+      "minutes": 2,
+      "choices": []
+    }
+  ]
+}

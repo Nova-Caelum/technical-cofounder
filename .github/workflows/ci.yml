@@ -35,7 +35,8 @@ jobs:
             tests.test_template_hooks \
             tests.test_installer \
             tests.test_loop \
-            tests.test_ask
+            tests.test_ask \
+            tests.test_setup_record
 
       - name: Shellcheck hooks
         run: shellcheck plugins/base-novacaelum/hooks/*.sh plugins/base-novacaelum/hooks/lib/*.sh

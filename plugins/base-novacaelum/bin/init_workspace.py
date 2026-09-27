@@ -6,9 +6,14 @@ Usage:
 
 Copies every file under ../template/ (relative to this script) into
 <target-dir>, preserving the relative path. Never overwrites a file that
-already exists at the destination. Prints one "COPIED: <relpath>" or
+already exists at the destination, and skips core_text/user.md when a
+user.md is still at the project root, so a kept profile is never shadowed. Prints one "COPIED: <relpath>" or
 "SKIPPED: <relpath>" line per file, in sorted order, then a
 machine-readable summary line, then exits 0.
+
+After the copy it runs setup_record.py's render, which creates
+core_text/setup.json (every setup step pending) when it is absent, never
+replaces an existing one, and writes core_text/setup-guide.html.
 
 --obsidian/--no-obsidian controls whether `.obsidian/` and
 `worklog/worklog.base` are part of the copy (every other `worklog/` file
@@ -32,6 +37,11 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE_DIR = HERE.parent / "template"
+
+PROFILE = Path("core_text") / "user.md"
+
+sys.path.insert(0, str(HERE))
+import setup_record  # noqa: E402
 
 SUPER_INSTALL_CMD = "claude plugin install super-novacaelum@technical-cofounder --scope project"
 SUPER_KEY_GUIDE_POINTER = (
@@ -83,10 +93,23 @@ def init_workspace(target_dir, obsidian, super_):
             lines.append(f"SKIPPED: {rel}")
             skipped += 1
             continue
+        if rel == PROFILE and (target / "user.md").is_file():
+            # A profile kept at the old root location stays the one agents read.
+            lines.append(f"SKIPPED: {rel} (user.md is at the project root)")
+            skipped += 1
+            continue
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dest)
         lines.append(f"COPIED: {rel}")
         copied += 1
+
+    try:
+        had_record = setup_record.record_path(target).exists()
+        guide = setup_record.render(target)
+        lines.append(f"RECORD: core_text/setup.json {'kept' if had_record else 'created'}")
+        lines.append(f"RENDERED: core_text/{guide.name}")
+    except setup_record.Refused as exc:
+        lines.append(f"RECORD: {exc}")
 
     if super_:
         lines.append("")
