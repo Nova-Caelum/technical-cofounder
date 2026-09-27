@@ -66,14 +66,19 @@ class FourBranchTests(unittest.TestCase):
 
                     obsidian_dir = target / ".obsidian"
                     worklog_base = target / "worklog" / "worklog.base"
+                    obsidian_guide = target / "OBSIDIAN.md"
                     if obsidian:
                         self.assertTrue(obsidian_dir.is_dir())
                         self.assertTrue((obsidian_dir / "core-plugins.json").is_file())
                         self.assertTrue((obsidian_dir / "community-plugins.json").is_file())
                         self.assertTrue(worklog_base.is_file())
+                        self.assertTrue(obsidian_guide.is_file())
                     else:
                         self.assertFalse(obsidian_dir.exists())
                         self.assertFalse(worklog_base.exists())
+                        # a user who declined Obsidian gets no guide to an app
+                        # they are not running
+                        self.assertFalse(obsidian_guide.exists())
 
                     if super_:
                         self.assertIn(SUPER_INSTALL_CMD, r.stdout)
