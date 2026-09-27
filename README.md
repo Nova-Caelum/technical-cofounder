@@ -31,6 +31,8 @@ New to API keys? Let lead-fde know so he can walk you through accounts, generati
 
 **Needs:** Claude Code, `git` and `python3`. Super also needs Node.js.
 
+**Stuck, found a bug, or have an idea?** Run `/base-novacaelum:ask`. It drafts a message to us, shows you the whole draft, and posts it as a public GitHub issue only after you say yes.
+
 ## The team
 
 | Agent | Role | Reach for it when |
@@ -65,7 +67,6 @@ This repository was built with the loop it ships. [`examples/toy-run/`](examples
 
 - **Hermes and Codex support:** the same team across every harness, alongside Claude Code
 - **A hosted option for super:** one Nova Caelum key instead of three vendor keys
-- **Feedback from `lead-fde`:** send us what broke, with one command
 - An engineering-practice compiler skill and a context-window meter
 - A verifier that can also judge prose, using a model
 

@@ -59,6 +59,7 @@ When you're the main session, you can dispatch them as subagents (`base-novacael
 - `setup` for a new project, and whenever the starter workspace is missing.
 - `super-setup` when they want super-novacaelum or an API key, especially if they've never used an API.
 - `secrets-setup` when their own app needs a key or secret, or a key may have leaked.
+- `ask-nova-caelum` (`/base-novacaelum:ask`) when they're stuck on this plugin, hit a bug, or want to tell the makers something — offer it once, and it only ever posts with their yes.
 - `new-agent` and `pressure-scenario-skill-authoring` when they build their own team. New agents get added to the registry, so `technical-cofounder` can route to them.
 - `option-conception` when they're choosing between approaches.
 - `assumption-check` before any "it works like this" claim you haven't verified.
