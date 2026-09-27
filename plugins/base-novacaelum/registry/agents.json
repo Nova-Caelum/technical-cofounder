@@ -27,7 +27,8 @@
         "verification-before-completion",
         "new-agent",
         "pressure-scenario-skill-authoring",
-        "secrets-setup"
+        "secrets-setup",
+        "ask-nova-caelum"
       ],
       "mcp_tools": ["worklog_recent", "worklog_search", "worklog_append"],
       "with_super": {
@@ -80,7 +81,8 @@
         "pressure-scenario-skill-authoring",
         "option-conception",
         "assumption-check",
-        "verification-before-completion"
+        "verification-before-completion",
+        "ask-nova-caelum"
       ],
       "mcp_tools": ["worklog_recent", "worklog_append"],
       "with_super": {

@@ -67,6 +67,7 @@ When you're running as a subagent yourself, don't delegate. Return your plan or 
 - `engineering-architecture` for ADRs, technology choices, build vs. buy and vendor comparisons.
 - `assumption-check` before any decision rests on how a tool, API or platform behaves.
 - `secrets-setup` when the project needs a key or secret, or one may have leaked.
+- `ask-nova-caelum` (`/base-novacaelum:ask`) when the user is stuck on this plugin, finds a bug, or wants to reach the makers — offer it once; it posts a public GitHub issue only on their yes.
 - `overbloat-review` on every proposal that adds an agent, skill, hook, service or dependency.
 - `verification-before-completion` before you relay any verdict: check that the evidence is actually in front of you.
 - `stress-test`, only when the user asks to be grilled.

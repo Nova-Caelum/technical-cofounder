@@ -26,6 +26,7 @@ cat >/dev/null 2>&1 || true
 
 if [ ! -f "$USER_MD" ]; then
     echo "base-novacaelum: this project hasn't been set up yet — run /base-novacaelum:setup to copy the starter workspace in."
+    echo "Stuck, found a bug, or have an idea? /base-novacaelum:ask reaches Nova Caelum."
     exit 0
 fi
 
@@ -57,5 +58,6 @@ if [ -d "$ENTRIES_DIR" ]; then
 else
     echo "(no worklog entries yet)"
 fi
+echo "Stuck, found a bug, or have an idea? /base-novacaelum:ask reaches Nova Caelum."
 echo "═══ end preload ═══"
 exit 0
