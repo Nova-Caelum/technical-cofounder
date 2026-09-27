@@ -15,8 +15,8 @@ After the copy it runs setup_record.py's render, which creates
 core_text/setup.json (every setup step pending) when it is absent, never
 replaces an existing one, and writes core_text/setup-guide.html.
 
---obsidian/--no-obsidian controls whether `.obsidian/` and
-`worklog/worklog.base` are part of the copy (every other `worklog/` file
+--obsidian/--no-obsidian controls whether `.obsidian/`,
+`worklog/worklog.base` and `OBSIDIAN.md` are part of the copy (every other `worklog/` file
 copies either way). --super, when set, additionally prints the
 super-novacaelum install command (project scope) and a pointer to the
 super-setup skill; it never copies anything itself.
@@ -51,7 +51,9 @@ SUPER_KEY_GUIDE_POINTER = (
 
 
 def _is_obsidian_only(rel):
-    return rel.parts[0] == ".obsidian" or rel == Path("worklog") / "worklog.base"
+    return (rel.parts[0] == ".obsidian"
+            or rel == Path("worklog") / "worklog.base"
+            or rel == Path("OBSIDIAN.md"))
 
 
 def _stdin_is_tty():
@@ -132,7 +134,7 @@ def main(argv):
     parser.add_argument("target_dir", metavar="<target-dir>")
     parser.add_argument(
         "--obsidian", dest="obsidian", action="store_true", default=None,
-        help="include the Obsidian starter view (.obsidian/, worklog/worklog.base)",
+        help="include the Obsidian starter view (.obsidian/, worklog/worklog.base, OBSIDIAN.md)",
     )
     parser.add_argument(
         "--no-obsidian", dest="obsidian", action="store_false",

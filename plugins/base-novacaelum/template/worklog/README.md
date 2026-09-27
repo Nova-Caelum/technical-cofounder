@@ -15,3 +15,8 @@ The SessionStart hook (`hooks/session-preload.sh`) reads the 3 most recent
 entries and adds them to context at the start of every session, so an
 agent picks up where the last one left off without you having to repeat
 yourself.
+
+If you took the Obsidian view at setup, `worklog.base` beside this file is a live
+table over every entry — see [`../OBSIDIAN.md`](../OBSIDIAN.md), which also covers
+the two Obsidian Sync settings that stop `.base` files and community plugins from
+travelling between your devices.
