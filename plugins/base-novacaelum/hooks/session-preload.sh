@@ -17,6 +17,13 @@
 # python3, the plugin's own prerequisite. It prints only the three fixed
 # plugin names and states, never a settings value, and never writes a file.
 #
+# With Hyperspace Engine present (.hyperspace/graph.db), bin/he_bridge.py
+# takes over the worklog block: in a set-up project it runs the one-time
+# handshake (write worklog_owner, and worklog_mirror_dir for an Obsidian
+# view, after importing worklog/entries once), then prints the block from
+# Hyperspace's store when TC owns the preload, or nothing when Hyperspace's
+# own hook does. Without .hyperspace/graph.db this script is unchanged.
+#
 # Plain stdout on SessionStart is added to Claude's context as plain text
 # (code.claude.com/docs/en/hooks-guide) — no JSON needed here.
 #
@@ -51,6 +58,12 @@ import sys
 from pathlib import Path
 
 project, home, plugin = (Path(a) for a in sys.argv[1:4])
+sys.path.insert(0, str(plugin / "bin"))
+try:
+    import he_bridge
+    he_mode = he_bridge.mode(project)
+except Exception:
+    he_mode = "tc"
 
 
 def load(path):
@@ -85,7 +98,9 @@ choices = record.get("choices") if isinstance(record.get("choices"), dict) else 
 super_present = enabled("super-novacaelum")
 print("- base-novacaelum: present")
 print(f"- super-novacaelum: {state(super_present, choices.get('super') == 'yes')}")
-print(f"- hyperspace-engine: {state(enabled('hyperspace-engine') or (project / '.hyperspace' / 'config.toml').is_file(), False)}")
+he_state = state(enabled("hyperspace-engine") or (project / ".hyperspace" / "config.toml").is_file(), False)
+he_owned = " · worklog: hyperspace (owned by TC preload)" if he_mode == "tc-preload" else ""
+print(f"- hyperspace-engine: {he_state}{he_owned}")
 if not super_present:
     print(f"Without super: {plugin / 'reference' / 'without-super.md'} lists what to use instead of each super service.")
 
@@ -118,25 +133,30 @@ fi
 echo
 
 ENTRIES_DIR="$PROJECT_DIR/worklog/entries"
-echo "## Recent worklog — last 3"
-echo
-if [ -d "$ENTRIES_DIR" ]; then
-    # Entries are named <timestamp>-<slug>.md, so a lexical sort is a
-    # chronological sort.
-    RECENT=""
-    RECENT="$(find "$ENTRIES_DIR" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | tail -3)" || RECENT=""
-    if [ -n "$RECENT" ]; then
-        while IFS= read -r entry; do
-            [ -n "$entry" ] || continue
-            echo "--- $(basename "$entry") ---"
-            cat "$entry" 2>/dev/null || true
-            echo
-        done <<<"$RECENT"
+if [ -f "$PROJECT_DIR/.hyperspace/graph.db" ]; then
+    python3 "$PLUGIN_ROOT/bin/he_bridge.py" preload "$PROJECT_DIR" 2>/dev/null \
+        || echo "(worklog unavailable: python3 could not run the Hyperspace bridge)"
+else
+    echo "## Recent worklog — last 3"
+    echo
+    if [ -d "$ENTRIES_DIR" ]; then
+        # Entries are named <timestamp>-<slug>.md, so a lexical sort is a
+        # chronological sort.
+        RECENT=""
+        RECENT="$(find "$ENTRIES_DIR" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | tail -3)" || RECENT=""
+        if [ -n "$RECENT" ]; then
+            while IFS= read -r entry; do
+                [ -n "$entry" ] || continue
+                echo "--- $(basename "$entry") ---"
+                cat "$entry" 2>/dev/null || true
+                echo
+            done <<<"$RECENT"
+        else
+            echo "(no worklog entries yet)"
+        fi
     else
         echo "(no worklog entries yet)"
     fi
-else
-    echo "(no worklog entries yet)"
 fi
 echo
 tech_primer

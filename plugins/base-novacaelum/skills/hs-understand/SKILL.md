@@ -1,6 +1,6 @@
 ---
 name: hs-understand
-description: The first stage of the working loop. Use when a goal arrives unframed ("let's figure out what we're building", "spec this out", "what does done look like", "is this worth doing") or when a run has no tests.json yet. Finds the real problem, holds the stated constraints hard, and writes the acceptance tests before anything is designed.
+description: The first stage of the working loop. Use when a goal arrives unframed ("let's figure out what we're building", "spec this out", "what does done look like", "is this worth doing") or when a run has no tests.json yet. Finds the real problem, holds the stated constraints hard, and writes the acceptance tests before anything is designed. If Hyperspace Engine is installed, use its gear* skills instead.
 ---
 
 # hs-understand: frame the goal, write the tests

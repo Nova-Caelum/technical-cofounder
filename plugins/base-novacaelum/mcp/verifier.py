@@ -19,6 +19,12 @@ CLI:
 
 Fail closed: any error while evaluating a criterion yields "uncertain",
 never "pass".
+
+A verdict never closes anything. A criteria file may carry "work_item": the
+external_id of a Hyperspace Engine work item. When it does and Hyperspace
+Engine is present (<root>/.hyperspace/graph.db), the verdict gains a
+"next_step" line: close that item through Hyperspace Engine's
+complete_workitem, its one closure door.
 """
 import argparse
 import json
@@ -230,6 +236,12 @@ def run_verification(criteria_file, root=None, attestations=None):
     overall = _overall(results) if results else RESULT_UNCERTAIN
 
     verdict = {"id": crit_id, "overall": overall, "criteria": results, "timestamp": _now_iso()}
+    work_item = data.get("work_item")
+    if isinstance(work_item, str) and work_item.strip() and (root_path / ".hyperspace" / "graph.db").is_file():
+        verdict["next_step"] = (
+            f"This verdict closes nothing. Close work item {work_item.strip()!r} through "
+            "Hyperspace Engine's complete_workitem."
+        )
     write_verdict(root_path, verdict)
     return verdict
 

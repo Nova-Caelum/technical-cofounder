@@ -6,6 +6,10 @@ Standard library only, no network, no credentials. Exposes the worklog
 (verify) tools. Declared in ../.mcp.json as:
     python3 ${CLAUDE_PLUGIN_ROOT}/mcp/server.py
 
+When Hyperspace Engine holds the project's worklog (see ../bin/he_bridge.py),
+the worklog tools go through its CLI instead of worklog.py and fail loud if it
+is missing; otherwise worklog.py runs exactly as it always has.
+
 Error handling: an unknown method returns a JSON-RPC error (-32601). A
 tool exception is reported as a tool result with isError: true and the
 message -- the server never exits on a bad call. Notifications (messages
@@ -17,7 +21,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(1, str(Path(__file__).resolve().parent.parent / "bin"))
 
+import he_bridge  # noqa: E402
 import verifier  # noqa: E402
 import worklog  # noqa: E402
 
@@ -27,7 +33,7 @@ SERVER_VERSION = "0.1.0"
 TOOLS = [
     {
         "name": "worklog_append",
-        "description": "Append an entry to the project worklog (canonical markdown, derived CSV index).",
+        "description": "Append an entry to the project worklog (canonical markdown, derived CSV index; Hyperspace Engine's store when it holds this project's worklog).",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -66,7 +72,7 @@ TOOLS = [
     },
     {
         "name": "verify",
-        "description": "Evaluate a typed acceptance-criteria file against the project root (verifier-lite). Fails closed.",
+        "description": "Evaluate a typed acceptance-criteria file against the project root (verifier-lite). Fails closed and closes nothing; when the file names a Hyperspace Engine work item (\"work_item\": its external_id), the verdict says to close it through complete_workitem.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -94,20 +100,28 @@ def _resolve_root(args):
     return os.getcwd()
 
 
+def _worklog_for(root):
+    """Hyperspace Engine's store when it holds this project's worklog, else TC's markdown."""
+    return he_bridge if he_bridge.uses_store(root) else worklog
+
+
 def _call_tool(name, args):
     args = args or {}
     if name == "worklog_append":
-        return worklog.append(
-            _resolve_root(args),
+        root = _resolve_root(args)
+        return _worklog_for(root).append(
+            root,
             args["summary"],
             detail=args.get("detail", ""),
             author=args.get("author", "agent"),
             tags=args.get("tags", []),
         )
     if name == "worklog_recent":
-        return worklog.recent(_resolve_root(args), n=args.get("n", 5))
+        root = _resolve_root(args)
+        return _worklog_for(root).recent(root, n=args.get("n", 5))
     if name == "worklog_search":
-        return worklog.search(_resolve_root(args), args["query"])
+        root = _resolve_root(args)
+        return _worklog_for(root).search(root, args["query"])
     if name == "verify":
         return verifier.run_verification(
             args["criteria_file"],

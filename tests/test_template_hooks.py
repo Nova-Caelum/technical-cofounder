@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 import uuid
@@ -252,6 +253,77 @@ class SessionPreloadTests(unittest.TestCase):
                        f"---\ndate: 2026-09-2{i}T10:00:00Z\nauthor: technical-cofounder\nsummary: entry {i}\ntags: [a, b]\n---\n\n{body}\n")
         out = self.preload()
         self.assertLess(len(out.encode("utf-8")), 6000)
+
+
+sys.path.insert(0, str(REPO_ROOT))
+from tests.test_he_bridge import IMPORT_FIRST, MIRROR_REBUILT, NO_STORE, RECENT_OK, FakeHE  # noqa: E402
+
+BLOCK_RE = re.compile(r"(?m)^## Recent worklog")
+
+
+class HyperspacePreloadTests(unittest.TestCase):
+    """session-preload.sh with Hyperspace Engine present (its CLI stubbed by
+    FakeHE), reusing SessionPreloadTests' temp project, pinned HOME and runner."""
+
+    setUp = SessionPreloadTests.setUp
+    preload = SessionPreloadTests.preload
+    write = SessionPreloadTests.write
+    stack = SessionPreloadTests.stack
+
+    def set_up(self, view="obsidian", owner=None, entries=0):
+        self.write("core_text/user.md", "# p\n")
+        return FakeHE(self.project, owner=owner, view=view, entries=entries)
+
+    def test_he_first_preload_runs_the_handshake_once(self):
+        fake = self.set_up(entries=2)
+        fake.respond("import", IMPORT_FIRST)
+        fake.respond("mirror", MIRROR_REBUILT)
+        fake.respond("recent", RECENT_OK)
+        out = self.preload()
+        self.assertIn('worklog_owner = "technical-cofounder"', fake.config())
+        self.assertIn('worklog_mirror_dir = "worklog/entries"', fake.config())
+        self.assertNotIn("handshake", out)
+        config = fake.config()
+        self.preload()
+        self.assertEqual(fake.config(), config)
+        verbs = [c[3] for c in fake.calls()]
+        self.assertEqual((verbs.count("import"), verbs.count("mirror")), (1, 1))
+
+    def test_he_owned_block_comes_from_the_cli(self):
+        fake = self.set_up(owner="technical-cofounder", entries=2)
+        row = dict(json.loads(RECENT_OK)["entries"][0], detailed="Decided to keep the retry in the client. " * 60)
+        fake.respond("recent", json.dumps({"ok": True, "entries": [row] * 3}))
+        self.write("core_text/user.md", (TEMPLATE_DIR / "core_text" / "user.md").read_text(encoding="utf-8"))
+        out = self.preload()
+        self.assertEqual(len(BLOCK_RE.findall(out)), 1, out)
+        self.assertIn("## Recent worklog — last 3", out)
+        self.assertIn("Shipped the worklog CLI.", out)
+        self.assertNotIn("2026090", out, "the markdown files are not the source in this mode")
+        self.assertEqual(len([ln for ln in out.splitlines() if "gear*" in ln]), 1)
+        self.assertEqual(self.stack(out)["hyperspace-engine"], "present · worklog: hyperspace (owned by TC preload)")
+        self.assertLess(len(out.encode("utf-8")), 6000)
+
+    def test_he_owning_the_preload_means_no_tc_block(self):
+        self.set_up(owner="hyperspace-engine", entries=1)
+        out = self.preload()
+        self.assertEqual(BLOCK_RE.findall(out), [])
+        self.assertEqual(self.stack(out)["hyperspace-engine"], "present")
+
+    def test_he_failed_handshake_is_one_line_and_no_tc_block(self):
+        fake = self.set_up(entries=1)
+        fake.respond("import", NO_STORE, 3)
+        out = self.preload()
+        self.assertEqual(len([ln for ln in out.splitlines() if "handshake" in ln]), 1)
+        self.assertEqual(BLOCK_RE.findall(out), [])
+        self.assertNotIn("worklog_owner", fake.config())
+
+    def test_he_not_set_up_claims_nothing(self):
+        fake = FakeHE(self.project, entries=1)
+        before = fake.config()
+        out = self.preload()
+        self.assertIn("/base-novacaelum:setup", out)
+        self.assertEqual(fake.config(), before)
+        self.assertEqual(fake.calls(), [])
 
 
 class HookSampleAndMalformedInputTests(unittest.TestCase):

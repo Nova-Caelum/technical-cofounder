@@ -1,6 +1,6 @@
 ---
 name: hs-draft
-description: The third stage of the working loop. Use when a run's decision has passed the decide gate and nothing is planned yet ("write the PRD", "write the plan", "spec it and plan it", "break this into tasks"). Renders the frozen decision into a spec (PRD.md) and a plan (workplan.json), where every task carries a criteria file a verifier can close.
+description: The third stage of the working loop. Use when a run's decision has passed the decide gate and nothing is planned yet ("write the PRD", "write the plan", "spec it and plan it", "break this into tasks"). Renders the frozen decision into a spec (PRD.md) and a plan (workplan.json), where every task carries a criteria file a verifier can close. If Hyperspace Engine is installed, use its gear* skills instead.
 ---
 
 # hs-draft: the spec and the plan
