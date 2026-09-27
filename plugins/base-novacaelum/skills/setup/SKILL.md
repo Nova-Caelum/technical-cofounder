@@ -32,6 +32,35 @@ claude plugin uninstall base-novacaelum@technical-cofounder --scope user
 claude plugin install base-novacaelum@technical-cofounder --scope project
 ```
 
+Last prerequisite, and the one nobody checks: **can they open and edit a
+markdown file?** Every file this workspace gives them is markdown — `user.md`,
+worklog entries, the loop's own artifacts — so an answer of "no" means half the
+work is unreachable, and it will not surface as a question. It will surface as a
+user who goes quiet.
+
+Look before asking. On macOS, `ls /Applications | grep -iE "obsidian|visual
+studio code|typora|zed|sublime"`; on Windows, check
+`%LOCALAPPDATA%\Programs`. If something is there, say which and move on — do not
+make them answer a question you can already see the answer to.
+
+If nothing is there, ask it plainly and without condescension: *do you have a way
+to open and edit `.md` files, and would you like help getting one?* Then offer,
+one line each, and let them pick:
+
+- **Obsidian** — free. Best fit here, and it is the same app the Obsidian starter
+  view in the next step is for, so choosing it makes that step worth saying yes to.
+- **VS Code** — free. A code editor too, so it is the one to pick if they expect
+  to read code as well as notes.
+- **Typora** — paid, and the cleanest if they want a document rather than a
+  file-tree.
+- **What is already on the machine** — TextEdit or Notepad opens `.md` today.
+  Markdown is plain text; nothing is required. Worth saying out loud, because a
+  user who thinks a special app is mandatory will stall on installing one.
+
+Whatever they pick, they install it — offer the download page, do not install it
+for them. If they want none, note it and continue; nothing in setup is blocked by
+this. It is worth knowing which case you are in before the first artifact lands.
+
 ## 2. Obsidian?
 
 Ask whether they want the Obsidian starter view: a minimal `.obsidian/`
@@ -40,6 +69,11 @@ config (core Bases plugin enabled, no community plugins needed) plus
 (date, author, summary, tags). Skip it and they still get the plain
 `worklog/entries/*.md` files and `worklog.csv` index — just no Obsidian
 view over them.
+
+This question is already half-answered by step 1. If they have Obsidian, or just
+installed it, say yes is the easy call and say why. If they do not have it and did
+not want it, do not sell it here — the starter view is a config for an app they do
+not run.
 
 ## 3. Base only, or base plus super?
 
