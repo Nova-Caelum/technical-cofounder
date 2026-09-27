@@ -1,6 +1,6 @@
 ---
 name: ask-nova-caelum
-description: Use when the user says they're stuck, found a bug, have a feature request, want to share feedback, or want to ask Nova Caelum something directly — or offer it once, yourself, after something keeps failing. Triggers: "stuck", "bug", "feedback", "feature request", "ask nova caelum".
+description: Use when the user says they're stuck, found a bug, have a feature request, want to share feedback, or want to ask Nova Caelum something directly, or offer it once yourself after something keeps failing.
 ---
 
 # Ask Nova Caelum
