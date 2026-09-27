@@ -5,6 +5,7 @@ Standard library only.
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -54,7 +55,8 @@ class InitWorkspaceTests(unittest.TestCase):
             r = init_into(target)
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertTrue((target / "CLAUDE.md").is_file())
-            self.assertTrue((target / "user.md").is_file())
+            self.assertTrue((target / "core_text" / "user.md").is_file())
+            self.assertTrue((target / "core_text" / "setup.json").is_file())
             self.assertTrue((target / "worklog" / "README.md").is_file())
             rules_dir = target / ".claude" / "rules"
             present = {p.name for p in rules_dir.glob("*.md")}
@@ -72,7 +74,7 @@ class InitWorkspaceTests(unittest.TestCase):
             self.assertIn("SKIPPED: CLAUDE.md", r.stdout)
             self.assertNotIn("COPIED: CLAUDE.md", r.stdout)
             # everything else still lands
-            self.assertTrue((target / "user.md").is_file())
+            self.assertTrue((target / "core_text" / "user.md").is_file())
 
     def test_second_run_is_fully_idempotent(self):
         with tempfile.TemporaryDirectory() as td:
@@ -117,6 +119,139 @@ class RulesPackTests(unittest.TestCase):
             text = (rules_dir / name).read_text()
             for term in blocked:
                 self.assertNotIn(term, text, f"{name} contains blocked term {term!r}")
+
+
+STEP_IDS = [s["id"] for s in json.loads((PLUGIN_ROOT / "setup" / "steps.json").read_text(encoding="utf-8"))["steps"]]
+SUPER_KEY = "super-novacaelum@technical-cofounder"
+
+
+class SessionPreloadTests(unittest.TestCase):
+    """session-preload.sh in a temp project, with HOME pinned to a temp dir so
+    the machine's own ~/.claude/settings.json never leaks into a result."""
+
+    def setUp(self):
+        self.project = Path(tempfile.mkdtemp())
+        self.home = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.project, ignore_errors=True)
+        self.addCleanup(shutil.rmtree, self.home, ignore_errors=True)
+
+    def preload(self):
+        env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PROJECT_DIR")}
+        env.update(CLAUDE_PROJECT_DIR=str(self.project), HOME=str(self.home))
+        r = subprocess.run(["bash", str(HOOKS_DIR / "session-preload.sh")], input="{}", capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def write(self, rel, text, base=None):
+        path = (base or self.project) / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    def settings(self, rel, enabled, base=None, **extra):
+        self.write(rel, json.dumps({"enabledPlugins": enabled, **extra}), base)
+
+    def record(self, done=(), choices=None):
+        steps = {s: {"status": "done" if s in done else "pending", "at": None} for s in STEP_IDS}
+        self.write("core_text/setup.json", json.dumps({"schema_version": 1, "steps": steps, "choices": choices or {}}))
+
+    def stack(self, out):
+        return dict(re.findall(r"(?m)^- (base-novacaelum|super-novacaelum|hyperspace-engine): (.+?)\s*$", out))
+
+    def test_core_text_profile(self):
+        self.write("core_text/user.md", "# core-profile-marker\n")
+        out = self.preload()
+        self.assertIn("core-profile-marker", out)
+        self.assertIn("## Tech primer (live)", out)
+        self.assertIn("/base-novacaelum:ask", out)
+
+    def test_core_text_wins_over_legacy(self):
+        self.write("core_text/user.md", "# core-profile-marker\n")
+        self.write("user.md", "# legacy-profile-marker\n")
+        out = self.preload()
+        self.assertIn("core-profile-marker", out)
+        self.assertNotIn("legacy-profile-marker", out)
+
+    def test_legacy_root_profile_with_one_move_note(self):
+        self.write("user.md", "# legacy-profile-marker\n")
+        out = self.preload()
+        self.assertIn("legacy-profile-marker", out)
+        notes = [ln for ln in out.splitlines() if "core_text/" in ln and "move" in ln.lower()]
+        self.assertEqual(len(notes), 1, out)
+        self.assertIn("/base-novacaelum:ask", out)
+
+    def test_no_profile_points_to_setup(self):
+        out = self.preload()
+        self.assertIn("/base-novacaelum:setup", out)
+        self.assertIn("/base-novacaelum:ask", out)
+        self.assertIn("## Tech primer (live)", out)
+
+    def test_setup_progress_line(self):
+        self.write("core_text/user.md", "# p\n")
+        self.record(done=("guide", "prerequisites", "editor"))
+        want = f'Setup: 3 of {len(STEP_IDS)} steps done — say "continue setup" to pick up where you left off.'
+        self.assertIn(want, self.preload().splitlines())
+
+    def test_no_progress_line_when_nothing_pending(self):
+        self.write("core_text/user.md", "# p\n")
+        self.record(done=STEP_IDS)
+        self.assertFalse([ln for ln in self.preload().splitlines() if ln.startswith("Setup:")])
+
+    def test_stack_defaults(self):
+        self.assertEqual(self.stack(self.preload()), {
+            "base-novacaelum": "present", "super-novacaelum": "not chosen", "hyperspace-engine": "not chosen"})
+
+    def test_super_expected_but_missing(self):
+        self.record(choices={"super": "yes"})
+        self.assertEqual(self.stack(self.preload())["super-novacaelum"], "expected but missing")
+
+    def test_super_present_at_each_scope(self):
+        for rel, base in ((".claude/settings.json", None), (".claude/settings.local.json", None), (".claude/settings.json", "home")):
+            with self.subTest(rel=rel, base=base):
+                for f in (self.project / ".claude", self.home / ".claude"):
+                    shutil.rmtree(f, ignore_errors=True)
+                self.settings(rel, {SUPER_KEY: True}, self.home if base else None)
+                out = self.preload()
+                self.assertEqual(self.stack(out)["super-novacaelum"], "present")
+                self.assertNotIn("without-super.md", out)
+
+    def test_super_disabled_is_not_present(self):
+        self.record(choices={"super": "yes"})
+        self.settings(".claude/settings.json", {SUPER_KEY: False})
+        self.assertEqual(self.stack(self.preload())["super-novacaelum"], "expected but missing")
+
+    def test_hyperspace_present(self):
+        self.write(".hyperspace/config.toml", "x = 1\n")
+        self.assertEqual(self.stack(self.preload())["hyperspace-engine"], "present")
+
+    def test_without_super_pointer_resolves(self):
+        lines = [ln for ln in self.preload().splitlines() if "without-super.md" in ln]
+        self.assertEqual(len(lines), 1)
+        path = re.search(r"(/\S*/reference/without-super\.md)", lines[0]).group(1)
+        self.assertTrue(Path(path).is_file(), path)
+
+    def test_prints_no_settings_value(self):
+        marker = "planted" + uuid.uuid4().hex[:8]
+        self.settings(".claude/settings.json", {f"{marker}-plugin@m": True}, env={"X_API_KEY": marker}, model=marker)
+        self.settings(".claude/settings.json", {f"{marker}-user@m": True}, self.home, env={"Y_TOKEN": marker})
+        self.assertNotIn(marker, self.preload())
+
+    def test_malformed_settings_and_record_fail_open(self):
+        self.write("core_text/user.md", "# p\n")
+        self.write(".claude/settings.json", "{not json")
+        self.write("core_text/setup.json", "{not json")
+        out = self.preload()
+        self.assertEqual(self.stack(out)["base-novacaelum"], "present")
+        self.assertIn("/base-novacaelum:ask", out)
+
+    def test_size_budget(self):
+        self.write("core_text/user.md", (TEMPLATE_DIR / "core_text" / "user.md").read_text(encoding="utf-8"))
+        self.record(done=("guide",), choices={"super": "yes"})
+        body = "Decided to keep the retry in the client; the server already times out at 30s. " * 4
+        for i in range(3):
+            self.write(f"worklog/entries/2026-09-2{i}T10-00-00-entry-{i}.md",
+                       f"---\ndate: 2026-09-2{i}T10:00:00Z\nauthor: technical-cofounder\nsummary: entry {i}\ntags: [a, b]\n---\n\n{body}\n")
+        out = self.preload()
+        self.assertLess(len(out.encode("utf-8")), 6000)
 
 
 class HookSampleAndMalformedInputTests(unittest.TestCase):

@@ -73,7 +73,7 @@ When you're running as a subagent yourself, don't delegate. Return your plan or 
 - `stress-test`, only when the user asks to be grilled.
 - `new-agent` and `pressure-scenario-skill-authoring` for "make me an agent" and "write a skill for X".
 - On the `cofounder` MCP server: `worklog_recent` at the start of a session, `worklog_search` to find an earlier decision, and `worklog_append` after each decision, so the next session starts where this one ended.
-- With super-novacaelum installed: `sequential-thinking` for hard trade-offs, `find-docs` for current library docs, and `web-research` for any version, price or current-behavior claim, cited with its link. Without it, use a web search and cite the link.
+- With super-novacaelum installed: `sequential-thinking` for hard trade-offs, `find-docs` for current library docs, and `web-research` for any version, price or current-behavior claim, cited with its link. Without it, the session preload's tech primer points to `reference/without-super.md`, which names the base fallback for each.
 
 If a skill named here isn't installed, do the step by hand and say so. Never imply it ran.
 
