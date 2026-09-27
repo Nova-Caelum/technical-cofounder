@@ -1,6 +1,6 @@
 ---
 name: hs-decide
-description: The second stage of the working loop. Use when a run's tests.json has passed the understand gate and the design is still open ("what are our options", "sketch the architecture", "cut this to v1", "how do we build this"). Weighs two or three options against the frozen tests, sketches the chosen one as named components, and cuts every component no test needs unless a declared principle keeps it.
+description: The second stage of the working loop. Use when a run's tests.json has passed the understand gate and the design is still open ("what are our options", "sketch the architecture", "cut this to v1", "how do we build this"). Weighs two or three options against the frozen tests, sketches the chosen one as named components, and cuts every component no test needs unless a declared principle keeps it. If Hyperspace Engine is installed, use its gear* skills instead.
 ---
 
 # hs-decide: options, architecture, the cut

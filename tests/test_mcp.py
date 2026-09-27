@@ -228,5 +228,107 @@ class ServerProtocolTests(unittest.TestCase):
             self.assertEqual(verdict["overall"], "pass")
 
 
+sys.path.insert(0, str(REPO_ROOT))
+from tests.test_he_bridge import APPEND_OK, NO_STORE, RECENT_OK, FakeHE  # noqa: E402
+
+
+class HyperspaceAdapterTests(unittest.TestCase):
+    """With Hyperspace Engine holding the worklog, the worklog tools go through
+    its CLI (stubbed by FakeHE), fail loud, and never write markdown."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.session = _StdioSession()
+
+    def tearDown(self):
+        self.session.close()
+        self._tmp.cleanup()
+
+    def call(self, name, arguments):
+        self.session.send({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                           "params": {"name": name, "arguments": {**arguments, "root": str(self.root)}}})
+        result = self.session.recv()["result"]
+        return result["isError"], result["content"][0]["text"]
+
+    def markdown(self):
+        return sorted((self.root / "worklog").rglob("*")) if (self.root / "worklog").exists() else []
+
+    def test_append_goes_through_the_cli_not_markdown(self):
+        fake = FakeHE(self.root, owner="technical-cofounder")
+        fake.respond("append", APPEND_OK)
+        is_error, text = self.call("worklog_append", {"summary": "Shipped the worklog CLI.", "tags": ["a"]})
+        self.assertFalse(is_error, text)
+        self.assertEqual(json.loads(text)["row_id"], "55b3ae00-6664-4a10-a086-e33404c46b1a")
+        self.assertEqual(fake.calls()[0][3], "append")
+        self.assertEqual(self.markdown(), [])
+
+    def test_he_owned_preload_still_uses_the_store(self):
+        fake = FakeHE(self.root, owner="hyperspace-engine")
+        fake.respond("recent", RECENT_OK)
+        is_error, text = self.call("worklog_recent", {"n": 1})
+        self.assertFalse(is_error, text)
+        self.assertEqual(json.loads(text)[0]["summary"], "Shipped the worklog CLI.")
+
+    def test_search_goes_through_the_cli(self):
+        fake = FakeHE(self.root, owner="technical-cofounder")
+        fake.respond("search", RECENT_OK)
+        is_error, text = self.call("worklog_search", {"query": "hsp-v0.1.2"})
+        self.assertFalse(is_error, text)
+        self.assertEqual(len(json.loads(text)), 1)
+
+    def test_missing_cli_is_isError_with_a_fix_and_no_markdown(self):
+        fake = FakeHE(self.root, owner="technical-cofounder")
+        fake.python.unlink()
+        for name, arguments in (("worklog_append", {"summary": "x"}), ("worklog_recent", {}),
+                                ("worklog_search", {"query": "x"})):
+            with self.subTest(tool=name):
+                is_error, text = self.call(name, arguments)
+                self.assertTrue(is_error)
+                self.assertIn("hyperspace-setup", text)
+        self.assertEqual(self.markdown(), [])
+
+    def test_cli_error_is_isError_and_no_markdown(self):
+        fake = FakeHE(self.root, owner="technical-cofounder")
+        fake.respond("append", NO_STORE, 3)
+        is_error, text = self.call("worklog_append", {"summary": "x"})
+        self.assertTrue(is_error)
+        self.assertIn("exit 3", text)
+        self.assertEqual(self.markdown(), [])
+
+    def test_before_the_handshake_the_markdown_path_is_unchanged(self):
+        fake = FakeHE(self.root)
+        is_error, text = self.call("worklog_append", {"summary": "pending entry"})
+        self.assertFalse(is_error, text)
+        self.assertTrue(Path(json.loads(text)["file"]).is_file())
+        self.assertEqual(fake.calls(), [])
+
+    def criteria(self, **extra):
+        (self.root / "a.txt").write_text("x", encoding="utf-8")
+        path = self.root / "criteria.json"
+        path.write_text(json.dumps({"id": "rt", **extra, "criteria": [
+            {"statement": "exists", "verification": {"kind": "file_state", "path": "a.txt", "assertion": "exists"}}]}))
+        return str(path)
+
+    def test_verify_names_complete_workitem_for_an_he_work_item(self):
+        FakeHE(self.root, owner="technical-cofounder")
+        is_error, text = self.call("verify", {"criteria_file": self.criteria(work_item="demo:goal")})
+        verdict = json.loads(text)
+        self.assertFalse(is_error)
+        self.assertEqual(verdict["overall"], "pass")
+        self.assertIn("complete_workitem", verdict["next_step"])
+        self.assertIn("demo:goal", verdict["next_step"])
+        written = json.loads(next((self.root / "verdicts").glob("*.json")).read_text())
+        self.assertEqual(written["next_step"], verdict["next_step"])
+
+    def test_verify_free_standing_or_without_he_has_no_line(self):
+        FakeHE(self.root, owner="technical-cofounder")
+        _, text = self.call("verify", {"criteria_file": self.criteria()})
+        self.assertNotIn("next_step", json.loads(text))
+        (self.root / ".hyperspace" / "graph.db").unlink()
+        _, text = self.call("verify", {"criteria_file": self.criteria(work_item="demo:goal")})
+        self.assertNotIn("next_step", json.loads(text))
+
+
 if __name__ == "__main__":
     unittest.main()

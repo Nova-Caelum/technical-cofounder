@@ -1,6 +1,6 @@
 ---
 name: hs-live
-description: The last stage of the working loop, and not a building stage. Use when a run's loop.state.json reads status live, when the build gate has just exited 0, or when the user says "we're live", "run the acceptance test", "sign this off", "is this done yet", "did the test pass". Stops building, hands the person the acceptance test written at the start, and waits for their verdict.
+description: The last stage of the working loop, and not a building stage. Use when a run's loop.state.json reads status live, when the build gate has just exited 0, or when the user says "we're live", "run the acceptance test", "sign this off", "is this done yet", "did the test pass". Stops building, hands the person the acceptance test written at the start, and waits for their verdict. If Hyperspace Engine is installed, use its gear* skills instead.
 ---
 
 # hs-live: the person's test

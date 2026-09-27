@@ -1,6 +1,6 @@
 ---
 name: hs-build
-description: The fourth stage of the working loop. Use when a run's workplan has passed the draft gate and the software is still owed ("build it", "execute the plan", "run the tasks", "work through the plan"), or when a run sits at build with tasks not yet closed. Builds one task at a time test-first and closes each only on a verifier-lite verdict.
+description: The fourth stage of the working loop. Use when a run's workplan has passed the draft gate and the software is still owed ("build it", "execute the plan", "run the tasks", "work through the plan"), or when a run sits at build with tasks not yet closed. Builds one task at a time test-first and closes each only on a verifier-lite verdict. If Hyperspace Engine is installed, use its gear* skills instead.
 ---
 
 # hs-build: tasks to verdicts
