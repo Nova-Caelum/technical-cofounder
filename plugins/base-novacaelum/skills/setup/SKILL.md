@@ -109,6 +109,12 @@ minimal `.obsidian/` config (the core Bases plugin, no community plugins) and
 Obsidian, don't sell it. `set … obsidian done --choice obsidian=yes`, or
 `skipped --choice obsidian=no`. Step 4 uses this answer.
 
+On a **no**, say one line before moving on: the guide lives at
+`${CLAUDE_PLUGIN_ROOT}/template/OBSIDIAN.md` if they ever change their mind.
+Saying yes copies it into their project; saying no does not, so without that
+pointer the person most likely to want it later is the one person who cannot
+find it.
+
 ## 3. GitHub (`github`)
 
 Optional, never blocking, and worth pitching: every change is backed up
