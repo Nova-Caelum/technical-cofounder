@@ -54,7 +54,7 @@ Never write an agent file before the gate has a written verdict. Take the facts 
    - a project agent in `.claude/agents/` goes in `.claude/registry/agents.json`. If that file doesn't exist yet, create it with the base registry's shape: a `roles` object (copy the base team's, or declare your own) and an `agents` list.
    - an agent you add to a plugin goes in that plugin's `registry/agents.json`.
 
-   Then run the check and fix what it names: `python3 "${CLAUDE_PLUGIN_ROOT}/registry/check_registry.py" .claude` for a project, or with the plugin's folder in place of `.claude`. If that path doesn't resolve, find `check_registry.py` inside the installed `base-novacaelum` plugin. `technical-cofounder` routes work by reading the registry, so an agent missing from it is one it never hands anything.
+   Then run the check with the Python from setup and fix what it names: `<python> "${CLAUDE_PLUGIN_ROOT}/registry/check_registry.py" .claude` for a project, or with the plugin's folder in place of `.claude`. If that path doesn't resolve, find `check_registry.py` inside the installed `base-novacaelum` plugin. `technical-cofounder` routes work by reading the registry, so an agent missing from it is one it never hands anything.
 8. **Prove it loads and is whole.**
    - The frontmatter has `name` (no `:` in it) and a `description` with "Use when…" triggers.
    - Grep the body for the capability that is its whole reason to exist. Zero hits means stop and fix.

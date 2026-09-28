@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  explore:
+  test:
     strategy:
       fail-fast: false
       matrix:
@@ -16,32 +16,69 @@ jobs:
     runs-on: ${{ matrix.os }}
     defaults:
       run:
+        # Git Bash on Windows: the shell Claude Code runs the plugin's hooks in.
         shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          python-version: "3.11"
-      - uses: actions/setup-node@v4
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: "22"
-      - run: npm install -g @anthropic-ai/claude-code
-      - name: interpreters on PATH
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Validate marketplace and plugins
         run: |
-          claude --version
-          for n in python3 python py; do echo "== $n: $(command -v $n)"; $n -c "import sys; print(sys.executable, sys.version.split()[0])" || echo "exit $?"; done
-          if [ "$RUNNER_OS" = Windows ]; then where python3 || true; where python || true; where py || true; fi
-      - name: which bash does Python spawn
-        run: python -c "import shutil, subprocess; print(shutil.which('bash'), shutil.which('sh')); subprocess.run(['bash', '-c', 'echo BASH=$BASH_VERSION; uname -s'])"
-      - name: unit tests
-        continue-on-error: true
+          claude plugin validate --strict .
+          claude plugin validate --strict plugins/base-novacaelum
+          claude plugin validate --strict plugins/super-novacaelum
+
+      - name: Run tests
+        # The tests read subprocess output as UTF-8 on every OS; the runtime
+        # probe below runs without this, as a user's machine would.
         env:
-          PYTHONUTF8: "1"
+          PYTHONUTF8: '1'
         run: |
           python3 -m unittest \
-            tests.test_mcp tests.test_verifier tests.test_template_hooks tests.test_installer \
-            tests.test_loop tests.test_ask tests.test_setup_record tests.test_he_bridge tests.test_resolver
-      - name: pre-warm npx
-        run: npx -y @modelcontextprotocol/server-sequential-thinking --help < /dev/null || true
-      - name: explore option B
+            tests.test_mcp \
+            tests.test_verifier \
+            tests.test_template_hooks \
+            tests.test_installer \
+            tests.test_loop \
+            tests.test_ask \
+            tests.test_setup_record \
+            tests.test_he_bridge \
+            tests.test_resolver \
+            tests.test_project_env \
+            tests.test_seq_thinking
+
+      - name: Pre-warm npx for sequential-thinking
+        run: npx -y @modelcontextprotocol/server-sequential-thinking < /dev/null
+
+      - name: Claude Code runtime probe (keyless)
+        run: python scripts/claude-runtime-probe.py
+
+      - name: Option B exploration (one-off)
+        continue-on-error: true
         run: python .github/scripts/explore_mcp_env.py
+
+      - name: Registry check
+        run: python plugins/base-novacaelum/registry/check_registry.py
+
+      - name: Shellcheck hooks
+        if: runner.os == 'Linux'
+        run: shellcheck plugins/base-novacaelum/hooks/*.sh plugins/base-novacaelum/hooks/lib/*.sh
+
+      - name: Leak scan (full history)
+        if: runner.os == 'Linux'
+        run: python3 scripts/leak-scan.py --history

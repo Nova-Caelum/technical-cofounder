@@ -29,6 +29,21 @@ FIVE_RULES = {
 }
 
 
+def _bash():
+    """bash as Claude Code runs these hooks: Git Bash on Windows. Never the
+    System32 bash.exe (WSL), which Windows' process search finds first."""
+    if os.name != "nt":
+        return "bash"
+    git = shutil.which("git")
+    for parent in Path(git).resolve().parents if git else ():
+        if (parent / "bin" / "bash.exe").is_file():
+            return str(parent / "bin" / "bash.exe")
+    return "bash"
+
+
+BASH = _bash()
+
+
 def init_into(target):
     return subprocess.run(
         ["python3", str(BIN_DIR / "init_workspace.py"), str(target)],
@@ -43,7 +58,7 @@ def run_hook(name, payload, env_extra=None, raw_input=None):
         env.update(env_extra)
     stdin_text = raw_input if raw_input is not None else json.dumps(payload)
     return subprocess.run(
-        ["bash", str(HOOKS_DIR / name)],
+        [BASH, (HOOKS_DIR / name).as_posix()],
         input=stdin_text,
         capture_output=True, text=True, env=env,
     )
@@ -139,7 +154,7 @@ class SessionPreloadTests(unittest.TestCase):
     def preload(self):
         env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PROJECT_DIR")}
         env.update(CLAUDE_PROJECT_DIR=str(self.project), HOME=str(self.home))
-        r = subprocess.run(["bash", str(HOOKS_DIR / "session-preload.sh")], input="{}", capture_output=True, text=True, env=env)
+        r = subprocess.run([BASH, (HOOKS_DIR / "session-preload.sh").as_posix()], input="{}", capture_output=True, text=True, env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
         return r.stdout
 

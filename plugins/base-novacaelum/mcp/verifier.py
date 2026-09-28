@@ -122,7 +122,7 @@ def _eval_file_state(root, verification):
 
 def _run_subprocess(argv, cwd):
     try:
-        return subprocess.run(argv, cwd=str(cwd), capture_output=True, text=True), None
+        return subprocess.run(argv, cwd=str(cwd), capture_output=True, encoding="utf-8", errors="replace"), None
     except OSError as exc:
         return None, str(exc)
 
@@ -135,7 +135,7 @@ def _eval_command_check(root, verification):
         safe_target, err = _safe_relative(target)
         if err:
             return RESULT_UNCERTAIN, err
-        result, run_err = _run_subprocess(["python3", "-m", "unittest", safe_target], root)
+        result, run_err = _run_subprocess([sys.executable, "-m", "unittest", safe_target], root)
         if run_err:
             return RESULT_UNCERTAIN, f"could not run tests: {run_err}"
         status = RESULT_PASS if result.returncode == 0 else RESULT_FAIL

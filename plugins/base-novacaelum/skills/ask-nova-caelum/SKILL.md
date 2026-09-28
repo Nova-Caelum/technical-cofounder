@@ -29,10 +29,11 @@ The user may be frustrated. Plain words, one question at a time.
    private — client names, code that isn't theirs to share, keys. Anything
    they'd rather not post can be trimmed out first.
 4. Write the draft to a temp file **outside the project**, so it can never
-   end up committed — `mktemp -t ask-nova-caelum.XXXXXX`. Then run:
+   end up committed — `mktemp -t ask-nova-caelum.XXXXXX`. Then run, with the
+   Python from setup as `<python>`:
 
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/ask_issue.py" redact <path>
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/ask_issue.py" redact <path>
    ```
 
    It rewrites the file in place and prints only redaction counts — never
@@ -41,7 +42,7 @@ The user may be frustrated. Plain words, one question at a time.
 6. On yes, run:
 
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/ask_issue.py" post <path> --title "<one-line title>"
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/ask_issue.py" post <path> --title "<one-line title>"
    ```
 
    Titles get the `[ask] ` prefix automatically if it's missing.

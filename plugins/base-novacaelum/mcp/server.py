@@ -4,7 +4,8 @@
 Standard library only, no network, no credentials. Exposes the worklog
 (worklog_append / worklog_recent / worklog_search) and verifier-lite
 (verify) tools. Declared in ../.mcp.json as:
-    python3 ${CLAUDE_PLUGIN_ROOT}/mcp/server.py
+    ${CLAUDE_PROJECT_DIR}/.cofounder/env/bin/python ${CLAUDE_PLUGIN_ROOT}/mcp/server.py
+(the project environment setup creates; see ../bin/project_env.py).
 
 When Hyperspace Engine holds the project's worklog (see ../bin/he_bridge.py),
 the worklog tools go through its CLI instead of worklog.py and fail loud if it
@@ -220,4 +221,7 @@ def serve(instream=None, outstream=None):
 
 
 if __name__ == "__main__":
+    # Claude Code speaks UTF-8; Windows pipes default to the ANSI code page.
+    for stream in (sys.stdin, sys.stdout):
+        stream.reconfigure(encoding="utf-8")
     serve()

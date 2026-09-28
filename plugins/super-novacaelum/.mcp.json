@@ -19,10 +19,9 @@
       "url": "https://mcp.browserbase.com/mcp?browserbaseApiKey=${user_config.browserbase_api_key}"
     },
     "sequential-thinking": {
-      "command": "npx",
+      "command": "node",
       "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
+        "${CLAUDE_PLUGIN_ROOT}/bin/seq-thinking.mjs"
       ]
     }
   }

@@ -28,9 +28,9 @@ Does NOT fire for:
 
 ## The process
 
-1. **Enter.**
+1. **Enter** (`<python>` is the Python from setup).
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" set-node runs/<slug>/loop.state.json --node decide
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" set-node runs/<slug>/loop.state.json --node decide
    ```
    Number the tests `T1..TN` in file order once; that is the only test vocabulary from here on. Bounded runs: walk the references inline. Architectural: each may go to a fresh subagent, one at a time.
 2. **Options.** `references/options.md`. Two or three genuinely different approaches, each weighed against every `T<n>` and every constraint; one chosen, recommendation first, with the reason. When the user is present, one question: accept or override.
@@ -38,8 +38,7 @@ Does NOT fire for:
 4. **Descoping.** `references/descoping.md`. Run `overbloat-review` on the sketch (advice, not a verdict), then the two-part cut on every component: (a) no test needs it, and (b) cutting it contradicts no active principle. Writes `mapping.json`, `principles.json` and `Deferred.md`.
 5. **Gate.**
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" gate-pass runs/<slug>/loop.state.json --node decide --by <you> \
-       --mapping runs/<slug>/02_decide/mapping.json --artifact runs/<slug>/02_decide/Decision.md
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" gate-pass runs/<slug>/loop.state.json --node decide --by <you> --mapping runs/<slug>/02_decide/mapping.json --artifact runs/<slug>/02_decide/Decision.md
    ```
    Exit 0 freezes the mapping, the principles and deferred files it points at, and `Decision.md`. Exit 1 lists every refusal at once.
 

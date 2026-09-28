@@ -28,10 +28,10 @@ Does NOT fire for:
 ## The process
 
 1. **Triage.** Read `references/triage.md`. Say the classification before your first question. Spike: go to 2s. Otherwise go to 2. When in doubt, take the heavier path.
-2. **Open the run.** From the project root, write the ask verbatim to `runs/<slug>/original_input.md`, then:
+2. **Open the run.** From the project root, write the ask verbatim to `runs/<slug>/original_input.md`, then (`<python>` is the Python from setup):
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" init --goal <slug> --input runs/<slug>/original_input.md --workspace runs
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" set-node runs/<slug>/loop.state.json --node understand
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" init --goal <slug> --input runs/<slug>/original_input.md --workspace runs
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" set-node runs/<slug>/loop.state.json --node understand
    ```
    The state file is the goal's registration: a run that stops here still exists.
    - **2s. Spike.** No run, no files, no gate. Say the question and what you will try in two or three sentences, find out as cheaply as correctness allows, and report a recommendation. Anything you built is labelled throwaway.
@@ -39,8 +39,7 @@ Does NOT fire for:
 4. **Tests.** Follow `references/tests.md`. It writes `tests.json` in the verifier-lite criteria format: every criterion typed and checkable, at least one not `manual`, at least one statement beginning `WHOLE-PATH:`. Paths are relative to the project root, because that is where the verifier runs.
 5. **Gate.**
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" gate-pass runs/<slug>/loop.state.json --node understand --by <you> \
-       --tests runs/<slug>/01_understand/tests.json --artifact runs/<slug>/01_understand/Problem.md
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" gate-pass runs/<slug>/loop.state.json --node understand --by <you> --tests runs/<slug>/01_understand/tests.json --artifact runs/<slug>/01_understand/Problem.md
    ```
    Exit 0 freezes both files. Exit 1 names every problem at once: fix them and run it again. Entering `decide` is `hs-decide`'s first line, not yours.
 

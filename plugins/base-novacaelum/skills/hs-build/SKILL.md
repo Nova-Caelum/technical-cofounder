@@ -27,9 +27,9 @@ Does NOT fire for:
 
 ## The process
 
-1. **Look around, then enter.** `git status` in the project: work that isn't yours, or a tree behind its remote, goes in the ledger before anything is edited. Then:
+1. **Look around, then enter.** `git status` in the project: work that isn't yours, or a tree behind its remote, goes in the ledger before anything is edited. Then (`<python>` is the Python from setup):
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" set-node runs/<slug>/loop.state.json --node build
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" set-node runs/<slug>/loop.state.json --node build
    ```
    Create or resume `runs/<slug>/BUILD_LEDGER.md`. Tasks with a passing verdict are done: never redo them. Read the workplan once; one todo per task.
 2. **Conflict scan.** One ledger line per pair of tasks that share a file or an interface, and one per task whose criteria disagree with its `produces`. Rule on each before the first task starts: `Ruling: <what>, <why>, <cost if wrong>`.
@@ -37,7 +37,7 @@ Does NOT fire for:
 4. **Per task: implement.** `references/tdd.md`. RED observed for the right reason, GREEN observed on the same target, both pasted into `runs/<slug>/build/<id>/report.md`.
 5. **Per task: close through verifier-lite.** From the project root:
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/mcp/verifier.py" runs/<slug>/03_draft/criteria/<id>.json --root .
+   <python> "${CLAUDE_PLUGIN_ROOT}/mcp/verifier.py" runs/<slug>/03_draft/criteria/<id>.json --root .
    ```
    (or the `verify` tool on the `cofounder` MCP server, with the same file). It writes `verdicts/<id>-<time>.json` and exits `0` pass, `1` fail, `2` uncertain.
    - `pass`: ledger `Task <id>: closed (verdict <file>)`.
@@ -54,9 +54,7 @@ Does NOT fire for:
 7. **Put the manual items in front of the person.** If any `manual` criterion is open, write `runs/<slug>/REVIEW.md` from `references/review.md` and give its path in the conversation. When they confirm one, record their words in `runs/<slug>/build/<id>/attest.json`, `[{"statement": "<the exact criterion>", "attested_by": "<who>"}]`, and rerun the verifier with `--attest runs/<slug>/build/<id>/attest.json`. Only their words; never attest for them.
 8. **Gate.**
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" gate-pass runs/<slug>/loop.state.json --node build --by <you> \
-       --workplan runs/<slug>/03_draft/workplan.json --reconciliation runs/<slug>/RECONCILIATION.md \
-       --verdicts verdicts --artifact runs/<slug>/BUILD_LEDGER.md
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" gate-pass runs/<slug>/loop.state.json --node build --by <you> --workplan runs/<slug>/03_draft/workplan.json --reconciliation runs/<slug>/RECONCILIATION.md --verdicts verdicts --artifact runs/<slug>/BUILD_LEDGER.md
    ```
    - `0`: passed; `status` is now `live` and `current_node` stays `build`. Build is over. Enter `hs-live`; do not keep building here.
    - `1`: refused. A task is missing from the reconciliation, or declared done without a passing verdict on its own criteria from after the plan was filed. Fix the named task; never fix the reconciliation to match.

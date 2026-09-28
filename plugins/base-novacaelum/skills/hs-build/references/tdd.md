@@ -5,7 +5,7 @@ Makes a task's change provable before it is claimed: one failing test observed f
 ## Steps
 
 1. **Read the criteria.** For each `command_check` and `file_state` criterion, write one line naming the production change that would make it true, before touching code.
-2. **RED.** Write one test for one behavior the task demands: a name that says the behavior, real code under test, mocks only when unavoidable. Run the explicit target (`python3 -m unittest tests/test_x.py`, never a bare discovery run). Paste the output under `## RED`. It must fail for the expected reason: the feature is missing, not a typo or an import error. If it passes immediately, you are testing behavior that already exists: fix the test. If it errors, fix the error and run it again until it fails correctly.
+2. **RED.** Write one test for one behavior the task demands: a name that says the behavior, real code under test, mocks only when unavoidable. Run the explicit target (`<python> -m unittest tests/test_x.py`, with the Python from setup; never a bare discovery run). Paste the output under `## RED`. It must fail for the expected reason: the feature is missing, not a typo or an import error. If it passes immediately, you are testing behavior that already exists: fix the test. If it errors, fix the error and run it again until it fails correctly.
 3. **GREEN.** Write the smallest change that passes. No extra options, no neighboring refactors, nothing the test did not ask for. Run the same target again and paste it under `## GREEN`. Any other test in the target that went red, fix now.
 4. **Refactor** only while green, running it again after.
 5. **Repeat** per criterion, then run every target the brief lists once more and paste the summary line.

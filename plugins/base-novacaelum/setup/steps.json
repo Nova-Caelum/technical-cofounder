@@ -15,13 +15,13 @@
     {
       "id": "prerequisites",
       "title": "Check the basics",
-      "does": "Asks which computer you're on (Mac or Windows PC), then checks Python and Git and switches the plugin on for this project only.",
+      "does": "Asks which computer you're on (Mac or Windows PC), checks Python and Git, creates the project's own Python environment for the team's tools, and switches the plugin on for this project only.",
       "why": "Commands differ between Mac and Windows, and the team's tools run on Python and Git.",
       "skippable": false,
       "if_skipped": "Not skippable: without Python the tools can't start.",
       "cost": "Free",
       "minutes": 3,
-      "choices": ["os"]
+      "choices": ["os", "python"]
     },
     {
       "id": "editor",

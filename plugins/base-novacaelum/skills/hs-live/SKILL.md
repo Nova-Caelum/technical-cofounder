@@ -29,9 +29,9 @@ Does NOT fire for:
 
 ## The process
 
-1. **Read the state.**
+1. **Read the state** (`<python>` is the Python from setup).
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" read runs/<slug>/loop.state.json
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" read runs/<slug>/loop.state.json
    ```
    Confirm `status: live` in the file. Do not proceed on a status you reasoned your way to.
 2. **Stop.** No edits, no subagents, no merges, no deploys. Add one ledger line: `Live: build closed at <gate time>, <N> tasks closed by verdict.`
@@ -44,8 +44,8 @@ Does NOT fire for:
 7. **Triage once, at the end.** Put the whole list in front of the person and decide each: fix now · defer to v2 · not a bug. Anything "fix now" is a new run, entered at its own stage, not more work inside this one.
 8. **Exit.** When the person says the test cleared, record their grant, then confirm:
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" record-approval runs/<slug>/loop.state.json --human-present true --authority human
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" confirm runs/<slug>/loop.state.json --by "<the person>" --escaped <N> --caught <M>
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" record-approval runs/<slug>/loop.state.json --human-present true --authority human
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" confirm runs/<slug>/loop.state.json --by "<the person>" --escaped <N> --caught <M>
    ```
    `record-approval` writes down a grant they already gave; run it only after their word, never to manufacture one. `escaped` is defects their test found that the loop's own tests missed; `caught` is defects the loop's tests caught first. `confirm` writes `status: done` and the escape rate.
 

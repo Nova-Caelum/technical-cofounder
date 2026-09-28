@@ -92,17 +92,17 @@ def init_workspace(target_dir, obsidian, super_):
             continue
         dest = target / rel
         if dest.exists():
-            lines.append(f"SKIPPED: {rel}")
+            lines.append(f"SKIPPED: {rel.as_posix()}")
             skipped += 1
             continue
         if rel == PROFILE and (target / "user.md").is_file():
             # A profile kept at the old root location stays the one agents read.
-            lines.append(f"SKIPPED: {rel} (user.md is at the project root)")
+            lines.append(f"SKIPPED: {rel.as_posix()} (user.md is at the project root)")
             skipped += 1
             continue
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dest)
-        lines.append(f"COPIED: {rel}")
+        lines.append(f"COPIED: {rel.as_posix()}")
         copied += 1
 
     try:

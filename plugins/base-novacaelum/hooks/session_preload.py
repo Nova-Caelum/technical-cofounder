@@ -164,6 +164,10 @@ def main():
     print_file(user_md, "(could not read user.md)")
     if legacy:
         print("Note: this profile is at the old location (./user.md); /base-novacaelum:setup can move it into core_text/ for you.")
+    env_python = project / ".cofounder" / "env" / "bin" / "python"
+    if not (env_python.exists() or env_python.with_suffix(".exe").exists()):
+        print("⚠️ base-novacaelum: the cofounder MCP server (worklog and verify tools) cannot start: .cofounder/env "
+              'is missing. Say "continue setup" to run setup\'s Python step, then restart Claude Code.')
     print()
     worklog_block(project, plugin)
     print()

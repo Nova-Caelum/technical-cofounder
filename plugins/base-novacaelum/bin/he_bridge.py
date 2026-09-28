@@ -194,7 +194,7 @@ def run_cli(root, verb, *args):
         )
     cmd = [str(python), "-m", "hyperspace.cli", "worklog", verb, *args, f"--dir={root}", "--json"]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_TIMEOUT)
+        proc = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", timeout=CLI_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise BridgeError(f"hyperspace worklog {verb} could not run ({exc}). Fix: {FIX_UNEXPECTED}") from None
     try:

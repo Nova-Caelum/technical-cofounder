@@ -8,10 +8,12 @@ canned bodies below are copied from HE's CLI contract (pasted there from real
 runs), except where a comment says otherwise. Standard library only.
 """
 import json
+import os
 import stat
 import sys
 import tempfile
 import unittest
+import venv
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -73,6 +75,13 @@ code = here / (verb + ".exit")
 sys.exit(int(code.read_text()) if code.exists() else 0)
 """
 
+# The same fake as a module, for Windows: run as `python -m hyperspace.cli`, it
+# logs the argv FAKE_PYTHON would have seen and reads env/bin like it does.
+FAKE_CLI_MODULE = FAKE_PYTHON.replace("#!/usr/bin/env python3\n", "").replace(
+    "here = Path(__file__).resolve().parent\nverb = sys.argv[4]\n",
+    "here = Path(sys.prefix) / 'bin'\nsys.argv[1:1] = ['-m', 'hyperspace.cli']\nverb = sys.argv[4]\n",
+)
+
 
 class FakeHE:
     """A project that looks HE-provisioned, with a scripted CLI."""
@@ -87,9 +96,12 @@ class FakeHE:
             config += f'worklog_owner = "{owner}"\n'
         self.config_path = hs / "config.toml"
         self.config_path.write_text(config, encoding="utf-8")
-        self.python = self.bin / "python"
-        self.python.write_text(FAKE_PYTHON, encoding="utf-8")
-        self.python.chmod(self.python.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        if os.name == "nt":
+            self.python = self._windows_env(hs / "env")
+        else:
+            self.python = self.bin / "python"
+            self.python.write_text(FAKE_PYTHON, encoding="utf-8")
+            self.python.chmod(self.python.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         if view is not None:
             record = self.root / "core_text" / "setup.json"
             record.parent.mkdir(parents=True, exist_ok=True)
@@ -98,6 +110,18 @@ class FakeHE:
             entry = self.root / "worklog" / "entries" / f"2026090{i + 1}T120000Z-entry-{i}.md"
             entry.parent.mkdir(parents=True, exist_ok=True)
             entry.write_text(f'---\ndate: 2026-09-0{i + 1}T12:00:00Z\nauthor: "a"\nsummary: "e{i}"\ntags: []\n---\n')
+
+    @staticmethod
+    def _windows_env(env):
+        """Windows cannot exec a script, so the fake CLI is a real venv whose
+        Scripts/python.exe runs `-m hyperspace.cli` from a stub package; env/bin
+        only holds the canned bodies and the call log."""
+        venv.create(env, with_pip=False)
+        package = env / "Lib" / "site-packages" / "hyperspace"
+        package.mkdir(parents=True)
+        (package / "__init__.py").write_text("", encoding="utf-8")
+        (package / "cli.py").write_text(FAKE_CLI_MODULE, encoding="utf-8")
+        return env / "Scripts" / "python.exe"
 
     def respond(self, verb, body, exit_code=0):
         (self.bin / f"{verb}.json").write_text(body, encoding="utf-8")

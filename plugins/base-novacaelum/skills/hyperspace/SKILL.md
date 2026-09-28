@@ -25,10 +25,10 @@ Gates are one way. A stage cannot be entered until the gate before it has passed
 
 ## Route the work
 
-Find the run: `find . -name loop.state.json -not -path "*/node_modules/*"`. Read it:
+Find the run: `find . -name loop.state.json -not -path "*/node_modules/*"`. Read it with the Python from setup (`<python>`):
 
 ```
-python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" read <run>/loop.state.json
+<python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" read <run>/loop.state.json
 ```
 
 | What the state file says | Enter |

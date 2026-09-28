@@ -192,6 +192,19 @@ class SetTests(Project):
                 self.assertNotIn(value, r.stdout + r.stderr)
 
 
+    def test_prerequisites_records_the_python_from_setup(self):
+        for value in ("env", "python3", "python", "py"):
+            with self.subTest(value=value):
+                r = cli("set", self.project, "prerequisites", "done", "--choice", "os=windows", "--choice", f"python={value}")
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(record(self.project)["choices"]["python"], value)
+
+    def test_python_takes_only_the_resolver_words(self):
+        for value in ("perl", "py3", "Python3", "/usr/bin/python3"):
+            with self.subTest(value=value):
+                r = self._refused("prerequisites", "done", "--choice", f"python={value}")
+                self.assertNotIn(value, r.stdout + r.stderr)
+
 class StatusTests(Project):
     def test_counts(self):
         r = cli("status", self.project)

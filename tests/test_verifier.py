@@ -1,11 +1,13 @@
 """Unit tests for verifier.py (verifier-lite). Standard library only."""
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MCP_DIR = REPO_ROOT / "plugins" / "base-novacaelum" / "mcp"
@@ -138,6 +140,24 @@ class CommandCheckTests(unittest.TestCase):
         )
         self.assertEqual(passing["result"], "pass")
         self.assertEqual(failing["result"], "fail")
+
+    def test_tests_check_runs_the_verifiers_own_python(self):
+        # A `python3` that is not Python (the Windows Store placeholder) must not
+        # decide the verdict: the tests run with the interpreter running the verifier.
+        fake_bin = self.root / "fake-bin"
+        fake_bin.mkdir()
+        placeholder = fake_bin / "python3"
+        placeholder.write_text("#!/bin/sh\necho 'Python was not found' >&2\nexit 9\n", encoding="utf-8")
+        placeholder.chmod(0o755)
+        (self.root / "test_ok.py").write_text(
+            "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        self.assertTrue(True)\n",
+            encoding="utf-8",
+        )
+        with mock.patch.dict(os.environ, {"PATH": str(fake_bin) + os.pathsep + os.environ.get("PATH", "")}):
+            result = verifier.evaluate_criterion(
+                self.root, _criterion("tests pass", {"kind": "command_check", "check_id": "tests", "target": "test_ok.py"}), []
+            )
+        self.assertEqual(result["result"], "pass", result.get("evidence"))
 
     def test_tests_check_target_traversal_refused(self):
         result = verifier.evaluate_criterion(

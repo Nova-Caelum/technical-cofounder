@@ -3,6 +3,7 @@ Standard library only.
 """
 import csv
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -179,6 +180,22 @@ class ServerProtocolTests(unittest.TestCase):
             entries = list((Path(tmp) / "worklog" / "entries").glob("*.md"))
             self.assertEqual(len(entries), 1)
             self.assertTrue((Path(tmp) / "worklog" / "worklog.csv").is_file())
+
+    def test_utf8_on_the_wire_whatever_the_pipe_encoding(self):
+        # Windows pipes default to the ANSI code page (cp1252); Claude Code writes
+        # UTF-8. PYTHONIOENCODING=cp1252 reproduces that pipe on any OS.
+        summary = "naïve café — résumé ✓ 日本"
+        with tempfile.TemporaryDirectory() as tmp:
+            request = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                       "params": {"name": "worklog_append", "arguments": {"summary": summary, "root": tmp}}}
+            proc = subprocess.run(
+                [sys.executable, str(SERVER_PATH)],
+                input=(json.dumps(request, ensure_ascii=False) + "\n").encode("utf-8"),
+                capture_output=True, env=dict(os.environ, PYTHONIOENCODING="cp1252"), timeout=60,
+            )
+            response = json.loads(proc.stdout.decode("utf-8"))
+            self.assertFalse(response["result"]["isError"], response)
+            self.assertEqual(worklog.recent(tmp)[0]["summary"], summary)
 
     def test_tools_call_missing_required_argument_is_isError(self):
         self.session.send(

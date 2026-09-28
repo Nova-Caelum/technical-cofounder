@@ -27,17 +27,16 @@ Does NOT fire for:
 
 ## The process
 
-1. **Enter.**
+1. **Enter** (`<python>` is the Python from setup).
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" set-node runs/<slug>/loop.state.json --node draft
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" set-node runs/<slug>/loop.state.json --node draft
    ```
    Number the tests `T1..TN` exactly as decide did. The mapping's kept components are the v1 set.
 2. **Spec.** `references/prd.md`. `PRD.md` with its fixed sections: the acceptance set verbatim, one page of what is being built, the components rendered from `mapping.json` (never a new one), the principles cited, a plain v2 recap, the decisions inherited, what v1 does not claim, and the rules only prose enforces.
 3. **Plan.** `references/plan.md`. `workplan.json`: every task with an id, a plain summary, the tests it serves, the files it produces, what blocks it, and a criteria file. Every test `T1..TN` is served by at least one task.
 4. **Gate.**
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" gate-pass runs/<slug>/loop.state.json --node draft --by <you> \
-       --workplan runs/<slug>/03_draft/workplan.json --artifact runs/<slug>/03_draft/PRD.md
+   <python> "${CLAUDE_PLUGIN_ROOT}/bin/loop_state.py" gate-pass runs/<slug>/loop.state.json --node draft --by <you> --workplan runs/<slug>/03_draft/workplan.json --artifact runs/<slug>/03_draft/PRD.md
    ```
    Exit 0 freezes the workplan, every criteria file it names, and the PRD. The gate's pass time is also the filing time: at build, a verdict older than it does not count.
 

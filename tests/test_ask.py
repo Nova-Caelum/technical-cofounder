@@ -61,6 +61,11 @@ exit 3
 """
 
 
+# The authenticated stub must really run; Windows execs only .exe files, not a
+# shell script (gh itself is gh.exe there). The unauthenticated path needs no stub.
+NEEDS_POSIX_STUB = unittest.skipIf(os.name == "nt", "the stub gh is a shell script, which Windows cannot exec")
+
+
 def _fake(prefix, n=32):
     alphabet = string.ascii_letters + string.digits
     return prefix + "".join(_rand.choice(alphabet) for _ in range(n))
@@ -192,6 +197,7 @@ class RedactionKindTests(unittest.TestCase):
 
 
 class AskPrefixIdempotentTests(unittest.TestCase):
+    @NEEDS_POSIX_STUB
     def test_prefix_added_once_and_not_doubled(self):
         with tempfile.TemporaryDirectory() as td:
             draft = Path(td) / "draft.md"
@@ -215,6 +221,7 @@ class AskPrefixIdempotentTests(unittest.TestCase):
             self.assertNotIn("[ask] [ask]", argv2)
 
 
+@NEEDS_POSIX_STUB
 class PostViaStubGhTests(unittest.TestCase):
     def test_authenticated_stub_records_repo_title_and_body_file(self):
         with tempfile.TemporaryDirectory() as td:
@@ -251,6 +258,7 @@ class PostViaStubGhTests(unittest.TestCase):
             self.assertIn("OPEN: https://github.com/", r.stdout)
 
 
+@NEEDS_POSIX_STUB
 class PostRedactsTitleTests(unittest.TestCase):
     """A path or key typed into --title must never reach the posted issue:
     the title goes through the same redact_text as the body."""
