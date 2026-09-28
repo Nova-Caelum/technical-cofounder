@@ -19,9 +19,13 @@ script and the session preload share. Everything this script writes lives in
 Every subcommand first creates setup.json when it is absent (all steps
 pending). An existing record is never replaced; a step added to steps.json
 later reads as pending. `set` refuses an unknown step, a choice key the step
-does not declare, and a value that is longer than 40 characters, is not a
-plain word, or looks like a key, path or email. A refusal never echoes the
-value and never touches the record.
+does not declare, an `os` other than mac, windows or linux, and a value that
+is longer than 40 characters, is not a plain word, or looks like a key, path
+or email. A refusal never echoes the value and never touches the record.
+
+The guide is one card per step (status, minutes, OK to skip or required,
+why, what skipping costs you, and the price) on graph paper, light or dark
+to match the reader's system, with no script, font file or other asset.
 
 Exit codes: 0 ok, 1 refused or unreadable record, 2 usage. Standard library
 only.
@@ -46,6 +50,7 @@ STATUSES = ("done", "skipped", "pending")
 MAX_VALUE = 40
 PLAIN_VALUE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._+-]*$")
 MARKS = {"done": ("done", "✓ Done"), "skipped": ("skipped", "Skipped"), "pending": ("todo", "To do")}
+ALLOWED = {"os": ("mac", "windows", "linux")}  # choice keys whose values are a fixed set
 
 
 class Refused(Exception):
@@ -110,6 +115,8 @@ def check_value(key, value):
         raise Refused(f"choice {key!r}: value is over {MAX_VALUE} characters; not recorded")
     if not PLAIN_VALUE_RE.match(value) or redact_text(value)[1]:
         raise Refused(f"choice {key!r}: value is not a plain word or looks like a key, path or email; not recorded")
+    if key in ALLOWED and value not in ALLOWED[key]:
+        raise Refused(f"choice {key!r}: use one of {', '.join(ALLOWED[key])}; not recorded")
 
 
 def set_step(project, step_id, status, pairs):
@@ -148,6 +155,122 @@ def status_lines(project):
     return lines
 
 
+# Nova Caelum graph paper: light cream paper by default, midnight indigo when
+# the reader's system is dark. Brand typefaces by name only, with system
+# fallbacks; nothing is fetched.
+STYLE = """
+:root {
+  color-scheme: light dark;
+  --serif: "Yrsa", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --paper: #f6f1e9;
+  --grid: rgba(63, 61, 108, 0.09);
+  --card: #fffdf9;
+  --card-line: rgba(63, 61, 108, 0.16);
+  --shadow: 0 1px 2px rgba(29, 19, 41, 0.05), 0 6px 18px rgba(29, 19, 41, 0.06);
+  --title: #2a1f3d;
+  --body: #3b3447;
+  --label: #6b6560;
+  --rule: rgba(63, 61, 108, 0.13);
+  --hero-line: rgba(42, 31, 61, 0.6);
+  --pill-bg: rgba(63, 61, 108, 0.09);
+  --pill-fg: #3f3d6c;
+  --opt-fg: #5c5752;
+  --opt-line: rgba(107, 101, 96, 0.38);
+  --done-bg: #e2ece8; --done-fg: #2f5247; --done-line: rgba(91, 125, 115, 0.40);
+  --todo-bg: #f7e8cf; --todo-fg: #7a4a12; --todo-line: rgba(196, 138, 60, 0.45);
+  --skip-bg: #eeebe6; --skip-fg: #5c5752; --skip-line: rgba(107, 101, 96, 0.32);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1d1329;
+    --grid: rgba(110, 120, 176, 0.09);
+    --card: #241b35;
+    --card-line: rgba(110, 120, 176, 0.24);
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.30);
+    --title: #f5ebdd;
+    --body: rgba(245, 235, 221, 0.84);
+    --label: rgba(245, 235, 221, 0.64);
+    --rule: rgba(110, 120, 176, 0.20);
+    --hero-line: rgba(110, 120, 176, 0.30);
+    --pill-bg: rgba(245, 235, 221, 0.09);
+    --pill-fg: rgba(245, 235, 221, 0.86);
+    --opt-fg: rgba(245, 235, 221, 0.74);
+    --opt-line: rgba(245, 235, 221, 0.26);
+    --done-bg: rgba(91, 125, 115, 0.26); --done-fg: #b1d4c7; --done-line: rgba(127, 168, 155, 0.45);
+    --todo-bg: rgba(232, 184, 122, 0.14); --todo-fg: #f0c994; --todo-line: rgba(232, 184, 122, 0.38);
+    --skip-bg: rgba(176, 169, 159, 0.10); --skip-fg: #c2bbb2; --skip-line: rgba(176, 169, 159, 0.30);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--title);
+  font: 16px/1.55 var(--sans);
+  background-color: var(--paper);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: -1px -1px;
+  -webkit-text-size-adjust: 100%;
+}
+main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 3rem; }
+.hero {
+  color: #f5ebdd;
+  background-color: #2a1f3d;
+  background-image: radial-gradient(120% 90% at 100% 0%, rgba(232, 184, 122, 0.18), transparent 55%);
+  border: 1px solid var(--hero-line);
+  border-radius: 18px;
+  padding: 2rem 1.75rem 1.5rem;
+  box-shadow: var(--shadow);
+}
+h1 { margin: 0; font: 600 2.4rem/1.1 var(--serif); letter-spacing: -0.01em; }
+.lede { margin: 0.6rem 0 0; max-width: 34rem; color: rgba(245, 235, 221, 0.80); text-wrap: pretty; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 1.5rem 0 1.1rem; }
+.stat { margin: 0; padding: 0.75rem 0.9rem; border: 1px solid rgba(245, 235, 221, 0.14); border-radius: 12px; background: rgba(245, 235, 221, 0.05); }
+.stat span { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(245, 235, 221, 0.70); }
+.stat b { display: block; margin-top: 0.2rem; font: 600 1.35rem/1.2 var(--serif); font-variant-numeric: tabular-nums; }
+.bar { display: flex; gap: 4px; }
+.seg { flex: 1; height: 6px; border-radius: 3px; background: rgba(245, 235, 221, 0.16); }
+.seg.done { background: #7fa89b; }
+.seg.skipped { background: rgba(176, 169, 159, 0.55); }
+.steps { list-style: none; margin: 1.5rem 0 0; padding: 0; display: grid; gap: 0.875rem; }
+.card { background: var(--card); border: 1px solid var(--card-line); border-radius: 14px; padding: 1.15rem 1.35rem 1.2rem; box-shadow: var(--shadow); }
+.card-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chip, .pill, .badge {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.36rem 0.65rem; border: 1px solid transparent; border-radius: 999px;
+  font-size: 0.78rem; font-weight: 600; line-height: 1; white-space: nowrap;
+}
+.chip.done { background: var(--done-bg); color: var(--done-fg); border-color: var(--done-line); }
+.chip.todo { background: var(--todo-bg); color: var(--todo-fg); border-color: var(--todo-line); }
+.chip.skipped { background: var(--skip-bg); color: var(--skip-fg); border-color: var(--skip-line); }
+.chip.todo::before { content: ""; width: 0.55rem; height: 0.55rem; border: 1.5px solid currentColor; border-radius: 50%; }
+.chip.skipped::before { content: ""; width: 0.55rem; height: 1.5px; background: currentColor; }
+.pill { background: var(--pill-bg); color: var(--pill-fg); font-variant-numeric: tabular-nums; }
+.badge.req { background: #3f3d6c; color: #f5ebdd; }
+.badge.opt { color: var(--opt-fg); border-color: var(--opt-line); }
+.card h2 { margin: 0.85rem 0 0.3rem; font: 600 1.4rem/1.2 var(--serif); color: var(--title); }
+.does { margin: 0; color: var(--body); text-wrap: pretty; }
+.facts { display: grid; gap: 0.45rem; margin: 0.95rem 0 0; padding-top: 0.85rem; border-top: 1px solid var(--rule); }
+.facts div { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.75rem; }
+.facts dt { padding-top: 0.16rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--label); }
+.facts dd { margin: 0; font-size: 0.95rem; color: var(--body); text-wrap: pretty; }
+footer { margin-top: 1.75rem; padding: 0 0.25rem; color: var(--body); }
+footer p { margin: 0.25rem 0; }
+.muted { font-size: 0.875rem; color: var(--label); }
+@media (max-width: 34rem) {
+  main { padding: 1rem 0.875rem 2rem; }
+  .hero { padding: 1.5rem 1.25rem 1.25rem; border-radius: 16px; }
+  h1 { font-size: 2rem; }
+  .stats { grid-template-columns: 1fr; gap: 0.5rem; margin-top: 1.25rem; }
+  .stat { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.6rem 0.8rem; }
+  .stat b { margin-top: 0; font-size: 1.2rem; }
+  .card { padding: 1rem 1.1rem 1.1rem; }
+  .facts div { grid-template-columns: 1fr; gap: 0.1rem; }
+}
+"""
+
 PAGE = """<!doctype html>
 <html lang="en">
 <head>
@@ -155,44 +278,25 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Your setup guide</title>
-<style>
-:root {{ --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --line: #d1d9e0; --done: #1a7f37; --todo: #9a6700; }}
-@media (prefers-color-scheme: dark) {{
-  :root {{ --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --line: #30363d; --done: #3fb950; --todo: #d29922; }}
-}}
-body {{ margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
-main {{ max-width: 68rem; margin: 0 auto; padding: 2rem 1.25rem 3rem; }}
-h1 {{ margin: 0 0 .25rem; font-size: 1.6rem; }}
-p {{ margin: .25rem 0; }}
-.muted {{ color: var(--muted); }}
-.totals {{ margin: 1rem 0 1.5rem; font-weight: 600; }}
-.scroll {{ overflow-x: auto; }}
-table {{ width: 100%; border-collapse: collapse; }}
-th, td {{ padding: .75rem .6rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }}
-th {{ font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }}
-td small {{ display: block; color: var(--muted); font-size: .9rem; }}
-.done {{ color: var(--done); font-weight: 600; white-space: nowrap; }}
-.todo {{ color: var(--todo); font-weight: 600; white-space: nowrap; }}
-.skipped {{ color: var(--muted); white-space: nowrap; }}
-.num {{ text-align: right; }}
-footer {{ margin-top: 1.5rem; }}
-</style>
+<style>{style}</style>
 </head>
 <body>
 <main>
+<header class="hero">
 <h1>Your setup guide</h1>
-<p class="muted">Every step of setting up this project: what it does, why it matters, and whether it is safe to skip for now.</p>
-<p class="totals">About {total} minutes in all. {left} minutes left for the steps still to do. {done} of {count} done.</p>
-<div class="scroll">
-<table>
-<thead><tr><th>Status</th><th>Step</th><th>Why it matters</th><th>OK to skip?</th><th>If you skip it</th><th class="num">Minutes</th></tr></thead>
-<tbody>
-{rows}
-</tbody>
-</table>
+<p class="lede">Every step of setting up this project: what it does, why it matters, what it costs, and whether it can wait.</p>
+<div class="stats">
+<p class="stat"><span>Done</span><b>{done} of {count}</b></p>
+<p class="stat"><span>Left to do</span><b>{left} minutes</b></p>
+<p class="stat"><span>Estimated total</span><b>{total} minutes</b></p>
 </div>
+<div class="bar" aria-hidden="true">{segs}</div>
+</header>
+<ol class="steps">
+{cards}
+</ol>
 <footer>
-<p>Say “continue setup” to Claude to pick up any step.</p>
+<p>Say <b>“continue setup”</b> to Claude to pick up any step.</p>
 <p class="muted">Updated {updated} · base-novacaelum {version}</p>
 </footer>
 </main>
@@ -200,29 +304,40 @@ footer {{ margin-top: 1.5rem; }}
 </html>
 """
 
-ROW = (
-    '<tr><td class="{cls}">{mark}</td><td><strong>{title}</strong><small>{does}</small></td>'
-    '<td>{why}</td><td>{skip}</td><td>{if_skipped}</td><td class="num">{minutes}</td></tr>'
-)
+CARD = """<li class="card is-{cls}" data-step="{id}">
+<div class="card-top"><span class="chip {cls}">{mark}</span><span class="tags"><span class="pill">{minutes} min</span>{badge}</span></div>
+<h2>{title}</h2>
+<p class="does">{does}</p>
+<dl class="facts">
+<div><dt>Why</dt><dd>{why}</dd></div>
+<div><dt>If you skip</dt><dd>{if_skipped}</dd></div>
+<div><dt>Cost</dt><dd>{cost}</dd></div>
+</dl>
+</li>"""
+
+BADGES = {True: '<span class="badge opt">OK to skip</span>', False: '<span class="badge req">Required</span>'}
 
 
 def render(project):
     steps = load_steps()
     rec = load_record(project, steps)
     e = html.escape
-    rows, left, done = [], 0, 0
+    cards, segs, left, done = [], [], 0, 0
     for s in steps:
         status = rec["steps"][s["id"]]["status"]
         cls, mark = MARKS.get(status, MARKS["pending"])
         left += s["minutes"] if status == "pending" else 0
         done += status == "done"
-        rows.append(ROW.format(
-            cls=cls, mark=mark, title=e(s["title"]), does=e(s["does"]), why=e(s["why"]),
-            skip="Yes" if s["skippable"] else "No", if_skipped=e(s["if_skipped"]), minutes=s["minutes"],
+        segs.append(f'<span class="seg {cls}"></span>')
+        cards.append(CARD.format(
+            cls=cls, mark=mark, id=e(s["id"]), title=e(s["title"]), does=e(s["does"]),
+            minutes=e(str(s["minutes"])), badge=BADGES[bool(s["skippable"])], why=e(s["why"]),
+            if_skipped=e(s["if_skipped"]), cost=e(str(s.get("cost", ""))),
         ))
     out = record_path(project).with_name("setup-guide.html")
     out.write_text(PAGE.format(
-        total=sum(s["minutes"] for s in steps), left=left, done=done, count=len(steps), rows="\n".join(rows),
+        style=STYLE, total=sum(s["minutes"] for s in steps), left=left, done=done, count=len(steps),
+        segs="".join(segs), cards="\n".join(cards),
         updated=e(str(rec.get("updated", "")).replace("T", " ").replace("Z", " UTC")),
         version=e(str(rec.get("plugin_version", ""))),
     ), encoding="utf-8")

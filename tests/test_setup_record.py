@@ -7,6 +7,7 @@ file never carries one.
 """
 import html
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -172,6 +173,24 @@ class SetTests(Project):
             with self.subTest(value=value):
                 self._refused("editor", "done", "--choice", f"editor={value}")
 
+    def test_prerequisites_records_the_computer(self):
+        for value in ("mac", "windows", "linux"):
+            with self.subTest(value=value):
+                r = cli("set", self.project, "prerequisites", "done", "--choice", f"os={value}")
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(record(self.project)["choices"]["os"], value)
+
+    def test_os_is_refused_on_other_steps(self):
+        for step in ("guide", "editor", "github"):
+            with self.subTest(step=step):
+                self._refused(step, "done", "--choice", "os=mac")
+
+    def test_os_takes_only_mac_windows_or_linux(self):
+        for value in ("beos", "Mac", "macos"):
+            with self.subTest(value=value):
+                r = self._refused("prerequisites", "done", "--choice", f"os={value}")
+                self.assertNotIn(value, r.stdout + r.stderr)
+
 
 class StatusTests(Project):
     def test_counts(self):
@@ -204,11 +223,45 @@ class RenderTests(Project):
     def test_self_contained(self):
         cli("render", self.project)
         low = self.html().lower()
-        for banned in ("<script", "http", "<link", "@import", "<img", "<iframe"):
+        for banned in ("<script", "http", "<link", "@import", "url(", "<img", "<iframe"):
             self.assertNotIn(banned, low)
         self.assertIn("prefers-color-scheme: dark", low)
         self.assertIn("continue setup", low)
-        self.assertIn("ok to skip?", low)
+        self.assertIn("ok to skip", low)
+
+    def test_every_step_carries_a_cost(self):
+        for s in STEPS:
+            with self.subTest(step=s["id"]):
+                self.assertIsInstance(s.get("cost"), str)
+                self.assertTrue((s.get("cost") or "").strip(), "empty or missing cost")
+
+    def test_a_card_per_step_in_order(self):
+        cli("render", self.project)
+        page = self.html()
+        self.assertEqual(len(re.findall(r'<li class="card\b', page)), len(STEPS))
+        self.assertEqual(re.findall(r'data-step="([^"]+)"', page), STEP_IDS)
+
+    def test_steps_are_cards_not_a_table(self):
+        cli("render", self.project)
+        self.assertNotIn("<table", self.html().lower())
+
+    def test_every_cost_and_label_appears(self):
+        cli("render", self.project)
+        page = self.html()
+        for s in STEPS:
+            with self.subTest(step=s["id"]):
+                self.assertIn(html.escape(s.get("cost") or "\0missing"), page)
+                self.assertIn(html.escape(s["why"]), page)
+                self.assertIn(html.escape(s["if_skipped"]), page)
+        for label in (">Why<", ">If you skip<", ">Cost<", ">Required<", ">OK to skip<"):
+            with self.subTest(label=label):
+                self.assertIn(label, page)
+        self.assertEqual(page.count(">Required<"), sum(not s["skippable"] for s in STEPS))
+
+    def test_minutes_pill_per_card(self):
+        cli("render", self.project)
+        pills = re.findall(r'<span class="pill">(\d+) min</span>', self.html())
+        self.assertEqual([int(m) for m in pills], [s["minutes"] for s in STEPS])
 
     def test_escapes_text(self):
         cli("status", self.project)
