@@ -9,8 +9,8 @@ name: DevOps-Lead PR Review
 #
 # PINNED 0d1b16c — the last commit that touched the reusable workflow
 # (2026-07-31, "parameterize reusable workflow for multi-tenant callers").
-# Same pin as Nova-Caelum/_agentOS, Nova-Caelum/Caelos and
-# Nova-Caelum/no-mistakes, so all callers execute identical review logic.
+# Same pin as every other Nova-Caelum caller, so all callers execute identical
+# review logic.
 #
 # Fork PRs: the `if:` below restricts this job to same-owner PRs. A PR from a
 # fork is SKIPPED, never run blind — GitHub withholds secrets from fork
