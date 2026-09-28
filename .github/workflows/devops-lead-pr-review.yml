@@ -1,0 +1,61 @@
+name: DevOps-Lead PR Review
+
+# THIN CALLER STUB — Option B source-of-truth/runtime split.
+# All review logic lives in Nova-Caelum/devops-lead
+# .github/workflows/devops-lead-pr-review.yml (source of truth). The `uses:`
+# full-SHA pin below IS the review gate for logic changes: to change review
+# behaviour, PR + review in the devops-lead repo, then bump this pin in a
+# one-line PR here. Never re-point to @main.
+#
+# PINNED 0d1b16c — the last commit that touched the reusable workflow
+# (2026-07-31, "parameterize reusable workflow for multi-tenant callers").
+# Same pin as Nova-Caelum/_agentOS, Nova-Caelum/Caelos and
+# Nova-Caelum/no-mistakes, so all callers execute identical review logic.
+#
+# Fork PRs: the `if:` below restricts this job to same-owner PRs. A PR from a
+# fork is SKIPPED, never run blind — GitHub withholds secrets from fork
+# `pull_request` events, so without the guard the job would fail red rather
+# than pass. Skipped is the correct failure mode for a public repo.
+#
+# Rollback: git revert the commit that added this file. No other file changes.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  devops-lead-review:
+    if: ${{ github.event.pull_request.head.repo.owner.login == github.repository_owner }}
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
+      id-token: write
+    uses: Nova-Caelum/devops-lead/.github/workflows/devops-lead-pr-review.yml@0d1b16cee071fcd8896c7dc5130a2644f0360a30
+    secrets: inherit
+    with:
+      persona_source_repo: 'Nova-Caelum/devops-lead'
+      persona_source_ref: 'main'
+      persona_path: '.persona-source/.claude/agents/devops-lead.md'
+      auto_merge_paths: |
+        EVERY path in this repo is AUTO-MERGE-SAFE when the diff trips none of the escalate conditions below. Path alone never decides: classify by what the diff DOES, per the numbered escalate list. Routine traffic for this repo — merge it confidently — is: prose edits to README.md, NOTICE, THIRD_PARTY_NOTICES.md and any skills/**/SKILL.md body or references/** file; agent-persona prose under plugins/*/agents/*.md that changes wording without changing tools, model, or allowed-tools frontmatter; command bodies under plugins/*/commands/*.md; new or edited example-run fixtures under examples/** (they are illustrative data, not executed on a user's machine); added test cases under tests/** that only ADD assertions; .gitignore. A file DELETION that matches the PR's stated scope (a retirement, a fold, a supersede) is normal work and merges.
+      escalate_paths: |
+        (1) SECRET MATERIAL in the diff — a key, token, password, private key or OAuth/refresh token, a dollar-brace VAR in an .mcp.json secret field, a secret reaching hook stdout, `set -x`, or `curl -v`. Treat any credential-shaped string as escalate even when it looks like a placeholder, a sample or an example value.
+        (2) A FETCH FROM AN UNTRUSTED SOURCE inside a hook, skill, installer, MCP module or agent persona — curl/wget/fetch/urllib/requests to a URL that is not ours or a known-trusted source, `pip install`/`npm install` from an unpinned or non-registry source, instructions embedded in fetched content, or anything else that puts untrusted text into agent context.
+        (3) A NEW DOOR — a new MCP tool or verb in plugins/base-novacaelum/mcp/{server,verifier,worklog}.py, a new entry in any .mcp.json, a new endpoint, credential, identity or client_id, or any newly externally-reachable surface.
+        (4) CODE THAT RUNS ON A STRANGER'S MACHINE — any change to plugins/*/hooks/** (hook bodies, hooks.json, hooks/lib/**), plugins/base-novacaelum/bin/** (init_workspace.py, setup_record.py, ask_issue.py, loop_state.py, node_gates.py), plugins/base-novacaelum/settings.json, plugins/base-novacaelum/setup/steps.json, or .githooks/**. These execute on the machine of whoever installs this plugin; a careless diff here is a supply-chain event, not a bug.
+        (5) ANYTHING WRITTEN INTO A USER'S OWN PROJECT — plugins/base-novacaelum/template/** in full, including template/.claude/rules/**, template/CLAUDE.md, template/.obsidian/** and template/_templates/**. The installer copies this tree into a stranger's repository; content here becomes their configuration.
+        (6) THE SECRETS PATH — plugins/base-novacaelum/skills/secrets-setup/SKILL.md and plugins/super-novacaelum/skills/get-api-keys/SKILL.md. These instruct a user in handling their own credentials; a wrong instruction here teaches credential mishandling at scale.
+        (7) THE LEAK SCANNER ITSELF — scripts/leak-scan.py. A diff that weakens, narrows or disables the scanner is the single diff least eligible for auto-merge in this repo, because it removes the control that would catch the next item (1).
+        (8) WHAT LOADS AND FROM WHERE — .claude-plugin/marketplace.json, plugins/*/.claude-plugin/plugin.json, plugins/base-novacaelum/registry/agents.json, plugins/base-novacaelum/registry/check_registry.py. These decide which components a user's Claude Code loads and from which source.
+        (9) A GRANT THE SHIPPED REGISTRY DOES NOT TRACK — allowedTools, disallowedTools, permissions, bypassPermissions, model, or a spawn/agent allowlist appearing in agent frontmatter or settings.json where registry/agents.json and check_registry.py do not see it. Loadout edits that registry/agents.json DOES track, and that check_registry.py still passes on, are normal work and merge.
+        (10) GATE-WEAKENING — deletes or loosens a test, assertion or validator under tests/** (test_installer.py, test_template_hooks.py, test_mcp.py, test_verifier.py, test_loop.py, test_ask.py, test_setup_record.py), or adds --force, --no-verify, a bypass flag, a skip marker or a relaxed mode anywhere.
+        (11) ANYTHING IRREGULAR — the diff does something its own description does not account for, obfuscated/encoded/base64 payloads, an unexplained deletion, a new binary or non-text file, or a change that does not fit its stated purpose. This is the "somebody slipped something in" test.
+        (12) THE DELIVERY MACHINERY ITSELF — .github/workflows/**.
+        (13) A failing CI check or a merge conflict.
+      worklog_project: 'technical-cofounder'
+      repo_context_description: >-
+        the public, installable technical-cofounder Claude Code plugin kit — its hooks, installer,
+        settings template and MCP server all execute on the machine of whoever installs it, so a
+        careless diff here is a supply-chain event rather than a local bug
