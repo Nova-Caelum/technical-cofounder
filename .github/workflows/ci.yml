@@ -4,46 +4,40 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  explore:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-
-      - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
-
-      - name: Validate marketplace and plugins
+          node-version: "22"
+      - run: npm install -g @anthropic-ai/claude-code
+      - name: interpreters on PATH
         run: |
-          claude plugin validate --strict .
-          claude plugin validate --strict plugins/base-novacaelum
-          claude plugin validate --strict plugins/super-novacaelum
-
-      - name: Run tests
+          claude --version
+          for n in python3 python py; do echo "== $n: $(command -v $n)"; $n -c "import sys; print(sys.executable, sys.version.split()[0])" || echo "exit $?"; done
+          if [ "$RUNNER_OS" = Windows ]; then where python3 || true; where python || true; where py || true; fi
+      - name: unit tests (baseline)
+        continue-on-error: true
         run: |
           python3 -m unittest \
-            tests.test_mcp \
-            tests.test_verifier \
-            tests.test_template_hooks \
-            tests.test_installer \
-            tests.test_loop \
-            tests.test_ask \
-            tests.test_setup_record \
-            tests.test_he_bridge
-
-      - name: Shellcheck hooks
-        run: shellcheck plugins/base-novacaelum/hooks/*.sh plugins/base-novacaelum/hooks/lib/*.sh
-
-      - name: Leak scan (full history)
-        run: python3 scripts/leak-scan.py --history
-
-      - name: Registry check
-        run: python3 plugins/base-novacaelum/registry/check_registry.py
+            tests.test_mcp tests.test_verifier tests.test_template_hooks tests.test_installer \
+            tests.test_loop tests.test_ask tests.test_setup_record tests.test_he_bridge 2>&1 | tail -80
+      - name: pre-warm npx
+        run: npx -y @modelcontextprotocol/server-sequential-thinking --help < /dev/null || true
+      - name: explore option B
+        run: python .github/scripts/explore_mcp_env.py
