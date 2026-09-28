@@ -31,12 +31,16 @@ jobs:
           claude --version
           for n in python3 python py; do echo "== $n: $(command -v $n)"; $n -c "import sys; print(sys.executable, sys.version.split()[0])" || echo "exit $?"; done
           if [ "$RUNNER_OS" = Windows ]; then where python3 || true; where python || true; where py || true; fi
-      - name: unit tests (baseline)
+      - name: which bash does Python spawn
+        run: python -c "import shutil, subprocess; print(shutil.which('bash'), shutil.which('sh')); subprocess.run(['bash', '-c', 'echo BASH=$BASH_VERSION; uname -s'])"
+      - name: unit tests
         continue-on-error: true
+        env:
+          PYTHONUTF8: "1"
         run: |
           python3 -m unittest \
             tests.test_mcp tests.test_verifier tests.test_template_hooks tests.test_installer \
-            tests.test_loop tests.test_ask tests.test_setup_record tests.test_he_bridge 2>&1 | tail -80
+            tests.test_loop tests.test_ask tests.test_setup_record tests.test_he_bridge tests.test_resolver
       - name: pre-warm npx
         run: npx -y @modelcontextprotocol/server-sequential-thinking --help < /dev/null || true
       - name: explore option B

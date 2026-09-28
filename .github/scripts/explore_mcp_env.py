@@ -15,6 +15,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.stdout.reconfigure(encoding="utf-8")
 AUTH = ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_AUTH_TOKEN")
 claude = shutil.which("claude")
 tmp = Path(tempfile.mkdtemp())

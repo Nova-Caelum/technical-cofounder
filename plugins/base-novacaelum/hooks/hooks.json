@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-preload.sh"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-preload.sh"
           }
         ]
       }
@@ -15,11 +15,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/concision-budget.sh"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/concision-budget.sh"
           },
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/concision-contract.sh"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/concision-contract.sh"
           }
         ]
       }
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/concision-stop.sh"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/concision-stop.sh"
           }
         ]
       }
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/circuit-breaker.sh"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/circuit-breaker.sh"
           }
         ]
       }
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/circuit-breaker.sh"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/circuit-breaker.sh"
           }
         ]
       }
@@ -62,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/circuit-breaker.sh"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/circuit-breaker.sh"
           }
         ]
       }
