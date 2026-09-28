@@ -58,6 +58,9 @@ give one line on what it gets them now; they can skip it again.
 
 ## 1. Prerequisites (`prerequisites`) and an editor (`editor`)
 
+Open with one question: "Mac or Windows PC?" (Linux counts too), and use
+the matching commands from here on.
+
 Check `python3` and `git` are on PATH (`python3 --version`, `git --version`).
 If `python3` is missing, stop and help them install it first: the plugin's
 tools and this record both need it.
@@ -73,29 +76,29 @@ claude plugin uninstall base-novacaelum@technical-cofounder --scope user
 claude plugin install base-novacaelum@technical-cofounder --scope project
 ```
 
-`set … prerequisites done`.
+`set … prerequisites done --choice os=mac|windows|linux`.
 
 ### Editor
 
-Can they open and edit a Markdown file? Every file this workspace gives them
-is one, and a "no" surfaces as a user who goes quiet, not as a question.
+Markdown (`.md`) is the core file type here, not "notes": the profile,
+plans, worklog, rules and skills are all Markdown. A user who can't open it
+goes quiet rather than asking.
 
-Look before asking. On macOS, `ls /Applications | grep -iE "obsidian|visual
+Look before asking. On a Mac, `ls /Applications | grep -iE "obsidian|visual
 studio code|typora|zed|sublime"`; on Windows, check `%LOCALAPPDATA%\Programs`.
 If something is there, say which and move on.
 
-If nothing is, ask plainly whether they have a way to open and edit `.md`
-files, and would like help getting one. Offer, one line each:
+If nothing is, recommend one, a line each:
 
-- **Obsidian** — free, the best fit, and step 2 builds on it.
-- **VS Code** — free, and a code editor too.
-- **Typora** — paid, and the cleanest if they want a document, not a file tree.
-- **What's already there** — TextEdit or Notepad opens `.md` today, since
-  Markdown is plain text. Say so: a user who thinks a special app is required
-  stalls on installing one.
+- **Obsidian** — free, our recommendation, and step 2 builds on it.
+- **VS Code** or **Zed** — free, and code editors too.
+- **Typora** — paid, the cleanest single-document view.
+- **The fallback** — TextEdit (Mac) or Notepad (Windows) opens `.md` today
+  as raw text, without formatting, links or search. Say so: a user who
+  thinks a special app is required stalls on installing one.
 
 They install it; offer the download page, don't install it for them.
-`set … editor done --choice editor=<obsidian|vscode|typora|textedit|notepad|other>`,
+`set … editor done --choice editor=<obsidian|vscode|zed|typora|textedit|notepad|other>`,
 or `skipped` if they want none.
 
 ## 2. Obsidian (`obsidian`)
@@ -108,14 +111,16 @@ Obsidian, don't sell it. `set … obsidian done --choice obsidian=yes`, or
 
 ## 3. GitHub (`github`)
 
-Never blocking: setup carries on whatever they answer.
+Optional, never blocking, and worth pitching: every change is backed up
+off this computer and can be undone, which solves backups and lost files
+for good, and it's free.
 
 Look first: `gh --version`, then `gh auth status`. If both succeed, say
 they're connected, `set … github done --choice github=yes` and move on.
 
 Otherwise ask whether they want to connect GitHub now. On a no, ask once:
-"Are you sure? It's the backup of your project that lives off this computer,
-and it takes about ten minutes." A second no is final:
+"Are you sure? It's free, it's your project's backup off this computer, and
+it takes about ten minutes." A second no is final:
 `set … github skipped --choice github=no`, and continue.
 
 On a yes, walk them through it. They run every command:
