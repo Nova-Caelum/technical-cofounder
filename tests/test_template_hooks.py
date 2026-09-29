@@ -184,7 +184,7 @@ class SessionPreloadTests(unittest.TestCase):
 
     def test_no_profile_points_to_setup(self):
         out = self.preload()
-        self.assertIn("/base-novacaelum:setup", out)
+        self.assertIn("/base-novacaelum:quick-start", out)
         self.assertIn("/base-novacaelum:ask", out)
         self.assertIn("## Tech primer (live)", out)
 
@@ -328,9 +328,16 @@ class HyperspacePreloadTests(unittest.TestCase):
         fake = FakeHE(self.project, entries=1)
         before = fake.config()
         out = self.preload()
-        self.assertIn("/base-novacaelum:setup", out)
+        self.assertIn("/base-novacaelum:quick-start", out)
         self.assertEqual(fake.config(), before)
         self.assertEqual(fake.calls(), [])
+
+
+class QuickStartCommandTests(unittest.TestCase):
+    def test_quick_start_command_replaces_setup(self):
+        commands = PLUGIN_ROOT / "commands"
+        self.assertTrue((commands / "quick-start.md").is_file())
+        self.assertFalse((commands / "setup.md").exists())
 
 
 class HookSampleAndMalformedInputTests(unittest.TestCase):

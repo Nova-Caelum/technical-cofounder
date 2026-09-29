@@ -6,7 +6,7 @@
 #
 # If this project has been set up (core_text/user.md, or a legacy user.md at
 # the project root), inject it plus the 3 most recent worklog entries into
-# context. Otherwise print one line pointing at /base-novacaelum:setup.
+# context. Otherwise print one line pointing at /base-novacaelum:quick-start.
 # Either way, print the live tech primer: which Nova Caelum plugins are
 # present, expected but missing, or not chosen; a pointer to the
 # without-super fallbacks when super isn't present; and setup progress while
@@ -114,7 +114,7 @@ PY
 }
 
 if [ ! -f "$USER_MD" ]; then
-    echo "base-novacaelum: this project hasn't been set up yet — run /base-novacaelum:setup to copy the starter workspace in."
+    echo "base-novacaelum: this project hasn't been set up yet — run /base-novacaelum:quick-start to copy the starter workspace in."
     echo
     tech_primer
     echo
@@ -128,7 +128,7 @@ echo "## user.md"
 echo
 cat "$USER_MD" 2>/dev/null || echo "(could not read user.md)"
 if [ "$LEGACY" = 1 ]; then
-    echo "Note: this profile is at the old location (./user.md); /base-novacaelum:setup can move it into core_text/ for you."
+    echo "Note: this profile is at the old location (./user.md); /base-novacaelum:quick-start can move it into core_text/ for you."
 fi
 echo
 

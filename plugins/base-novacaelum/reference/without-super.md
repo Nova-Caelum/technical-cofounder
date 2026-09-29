@@ -9,6 +9,6 @@ super-novacaelum adds four services, each on the user's own account. When the se
 | Browserbase | A cloud browser for pages that need clicks, a login or JavaScript | No base equivalent: ask the user to open the page and tell you what it shows. |
 | sequential-thinking | Step-by-step reasoning through a hard trade-off | Run `option-conception` to lay out the options, then `assumption-check` on what the choice rests on. |
 
-To add super later, say "continue setup" (its step is `super`) or run `/base-novacaelum:setup`.
+To add super later, say "continue setup" (its step is `super`) or run `/base-novacaelum:quick-start`.
 
 Source: Nova Caelum (Apache-2.0).
