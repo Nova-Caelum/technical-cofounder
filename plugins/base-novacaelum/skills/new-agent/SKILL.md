@@ -44,7 +44,7 @@ Never write an agent file before the gate has a written verdict. Take the facts 
 
    If the gate has never returned anything but `NEW-AGENT`, it isn't really running.
    Observed failure: once a conversation slid from strategy into building, required checks stopped firing because they depended on someone noticing them. The user had to push back twice in one session. A written verdict either exists or it doesn't.
-5. **Fill in the spec.** Copy `_templates/agent.md` to `agent-specs/<name>.md` and fill in every section. The `setup` skill (`/base-novacaelum:setup`) puts `_templates/` in the project, so run it if the folder is missing. Budgets are caps, not targets. Every behavior the agent carries should trace to a failure someone has seen. If the agent gets a red-flags or rationalization section, run `pressure-scenario-skill-authoring` first.
+5. **Fill in the spec.** Copy `_templates/agent.md` to `agent-specs/<name>.md` and fill in every section. The `setup` skill (`/base-novacaelum:quick-start`) puts `_templates/` in the project, so run it if the folder is missing. Budgets are caps, not targets. Every behavior the agent carries should trace to a failure someone has seen. If the agent gets a red-flags or rationalization section, run `pressure-scenario-skill-authoring` first.
 6. **Hand off the file creation.** By default, give Claude Code the filled spec and ask it to create the agent:
 
    > Create a project agent at `.claude/agents/<name>.md` from `agent-specs/<name>.md`. Take the frontmatter from its Frontmatter block and the body from its Body section.

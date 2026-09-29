@@ -24,6 +24,6 @@ At the start of every session the plugin's preload prints your profile, the
 latest worklog entries and a live tech primer: which Nova Caelum plugins are
 present or missing, and how far setup has got.
 
-Re-run `/base-novacaelum:setup`, or say "continue setup", any time. It never
+Re-run `/base-novacaelum:quick-start`, or say "continue setup", any time. It never
 overwrites a file that's already here. Stuck, found a bug, or have an idea?
 `/base-novacaelum:ask` reaches Nova Caelum.
