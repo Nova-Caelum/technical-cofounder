@@ -13,8 +13,9 @@ script and the session preload share. Everything this script writes lives in
   setup.json        the record: each step's status and when it changed, plus
                     the few choices a step declares (never free text, never
                     a key)
-  setup-guide.html  the guide, one self-contained page rendered from
-                    steps.json and the record
+  setup-guide.html  part 1 of the guide (about 20 minutes), one
+                    self-contained page rendered from steps.json and the record
+  setup-extras.html part 2, the optional extras, in the same style
 
 Every subcommand first creates setup.json when it is absent (all steps
 pending). An existing record is never replaced; a step added to steps.json
@@ -23,9 +24,11 @@ does not declare, an `os` other than mac, windows or linux, and a value that
 is longer than 40 characters, is not a plain word, or looks like a key, path
 or email. A refusal never echoes the value and never touches the record.
 
-The guide is one card per step (status, minutes, OK to skip or required,
-why, what skipping costs you, and the price) on graph paper, light or dark
-to match the reader's system, with no script, font file or other asset.
+Each page is one card per step (status, minutes when it has any, OK to skip or
+required, why, what skipping costs you, and the price) on graph paper, light or
+dark to match the reader's system, with no script, font file or other asset.
+Part 1 ends with a thank-you and the absolute path of part 2. `render` prints
+GUIDE: and EXTRAS: lines carrying both absolute paths.
 
 Exit codes: 0 ok, 1 refused or unreadable record, 2 usage. Standard library
 only.
@@ -149,7 +152,7 @@ def status_lines(project):
     width = max(len(s["id"]) for s in steps)
     lines = [f"{'step':<{width}}  {'status':<8}  minutes"]
     for s in steps:
-        lines.append(f"{s['id']:<{width}}  {rec['steps'][s['id']]['status']:<8}  {s['minutes']}")
+        lines.append(f"{s['id']:<{width}}  {rec['steps'][s['id']]['status']:<8}  {'-' if s['minutes'] is None else s['minutes']}")
     done = sum(rec["steps"][s["id"]]["status"] == "done" for s in steps)
     lines.append(f"DONE {done}/{len(steps)}")
     return lines
@@ -225,7 +228,7 @@ main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 3rem; }
 }
 h1 { margin: 0; font: 600 2.4rem/1.1 var(--serif); letter-spacing: -0.01em; }
 .lede { margin: 0.6rem 0 0; max-width: 34rem; color: rgba(245, 235, 221, 0.80); text-wrap: pretty; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 1.5rem 0 1.1rem; }
+.stats { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 0.75rem; margin: 1.5rem 0 1.1rem; }
 .stat { margin: 0; padding: 0.75rem 0.9rem; border: 1px solid rgba(245, 235, 221, 0.14); border-radius: 12px; background: rgba(245, 235, 221, 0.05); }
 .stat span { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(245, 235, 221, 0.70); }
 .stat b { display: block; margin-top: 0.2rem; font: 600 1.35rem/1.2 var(--serif); font-variant-numeric: tabular-nums; }
@@ -258,6 +261,10 @@ h1 { margin: 0; font: 600 2.4rem/1.1 var(--serif); letter-spacing: -0.01em; }
 .facts dd { margin: 0; font-size: 0.95rem; color: var(--body); text-wrap: pretty; }
 footer { margin-top: 1.75rem; padding: 0 0.25rem; color: var(--body); }
 footer p { margin: 0.25rem 0; }
+a { color: var(--pill-fg); }
+.card { min-width: 0; overflow-wrap: anywhere; }
+.closing { margin-top: 0.875rem; }
+.closing .does:last-child { margin-top: 0.9rem; }
 .muted { font-size: 0.875rem; color: var(--label); }
 @media (max-width: 34rem) {
   main { padding: 1rem 0.875rem 2rem; }
@@ -265,7 +272,7 @@ footer p { margin: 0.25rem 0; }
   h1 { font-size: 2rem; }
   .stats { grid-template-columns: 1fr; gap: 0.5rem; margin-top: 1.25rem; }
   .stat { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.6rem 0.8rem; }
-  .stat b { margin-top: 0; font-size: 1.2rem; }
+  .stat b { margin-top: 0; font-size: 1.2rem; white-space: nowrap; }
   .card { padding: 1rem 1.1rem 1.1rem; }
   .facts div { grid-template-columns: 1fr; gap: 0.1rem; }
 }
@@ -277,24 +284,26 @@ PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Your setup guide</title>
+<title>{title}</title>
 <style>{style}</style>
 </head>
 <body>
 <main>
 <header class="hero">
-<h1>Your setup guide</h1>
-<p class="lede">Every step of setting up this project: what it does, why it matters, what it costs, and whether it can wait.</p>
+<h1>{title}</h1>
+<p class="lede">{lede}</p>
+<p class="lede">{ask}</p>
 <div class="stats">
 <p class="stat"><span>Done</span><b>{done} of {count}</b></p>
 <p class="stat"><span>Left to do</span><b>{left} minutes</b></p>
-<p class="stat"><span>Estimated total</span><b>{total} minutes</b></p>
+<p class="stat"><span>Estimated total</span><b>About {total} minutes</b></p>
 </div>
 <div class="bar" aria-hidden="true">{segs}</div>
 </header>
 <ol class="steps">
 {cards}
 </ol>
+{closing}
 <footer>
 <p>Say <b>“continue setup”</b> to Claude to pick up any step.</p>
 <p class="muted">Updated {updated} · base-novacaelum {version}</p>
@@ -305,9 +314,9 @@ PAGE = """<!doctype html>
 """
 
 CARD = """<li class="card is-{cls}" data-step="{id}">
-<div class="card-top"><span class="chip {cls}">{mark}</span><span class="tags"><span class="pill">{minutes} min</span>{badge}</span></div>
+<div class="card-top"><span class="chip {cls}">{mark}</span><span class="tags">{pill}{badge}</span></div>
 <h2>{title}</h2>
-<p class="does">{does}</p>
+<p class="does">{does}</p>{extra}
 <dl class="facts">
 <div><dt>Why</dt><dd>{why}</dd></div>
 <div><dt>If you skip</dt><dd>{if_skipped}</dd></div>
@@ -315,32 +324,75 @@ CARD = """<li class="card is-{cls}" data-step="{id}">
 </dl>
 </li>"""
 
+ASK = "Questions at any point? Just ask. Type it in the chat and your agent will answer."
+LEDES = {
+    1: "Every step of setting up this project: what it does, why it matters, what it costs, and whether it can wait.",
+    2: "The optional extras, kept off the first page so your first setup stays short. Do them any time.",
+}
+TITLES = {1: "Your setup guide", 2: "Setup, part 2: extras"}
+THANKS = """<section class="card closing">
+<h2>Thanks for setting up.</h2>
+<p class="does">Your project is ready to work in.</p>
+<dl class="facts">
+<div><dt>Next steps</dt><dd>Setup part 2 (extras) is here:<br><a href="{uri}">{path}</a></dd></div>
+</dl>
+<p class="does">{ask}</p>
+</section>"""
+SAVED = """<section class="card closing">
+<p class="does">This page is saved at <a href="{uri}">{path}</a>.</p>
+<p class="does">{ask}</p>
+</section>"""
+
 BADGES = {True: '<span class="badge opt">OK to skip</span>', False: '<span class="badge req">Required</span>'}
 
 
-def render(project):
-    steps = load_steps()
-    rec = load_record(project, steps)
+def obsidian_link(project):
+    """The OBSIDIAN.md on this machine: the project's own copy when
+    init_workspace put one there, otherwise the plugin's template."""
+    mine = project / "OBSIDIAN.md"
+    return mine if mine.is_file() else PLUGIN_ROOT / "template" / "OBSIDIAN.md"
+
+
+def render_part(part, steps, rec, project, extras_path):
     e = html.escape
     cards, segs, left, done = [], [], 0, 0
     for s in steps:
         status = rec["steps"][s["id"]]["status"]
         cls, mark = MARKS.get(status, MARKS["pending"])
-        left += s["minutes"] if status == "pending" else 0
+        minutes = s["minutes"]
+        left += (minutes or 0) if status == "pending" else 0
         done += status == "done"
         segs.append(f'<span class="seg {cls}"></span>')
+        extra = ""
+        if s["id"] == "obsidian":
+            link = obsidian_link(project)
+            extra = f'\n<p class="does"><a href="{e(link.as_uri())}">Everything about Obsidian is here, or you can just ask.</a><br><span class="muted">{e(str(link))}</span></p>'
         cards.append(CARD.format(
             cls=cls, mark=mark, id=e(s["id"]), title=e(s["title"]), does=e(s["does"]),
-            minutes=e(str(s["minutes"])), badge=BADGES[bool(s["skippable"])], why=e(s["why"]),
+            pill="" if minutes is None else f'<span class="pill">{minutes} min</span>',
+            badge=BADGES[bool(s["skippable"])], why=e(s["why"]), extra=extra,
             if_skipped=e(s["if_skipped"]), cost=e(str(s.get("cost", ""))),
         ))
-    out = record_path(project).with_name("setup-guide.html")
-    out.write_text(PAGE.format(
-        style=STYLE, total=sum(s["minutes"] for s in steps), left=left, done=done, count=len(steps),
+    total = (sum(s["minutes"] or 0 for s in steps) + 2) // 5 * 5  # nearest 5
+    ends = {1: THANKS, 2: SAVED}[part].format(uri=e(extras_path.as_uri()), path=e(str(extras_path)), ask=e(ASK))
+    return PAGE.format(
+        style=STYLE, title=e(TITLES[part]), lede=e(LEDES[part]), ask=e(ASK), closing=ends,
+        total=total, left=left, done=done, count=len(steps),
         segs="".join(segs), cards="\n".join(cards),
         updated=e(str(rec.get("updated", "")).replace("T", " ").replace("Z", " UTC")),
         version=e(str(rec.get("plugin_version", ""))),
-    ), encoding="utf-8")
+    )
+
+
+def render(project):
+    """Write both pages; return the part 1 path (the extras page sits beside it)."""
+    steps = load_steps()
+    rec = load_record(project, steps)
+    out = record_path(project).with_name("setup-guide.html")
+    extras = out.with_name("setup-extras.html")
+    root = Path(project).expanduser().resolve()
+    for path, part in ((out, 1), (extras, 2)):
+        path.write_text(render_part(part, [s for s in steps if s["part"] == part], rec, root, extras), encoding="utf-8")
     return out
 
 
@@ -352,7 +404,7 @@ def main(argv):
     p_set.add_argument("step")
     p_set.add_argument("status")
     p_set.add_argument("--choice", action="append", default=[], metavar="key=value")
-    for name, text in (("status", "print each step's status and a DONE n/m line"), ("render", "write core_text/setup-guide.html")):
+    for name, text in (("status", "print each step's status and a DONE n/m line"), ("render", "write core_text/setup-guide.html and setup-extras.html")):
         sub.add_parser(name, help=text).add_argument("project")
     args = parser.parse_args(argv[1:])
 
@@ -364,7 +416,9 @@ def main(argv):
         elif args.cmd == "status":
             print("\n".join(status_lines(args.project)))
         else:
-            print(f"RENDERED: core_text/{render(args.project).name}")
+            guide = render(args.project)
+            print(f"GUIDE: {guide}")
+            print(f"EXTRAS: {guide.with_name('setup-extras.html')}")
     except Refused as exc:
         sys.stderr.write(f"REFUSED: {exc}\n")
         return 1

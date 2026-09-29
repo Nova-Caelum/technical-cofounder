@@ -122,7 +122,9 @@ class RulesPackTests(unittest.TestCase):
                 self.assertNotIn(term, text, f"{name} contains blocked term {term!r}")
 
 
-STEP_IDS = [s["id"] for s in json.loads((PLUGIN_ROOT / "setup" / "steps.json").read_text(encoding="utf-8"))["steps"]]
+_STEPS = json.loads((PLUGIN_ROOT / "setup" / "steps.json").read_text(encoding="utf-8"))["steps"]
+STEP_IDS = [s["id"] for s in _STEPS]
+PART1_IDS = [s["id"] for s in _STEPS if s["part"] == 1]
 SUPER_KEY = "super-novacaelum@technical-cofounder"
 
 
@@ -189,12 +191,17 @@ class SessionPreloadTests(unittest.TestCase):
     def test_setup_progress_line(self):
         self.write("core_text/user.md", "# p\n")
         self.record(done=("guide", "prerequisites", "editor"))
-        want = f'Setup: 3 of {len(STEP_IDS)} steps done — say "continue setup" to pick up where you left off.'
+        want = f'Setup: 3 of {len(PART1_IDS)} steps done — say "continue setup" to pick up where you left off.'
         self.assertIn(want, self.preload().splitlines())
 
     def test_no_progress_line_when_nothing_pending(self):
         self.write("core_text/user.md", "# p\n")
         self.record(done=STEP_IDS)
+        self.assertFalse([ln for ln in self.preload().splitlines() if ln.startswith("Setup:")])
+
+    def test_no_progress_line_when_only_part_2_is_pending(self):
+        self.write("core_text/user.md", "# p\n")
+        self.record(done=PART1_IDS)
         self.assertFalse([ln for ln in self.preload().splitlines() if ln.startswith("Setup:")])
 
     def test_stack_defaults(self):

@@ -106,7 +106,7 @@ if not super_present:
 
 if record:
     steps = record.get("steps") if isinstance(record.get("steps"), dict) else {}
-    ids = [s.get("id") for s in load(plugin / "setup" / "steps.json").get("steps", []) if isinstance(s, dict)] or list(steps)
+    ids = [s.get("id") for s in load(plugin / "setup" / "steps.json").get("steps", []) if isinstance(s, dict) and s.get("part", 1) == 1] or list(steps)
     status = [(steps.get(i) if isinstance(steps.get(i), dict) else {}).get("status", "pending") for i in ids]
     if "pending" in status:
         print(f'Setup: {status.count("done")} of {len(ids)} steps done — say "continue setup" to pick up where you left off.')

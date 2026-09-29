@@ -1,5 +1,5 @@
 ---
-description: Set up this project, or continue setup — a skippable guide, then the starter workspace and the optional extras
+description: "Start here after installing: opens the setup guide (about 20 minutes)."
 ---
 
 Use the setup skill to walk through setting up this project, or to pick up
