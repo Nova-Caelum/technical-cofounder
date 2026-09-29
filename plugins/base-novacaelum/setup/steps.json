@@ -1,5 +1,5 @@
 {
-  "about": "The setup steps, in order. The setup skill, bin/setup_record.py (the record and the rendered guide) and the session preload all read this file, so adding a step is an edit here. choices lists the only keys a step may record in core_text/setup.json.",
+  "about": "The setup steps, in order. part is 1 (the guide) or 2 (the extras page); a null minutes shows no time. The setup skill, bin/setup_record.py (the record and the rendered guide) and the session preload all read this file, so adding a step is an edit here. choices lists the only keys a step may record in core_text/setup.json.",
   "steps": [
     {
       "id": "guide",
@@ -10,17 +10,19 @@
       "if_skipped": "Not skippable: it's this page.",
       "cost": "Free",
       "minutes": 1,
+      "part": 1,
       "choices": []
     },
     {
       "id": "prerequisites",
-      "title": "Check the basics",
-      "does": "Asks which computer you're on (Mac or Windows PC), then checks Python and Git and switches the plugin on for this project only.",
+      "title": "Quick questions and the basics",
+      "does": "Asks if you're ready to start and which computer you're on (Mac or Windows PC), then checks Python and Git and switches the plugin on for this project only.",
       "why": "Commands differ between Mac and Windows, and the team's tools run on Python and Git.",
       "skippable": false,
       "if_skipped": "Not skippable: without Python the tools can't start.",
       "cost": "Free",
-      "minutes": 3,
+      "minutes": 5,
+      "part": 1,
       "choices": ["os"]
     },
     {
@@ -28,10 +30,11 @@
       "title": "Where you read and edit Markdown",
       "does": "Picks the app you'll open Markdown (.md) files in: we recommend Obsidian, and VS Code, Typora or Zed work too.",
       "why": "Almost every file your agents read and write is Markdown, from your profile and plans to the worklog, rules and skills: it's the core file type here, not “notes”.",
-      "skippable": true,
-      "if_skipped": "You can open them in TextEdit (Mac) or Notepad (Windows), as raw text with no formatting, links or search.",
+      "skippable": false,
+      "if_skipped": "Choosing TextEdit (Mac) or Notepad (Windows) counts as done: they open Markdown as raw text, with no formatting, links or search.",
       "cost": "Free (Typora is paid)",
-      "minutes": 3,
+      "minutes": 5,
+      "part": 1,
       "choices": ["editor"]
     },
     {
@@ -42,18 +45,20 @@
       "skippable": true,
       "if_skipped": "Everything still works in your editor, without the vault view or the worklog table.",
       "cost": "Free",
-      "minutes": 5,
+      "minutes": null,
+      "part": 1,
       "choices": ["obsidian"]
     },
     {
       "id": "github",
       "title": "GitHub (optional, strongly recommended)",
-      "does": "Connects this computer to a free GitHub account with GitHub's command-line tool.",
+      "does": "Connects this computer to a free GitHub account with GitHub's command-line tool. It takes about 5 minutes with an account, longer without.",
       "why": "Every change is backed up off this computer and can be undone; it solves backup and lost-file problems for good, and it's free.",
       "skippable": true,
       "if_skipped": "Your project lives only on this computer, one lost laptop or bad edit away from gone; add it any time.",
       "cost": "Free",
-      "minutes": 10,
+      "minutes": 5,
+      "part": 1,
       "choices": ["github"]
     },
     {
@@ -65,29 +70,8 @@
       "if_skipped": "Not skippable: the rest of setup writes into these files.",
       "cost": "Free",
       "minutes": 2,
+      "part": 1,
       "choices": ["worklog_view"]
-    },
-    {
-      "id": "super",
-      "title": "Research extras (optional)",
-      "does": "Live documentation, web research and a cloud browser for your agents.",
-      "why": "Agents check today's docs and the web instead of guessing from memory.",
-      "skippable": true,
-      "if_skipped": "Agents use built-in web search; anything that needs a real browser comes back to you.",
-      "cost": "Free tiers; you create the accounts",
-      "minutes": 15,
-      "choices": ["super"]
-    },
-    {
-      "id": "profile",
-      "title": "About you",
-      "does": "A short interview that fills in your profile.",
-      "why": "Agents read it every session, so they work your way from the first message.",
-      "skippable": true,
-      "if_skipped": "Agents use general defaults and won't know your goals or style.",
-      "cost": "Free",
-      "minutes": 8,
-      "choices": []
     },
     {
       "id": "first-steps",
@@ -98,7 +82,32 @@
       "if_skipped": "Nothing breaks.",
       "cost": "Free",
       "minutes": 2,
+      "part": 1,
       "choices": []
+    },
+    {
+      "id": "profile",
+      "title": "About you",
+      "does": "A short interview that fills in your profile.",
+      "why": "Agents read it every session, so they work your way from the first message.",
+      "skippable": true,
+      "if_skipped": "Agents use general defaults and won't know your goals or style.",
+      "cost": "Free",
+      "minutes": 2,
+      "part": 1,
+      "choices": []
+    },
+    {
+      "id": "super",
+      "title": "Research extras (optional)",
+      "does": "Live documentation, web research and a cloud browser for your agents.",
+      "why": "Agents check today's docs and the web instead of guessing from memory.",
+      "skippable": true,
+      "if_skipped": "Agents use built-in web search; anything that needs a real browser comes back to you.",
+      "cost": "Free tiers; you create the accounts",
+      "minutes": 15,
+      "part": 2,
+      "choices": ["super"]
     }
   ]
 }

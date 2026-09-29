@@ -1,6 +1,7 @@
 """Unit tests for plugins/base-novacaelum/bin/setup_record.py: the setup record
 (<project>/core_text/setup.json) and the rendered guide
-(<project>/core_text/setup-guide.html), both driven by setup/steps.json.
+(<project>/core_text/setup-guide.html for part 1, setup-extras.html for part 2),
+both driven by setup/steps.json.
 
 Standard library only. Key-shaped test values are assembled at runtime so this
 file never carries one.
@@ -18,6 +19,9 @@ PLUGIN_ROOT = REPO_ROOT / "plugins" / "base-novacaelum"
 SCRIPT = PLUGIN_ROOT / "bin" / "setup_record.py"
 STEPS = json.loads((PLUGIN_ROOT / "setup" / "steps.json").read_text(encoding="utf-8"))["steps"]
 STEP_IDS = [s["id"] for s in STEPS]
+PART1 = [s for s in STEPS if s["part"] == 1]
+PART2 = [s for s in STEPS if s["part"] == 2]
+ASK_LINE = "Questions at any point? Just ask. Type it in the chat and your agent will answer."
 PLUGIN_VERSION = json.loads((PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
 
 
@@ -202,32 +206,35 @@ class StatusTests(Project):
         r = cli("status", self.project)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn(f"DONE 2/{len(STEP_IDS)}", r.stdout)
-        self.assertRegex(r.stdout, r"(?m)^obsidian\s+skipped\s+\d+\s*$")
+        self.assertRegex(r.stdout, r"(?m)^obsidian\s+skipped\s+\S+\s*$")
         self.assertRegex(r.stdout, r"(?m)^guide\s+done\s+1\s*$")
         for sid in STEP_IDS:
             self.assertIn(sid, r.stdout)
 
 
 class RenderTests(Project):
-    def html(self):
-        return (self.project / "core_text" / "setup-guide.html").read_text(encoding="utf-8")
+    def html(self, name="setup-guide.html"):
+        return (self.project / "core_text" / name).read_text(encoding="utf-8")
 
     def test_contains_every_step(self):
         cli("render", self.project)
-        page = self.html()
-        for s in STEPS:
-            with self.subTest(step=s["id"]):
-                self.assertIn(html.escape(s["title"]), page)
-                self.assertIn(html.escape(s["does"]), page)
+        for name, steps in (("setup-guide.html", PART1), ("setup-extras.html", PART2)):
+            page = self.html(name)
+            for s in steps:
+                with self.subTest(page=name, step=s["id"]):
+                    self.assertIn(html.escape(s["title"]), page)
+                    self.assertIn(html.escape(s["does"]), page)
 
     def test_self_contained(self):
         cli("render", self.project)
-        low = self.html().lower()
-        for banned in ("<script", "http", "<link", "@import", "url(", "<img", "<iframe"):
-            self.assertNotIn(banned, low)
-        self.assertIn("prefers-color-scheme: dark", low)
-        self.assertIn("continue setup", low)
-        self.assertIn("ok to skip", low)
+        for name in ("setup-guide.html", "setup-extras.html"):
+            low = self.html(name).lower()
+            for banned in ("<script", "http", "<link", "@import", "url(", "<img", "<iframe"):
+                with self.subTest(page=name, banned=banned):
+                    self.assertNotIn(banned, low)
+            self.assertIn("prefers-color-scheme: dark", low)
+            self.assertIn("continue setup", low)
+            self.assertIn("ok to skip", low)
 
     def test_every_step_carries_a_cost(self):
         for s in STEPS:
@@ -238,8 +245,9 @@ class RenderTests(Project):
     def test_a_card_per_step_in_order(self):
         cli("render", self.project)
         page = self.html()
-        self.assertEqual(len(re.findall(r'<li class="card\b', page)), len(STEPS))
-        self.assertEqual(re.findall(r'data-step="([^"]+)"', page), STEP_IDS)
+        self.assertEqual(len(re.findall(r'<li class="card\b', page)), len(PART1))
+        self.assertEqual(re.findall(r'data-step="([^"]+)"', page), [s["id"] for s in PART1])
+        self.assertEqual(re.findall(r'data-step="([^"]+)"', self.html("setup-extras.html")), [s["id"] for s in PART2])
 
     def test_steps_are_cards_not_a_table(self):
         cli("render", self.project)
@@ -248,7 +256,7 @@ class RenderTests(Project):
     def test_every_cost_and_label_appears(self):
         cli("render", self.project)
         page = self.html()
-        for s in STEPS:
+        for s in PART1:
             with self.subTest(step=s["id"]):
                 self.assertIn(html.escape(s.get("cost") or "\0missing"), page)
                 self.assertIn(html.escape(s["why"]), page)
@@ -256,12 +264,12 @@ class RenderTests(Project):
         for label in (">Why<", ">If you skip<", ">Cost<", ">Required<", ">OK to skip<"):
             with self.subTest(label=label):
                 self.assertIn(label, page)
-        self.assertEqual(page.count(">Required<"), sum(not s["skippable"] for s in STEPS))
+        self.assertEqual(page.count(">Required<"), sum(not s["skippable"] for s in PART1))
 
     def test_minutes_pill_per_card(self):
         cli("render", self.project)
         pills = re.findall(r'<span class="pill">(\d+) min</span>', self.html())
-        self.assertEqual([int(m) for m in pills], [s["minutes"] for s in STEPS])
+        self.assertEqual([int(m) for m in pills], [s["minutes"] for s in PART1 if s["minutes"] is not None])
 
     def test_escapes_text(self):
         cli("status", self.project)
@@ -281,10 +289,81 @@ class RenderTests(Project):
         self.assertIn("✓", page)
         self.assertIn("Skipped", page)
         self.assertIn("To do", page)
-        total = sum(s["minutes"] for s in STEPS)
-        left = sum(s["minutes"] for s in STEPS if s["id"] not in ("guide", "github"))
-        self.assertIn(f"{total} minutes", page)
+        left = sum(s["minutes"] or 0 for s in PART1 if s["id"] not in ("guide", "github"))
         self.assertIn(f"{left} minutes", page)
+
+
+class PartsTests(Project):
+    """The guide is two pages: part 1 (about 20 minutes) and part 2 (extras)."""
+
+    def setUp(self):
+        super().setUp()
+        self.r = cli("render", self.project)
+        core = self.project.resolve() / "core_text"
+        self.guide_path, self.extras_path = core / "setup-guide.html", core / "setup-extras.html"
+        self.guide = self.guide_path.read_text(encoding="utf-8")
+        self.extras = self.extras_path.read_text(encoding="utf-8")
+
+    def test_part_1_page_excludes_the_super_card(self):
+        self.assertNotIn('data-step="super"', self.guide)
+        self.assertNotIn(html.escape([s for s in PART2][0]["title"]), self.guide)
+
+    def test_part_1_total_reads_about_20_minutes(self):
+        self.assertIn("About 20 minutes", self.guide)
+        self.assertEqual(sum(s["minutes"] or 0 for s in PART1) // 5 * 5, 20)
+
+    def test_extras_page_holds_super_under_its_own_title(self):
+        self.assertIn('data-step="super"', self.extras)
+        self.assertIn("Setup, part 2: extras", self.extras)
+        self.assertNotIn('data-step="guide"', self.extras)
+
+    def test_both_pages_carry_the_absolute_extras_path_and_the_ask_line(self):
+        for name, page in (("guide", self.guide), ("extras", self.extras)):
+            with self.subTest(page=name):
+                self.assertTrue(self.extras_path.is_absolute())
+                self.assertIn(html.escape(str(self.extras_path)), page)
+                self.assertIn(f'href="{self.extras_path.as_uri()}"', page)
+                self.assertGreaterEqual(page.count(ASK_LINE), 2, "near the top and in the closing block")
+
+    def test_part_1_page_ends_with_thanks_then_next_steps(self):
+        end = self.guide[self.guide.rindex("Thanks for setting up."):]
+        self.assertIn("Next steps", end)
+        self.assertIn("Setup part 2 (extras) is here:", end)
+        self.assertIn(html.escape(str(self.extras_path)), end)
+
+    def test_a_null_minutes_step_renders_without_a_pill(self):
+        obsidian = next(s for s in PART1 if s["id"] == "obsidian")
+        self.assertIsNone(obsidian["minutes"])
+        card = re.search(r'<li class="card[^>]*data-step="obsidian".*?</li>', self.guide, re.S).group(0)
+        self.assertNotIn('class="pill"', card)
+        self.assertNotIn("None", self.guide)
+        self.assertEqual(self.guide.count('class="pill"'), sum(s["minutes"] is not None for s in PART1))
+
+    def test_render_prints_guide_and_extras_paths(self):
+        self.assertEqual(self.r.returncode, 0, self.r.stderr)
+        lines = self.r.stdout.splitlines()
+        self.assertIn(f"GUIDE: {self.guide_path}", lines)
+        self.assertIn(f"EXTRAS: {self.extras_path}", lines)
+
+    def test_the_editor_step_is_required(self):
+        editor = next(s for s in STEPS if s["id"] == "editor")
+        self.assertFalse(editor["skippable"])
+        self.assertIn("TextEdit", editor["if_skipped"])
+        card = re.search(r'<li class="card[^>]*data-step="editor".*?</li>', self.guide, re.S).group(0)
+        self.assertIn(">Required<", card)
+
+    def test_the_obsidian_card_links_the_plugin_copy_by_default(self):
+        want = PLUGIN_ROOT / "template" / "OBSIDIAN.md"
+        self.assertIn(f'href="{want.as_uri()}"', self.guide)
+        self.assertIn("Everything about Obsidian is here, or you can just ask.", self.guide)
+
+    def test_the_obsidian_card_links_the_project_copy_when_it_exists(self):
+        mine = self.project.resolve() / "OBSIDIAN.md"
+        mine.write_text("# mine\n", encoding="utf-8")
+        cli("render", self.project)
+        page = self.guide_path.read_text(encoding="utf-8")
+        self.assertIn(f'href="{mine.as_uri()}"', page)
+        self.assertNotIn((PLUGIN_ROOT / "template" / "OBSIDIAN.md").as_uri(), page)
 
 
 class WriteScopeTests(Project):
@@ -300,7 +379,7 @@ class WriteScopeTests(Project):
         self.assertEqual(files_outside_core_text(self.project), before)
         self.assertEqual(
             sorted(p.name for p in (self.project / "core_text").iterdir()),
-            ["setup-guide.html", "setup.json"],
+            ["setup-extras.html", "setup-guide.html", "setup.json"],
         )
 
 
