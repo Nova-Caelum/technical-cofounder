@@ -124,7 +124,6 @@ From obra/superpowers (MIT, Copyright (c) 2025 Jesse Vincent):
 From Nova-Caelum/no-mistakes (MIT, Copyright (c) 2026 Nova Caelum & Co.):
 - `base-novacaelum/skills/assumption-check/`: copied with light edits.
 - `base-novacaelum/skills/verification-before-completion/` (with `references/`): copied with light edits; no-mistakes adapted it from obra/superpowers `verification-before-completion`.
-- `super-novacaelum/skills/sequential-thinking/`: copied verbatim.
 
 From mattpocock/skills (MIT, Copyright (c) 2026 Matt Pocock):
 - `base-novacaelum/skills/stress-test/`: adapted from `grill-me`.

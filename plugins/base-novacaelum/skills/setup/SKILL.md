@@ -190,9 +190,8 @@ the extras". Explain in one line each:
 - **base** (already running): four agents, guardrail hooks, the working
   loop and a local verifier. No accounts.
 - **super** (`super-novacaelum`, opt-in): Context7 documentation lookup, Exa
-  web search, the Browserbase cloud browser and step-by-step thinking, on the
-  user's own keys. Context7 and Exa have free tiers, Browserbase needs a key,
-  and `sequential-thinking` needs Node (`node --version`).
+  web search and the Browserbase cloud browser, on the user's own keys.
+  Context7 and Exa have free tiers, and Browserbase needs a key.
 
 If they want super, run the `super-setup` skill: it walks through each
 account, the project-scope install and entering keys through Claude Code's

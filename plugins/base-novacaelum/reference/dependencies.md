@@ -18,8 +18,9 @@ Setup installs only what's missing and skips anything you already have.
 | Git | Mac | Installing Git so your team can tell exactly what changed in your project. |
 | Python 3 | Mac and Windows | Installing Python so your team's memory and safety checks can run. |
 | jq | Mac and Windows (recommended) | Installing jq so your team's guardrails can read what's happening in a session. |
-| Node.js | Only with the super plugin | Installing Node.js so the super plugin's step-by-step thinking tool can start. |
 | Obsidian | Optional | Installing Obsidian so you can browse your team's worklog as linked notes. |
+
+Technical Cofounder itself needs no Node.js. A project of your own may need it; the engineer installs it when a project actually needs it.
 
 ## Each tool in detail
 
@@ -74,16 +75,6 @@ Setup installs only what's missing and skips anything you already have.
 - **Install:**
   - Mac: `brew install jq`
   - Windows: `winget install jqlang.jq`
-
-### Node.js (super plugin only)
-
-- **Used by:** the super plugin's sequential-thinking server, which runs through `npx`.
-- **Without it:** that one tool fails to connect. The super plugin's other tools and the whole base plugin still work.
-- **Check:** `node --version` prints a version.
-- **Install:**
-  - Mac: `brew install node`
-  - Windows: `winget install OpenJS.NodeJS.LTS`
-  - Any OS: nodejs.org (the LTS version)
 
 ### Obsidian (optional)
 

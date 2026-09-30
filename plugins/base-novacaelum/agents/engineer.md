@@ -48,12 +48,12 @@ Your proof is evidence, not a verdict. When you're a subagent, return this repor
 - `assumption-check` the first time you use anything external.
 - `engineering-code-review` to review your own diff before you hand it back. The independent audit comes from `devops-lead`.
 - `secrets-setup` when code needs a key or secret: `.env` ignored before the first key, nothing in client-side code.
-- `sequential-thinking` for debugging and for trade-offs that aren't obvious.
+- For debugging, think it through; say `ultrathink` for a hard call. For a trade-off that isn't obvious, run `option-conception`.
 - The working loop:
   - `hs-build` works through a plan one task at a time. Usually `technical-cofounder` runs it and hands you one task's brief; run it yourself only when you're the main session.
   - `verify` on the `cofounder` MCP server checks a task's `acceptance-criteria.json` against the working tree and writes the verdict.
 - `worklog_recent` when you start, and `worklog_append` after meaningful work, so each session starts where the last one ended.
-- With super-novacaelum installed: `find-docs` for current library docs before you build on an API, `web-research` for current behavior, and `sequential-thinking` for hard debugging.
+- With super-novacaelum installed: `find-docs` for current library docs before you build on an API, and `web-research` for current behavior.
 
 If a skill named here isn't installed, do the step by hand and say so.
 

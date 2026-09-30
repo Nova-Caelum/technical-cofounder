@@ -32,8 +32,8 @@
       ],
       "mcp_tools": ["worklog_recent", "worklog_search", "worklog_append"],
       "with_super": {
-        "skills": ["sequential-thinking", "find-docs", "web-research"],
-        "mcp_servers": ["sequential-thinking", "context7", "exa", "browserbase"]
+        "skills": ["find-docs", "web-research"],
+        "mcp_servers": ["context7", "exa", "browserbase"]
       }
     },
     {
@@ -49,8 +49,8 @@
       ],
       "mcp_tools": ["verify", "worklog_append", "worklog_recent"],
       "with_super": {
-        "skills": ["find-docs", "sequential-thinking", "web-research"],
-        "mcp_servers": ["context7", "sequential-thinking", "exa"]
+        "skills": ["find-docs", "web-research"],
+        "mcp_servers": ["context7", "exa"]
       }
     },
     {
@@ -65,8 +65,8 @@
       ],
       "mcp_tools": ["verify", "worklog_recent", "worklog_search", "worklog_append"],
       "with_super": {
-        "skills": ["find-docs", "web-research", "sequential-thinking"],
-        "mcp_servers": ["context7", "exa", "browserbase", "sequential-thinking"]
+        "skills": ["find-docs", "web-research"],
+        "mcp_servers": ["context7", "exa", "browserbase"]
       }
     },
     {

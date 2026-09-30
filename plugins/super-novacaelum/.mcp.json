@@ -17,13 +17,6 @@
     "browserbase": {
       "type": "http",
       "url": "https://mcp.browserbase.com/mcp?browserbaseApiKey=${user_config.browserbase_api_key}"
-    },
-    "sequential-thinking": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ]
     }
   }
 }
