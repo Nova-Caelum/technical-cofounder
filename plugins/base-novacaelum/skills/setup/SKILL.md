@@ -65,9 +65,9 @@ Use the commands for the computer they named. Check `python3` and `git` are on
 PATH (`python3 --version`, `git --version`). If `python3` is missing, stop and
 help them install it first.
 On Windows that means Python from python.org (the Python Install Manager). If
-`python3` opens the Microsoft Store instead, have them open "Manage app execution
-aliases" and turn off the `python.exe`/`python3.exe` Store aliases, leaving the
-install manager's "Python (default)" aliases on.
+`python3` opens the Microsoft Store or isn't found, have them click Start, open
+*Manage app execution aliases*, and check that the aliases for *Python (default)*
+are enabled.
 
 Then check install scope. Read `~/.claude/settings.json` — **read only, never
 edit it.** If `base-novacaelum@technical-cofounder` is enabled there at user

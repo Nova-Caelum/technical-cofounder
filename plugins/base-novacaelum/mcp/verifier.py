@@ -269,5 +269,4 @@ def _cli(argv):
 
 
 if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding="utf-8")  # Windows pipes default to the ANSI code page
     sys.exit(_cli(sys.argv[1:]))
