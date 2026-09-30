@@ -309,4 +309,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows pipes default to the ANSI code page
     sys.exit(main(sys.argv[1:]))

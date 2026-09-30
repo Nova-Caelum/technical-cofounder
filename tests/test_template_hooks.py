@@ -43,9 +43,9 @@ def run_hook(name, payload, env_extra=None, raw_input=None):
         env.update(env_extra)
     stdin_text = raw_input if raw_input is not None else json.dumps(payload)
     return subprocess.run(
-        ["bash", str(HOOKS_DIR / name)],
+        [BASH, str(HOOKS_DIR / name)],
         input=stdin_text,
-        capture_output=True, text=True, env=env,
+        capture_output=True, text=True, encoding="utf-8", env=env,
     )
 
 
@@ -141,7 +141,7 @@ class SessionPreloadTests(unittest.TestCase):
     def preload(self):
         env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PROJECT_DIR")}
         env.update(CLAUDE_PROJECT_DIR=str(self.project), HOME=str(self.home))
-        r = subprocess.run(["bash", str(HOOKS_DIR / "session-preload.sh")], input="{}", capture_output=True, text=True, env=env)
+        r = subprocess.run([BASH, str(HOOKS_DIR / "session-preload.sh")], input="{}", capture_output=True, text=True, encoding="utf-8", env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
         return r.stdout
 
@@ -234,7 +234,7 @@ class SessionPreloadTests(unittest.TestCase):
     def test_without_super_pointer_resolves(self):
         lines = [ln for ln in self.preload().splitlines() if "without-super.md" in ln]
         self.assertEqual(len(lines), 1)
-        path = re.search(r"(/\S*/reference/without-super\.md)", lines[0]).group(1)
+        path = re.search(r"(\S*[\\/]reference[\\/]without-super\.md)", lines[0]).group(1)
         self.assertTrue(Path(path).is_file(), path)
 
     def test_prints_no_settings_value(self):
@@ -264,6 +264,7 @@ class SessionPreloadTests(unittest.TestCase):
 
 sys.path.insert(0, str(REPO_ROOT))
 from tests.test_he_bridge import IMPORT_FIRST, MIRROR_REBUILT, NO_STORE, RECENT_OK, FakeHE  # noqa: E402
+from tests.test_plugin_hooks import BASH  # noqa: E402
 
 BLOCK_RE = re.compile(r"(?m)^## Recent worklog")
 

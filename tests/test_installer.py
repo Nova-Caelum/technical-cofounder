@@ -127,7 +127,7 @@ class NoOverwriteAcrossBranchesTests(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual((target / "core_text" / "user.md").read_text(), profile)
             self.assertEqual((target / "core_text" / "setup.json").read_text(), record)
-            self.assertIn("SKIPPED: core_text/user.md", r.stdout)
+            self.assertIn(f"SKIPPED: {Path('core_text', 'user.md')}", r.stdout)
 
     def test_legacy_root_profile_is_not_shadowed(self):
         # A kept user.md at the project root stays the profile the preload
@@ -140,7 +140,7 @@ class NoOverwriteAcrossBranchesTests(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual((target / "user.md").read_text(), legacy)
             self.assertFalse((target / "core_text" / "user.md").exists())
-            self.assertIn("SKIPPED: core_text/user.md", r.stdout)
+            self.assertIn(f"SKIPPED: {Path('core_text', 'user.md')}", r.stdout)
             self.assertTrue((target / "core_text" / "setup.json").is_file())
 
     def test_second_run_same_branch_is_idempotent(self):

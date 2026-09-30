@@ -220,4 +220,7 @@ def serve(instream=None, outstream=None):
 
 
 if __name__ == "__main__":
+    # Claude Code speaks UTF-8; Windows pipes default to the ANSI code page.
+    sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")
     serve()

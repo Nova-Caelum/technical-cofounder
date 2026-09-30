@@ -91,11 +91,13 @@ class _StdioSession:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
             bufsize=1,
         )
 
     def send(self, message):
-        self.proc.stdin.write(json.dumps(message) + "\n")
+        # Raw UTF-8, as Claude Code writes it (json.dumps would escape it to ASCII).
+        self.proc.stdin.write(json.dumps(message, ensure_ascii=False) + "\n")
         self.proc.stdin.flush()
 
     def recv(self):
@@ -179,6 +181,22 @@ class ServerProtocolTests(unittest.TestCase):
             entries = list((Path(tmp) / "worklog" / "entries").glob("*.md"))
             self.assertEqual(len(entries), 1)
             self.assertTrue((Path(tmp) / "worklog" / "worklog.csv").is_file())
+
+    def test_non_ascii_text_round_trips_over_stdio(self):
+        # Windows pipes default to the ANSI code page (cp1252), which has no arrow,
+        # check mark or omega; Claude Code writes UTF-8.
+        text = "Café → ✓ Ω"
+        with tempfile.TemporaryDirectory() as tmp:
+            for msg_id, name, arguments in (
+                (1, "worklog_append", {"summary": text, "root": tmp}),
+                (2, "worklog_recent", {"n": 1, "root": tmp}),
+            ):
+                self.session.send(
+                    {"jsonrpc": "2.0", "id": msg_id, "method": "tools/call", "params": {"name": name, "arguments": arguments}}
+                )
+                result = self.session.recv()["result"]
+                self.assertFalse(result["isError"], result)
+            self.assertEqual(json.loads(result["content"][0]["text"])[0]["summary"], text)
 
     def test_tools_call_missing_required_argument_is_isError(self):
         self.session.send(

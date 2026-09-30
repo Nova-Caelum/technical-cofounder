@@ -6,12 +6,24 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -33,6 +45,7 @@ jobs:
             tests.test_mcp \
             tests.test_verifier \
             tests.test_template_hooks \
+            tests.test_plugin_hooks \
             tests.test_installer \
             tests.test_loop \
             tests.test_contact \
@@ -40,10 +53,13 @@ jobs:
             tests.test_he_bridge
 
       - name: Shellcheck hooks
+        if: runner.os == 'Linux'
         run: shellcheck plugins/base-novacaelum/hooks/*.sh plugins/base-novacaelum/hooks/lib/*.sh
 
       - name: Leak scan (full history)
+        if: runner.os == 'Linux'
         run: python3 scripts/leak-scan.py --history
 
       - name: Registry check
+        if: runner.os == 'Linux'
         run: python3 plugins/base-novacaelum/registry/check_registry.py
