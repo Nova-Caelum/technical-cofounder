@@ -46,9 +46,12 @@ BASH = _bash()
 def run_hook(command, event, project, data):
     env = {k: v for k, v in os.environ.items() if k != "TC_CONCISION"}
     env.update(CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT), CLAUDE_PROJECT_DIR=project, CLAUDE_PLUGIN_DATA=data)
+    # The command travels in the environment: a double quote in a Windows command
+    # line does not reach bash intact, and the command's own quotes are the point.
+    env["TC_HOOK_COMMAND"] = command
     payload = {"session_id": "hooktest", "hook_event_name": event, "cwd": project, **EVENT_FIELDS[event]}
     return subprocess.run(
-        [BASH, "-c", command], input=json.dumps(payload).encode("utf-8"), capture_output=True, env=env
+        [BASH, "-c", "eval $TC_HOOK_COMMAND"], input=json.dumps(payload).encode("utf-8"), capture_output=True, env=env
     )
 
 
