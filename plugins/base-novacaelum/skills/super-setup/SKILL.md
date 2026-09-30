@@ -29,7 +29,6 @@ All optional. Suggest starting with only what they need:
 - **Context7:** current documentation for code libraries. No key needed; a key raises the limit.
 - **Exa:** web search and page reading. No key needed; a key raises the limit.
 - **Browserbase:** a cloud browser for pages that need a click or a login. Needs a key to work at all.
-- **Step-by-step thinking** comes with super, needs no account, and needs Node installed.
 
 ## 4. Accounts and keys
 
