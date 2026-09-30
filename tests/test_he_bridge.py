@@ -8,6 +8,7 @@ canned bodies below are copied from HE's CLI contract (pasted there from real
 runs), except where a comment says otherwise. Standard library only.
 """
 import json
+import os
 import stat
 import sys
 import tempfile
@@ -78,6 +79,8 @@ class FakeHE:
     """A project that looks HE-provisioned, with a scripted CLI."""
 
     def __init__(self, root, owner=None, config=HE_CONFIG, view=None, entries=0):
+        if os.name == "nt":
+            raise unittest.SkipTest("HE bridge on Windows: out of scope for tc-windows")
         self.root = Path(root)
         hs = self.root / ".hyperspace"
         self.bin = hs / "env" / "bin"
