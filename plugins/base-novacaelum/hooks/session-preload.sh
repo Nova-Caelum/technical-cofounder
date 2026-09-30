@@ -57,6 +57,7 @@ import json
 import sys
 from pathlib import Path
 
+sys.stdout.reconfigure(encoding="utf-8")  # Windows pipes default to the ANSI code page
 project, home, plugin = (Path(a) for a in sys.argv[1:4])
 sys.path.insert(0, str(plugin / "bin"))
 try:
