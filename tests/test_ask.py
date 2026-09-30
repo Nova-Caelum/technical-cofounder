@@ -1,5 +1,5 @@
 """Unit tests for plugins/base-novacaelum/bin/ask_issue.py: the redact,
-env and post subcommands behind the ask-nova-caelum skill.
+env, post and whatsapp-link subcommands behind the contact-nova-caelum skill.
 
 Standard library only. Never posts to a real repo: every `post` test runs
 against a stub `gh` placed first on PATH, and no test ever hits the network.
@@ -348,6 +348,99 @@ class EnvFooterTests(unittest.TestCase):
             url, title, body = parse_open_url(r.stdout)
             self.assertIn("The original report body.", body)
             self.assertIn("base-novacaelum", body)
+
+
+class WhatsappLinkTests(unittest.TestCase):
+    """`whatsapp-link` reads contact.json from the plugin root (CLAUDE_PLUGIN_ROOT
+    overrides it, so tests use a temp copy) and prints NOT_SET or OPEN: <wa.me url>."""
+
+    def _run(self, whatsapp, message="Hello there", raw_config=None):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "plugin"
+            root.mkdir()
+            (root / "contact.json").write_text(
+                raw_config if raw_config is not None else json.dumps({"whatsapp": whatsapp}),
+                encoding="utf-8",
+            )
+            msg = Path(td) / "msg.txt"
+            msg.write_text(message, encoding="utf-8")
+            return run_ask(["whatsapp-link", str(msg)], env_extra={"CLAUDE_PLUGIN_ROOT": str(root)})
+
+    def test_prints_not_set_when_number_is_empty(self):
+        r = self._run("")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "NOT_SET")
+
+    def test_builds_encoded_url_with_prefix(self):
+        message = "It broke: 100% of the time & \u00e9v\u00e9rything?\nSecond line"
+        r = self._run("15551234567", message=message + "\n")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        line = r.stdout.strip()
+        self.assertTrue(line.startswith("OPEN: https://wa.me/15551234567?text="), line)
+        url = line[len("OPEN: "):]
+        text = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)["text"][0]
+        self.assertEqual(text, "[Technical Cofounder] " + message)
+        # nothing unencoded leaks into the query string
+        raw = url.split("?text=", 1)[1]
+        for ch in " &\n?%":
+            if ch != "%":
+                self.assertNotIn(ch, raw)
+
+    def test_refuses_non_digit_number(self):
+        for bad in ("+15551234567", "1555 123 4567", "abc12345678", "1234567", "1" * 16):
+            r = self._run(bad)
+            self.assertEqual(r.returncode, 1, (bad, r.stdout, r.stderr))
+            self.assertNotIn("OPEN:", r.stdout)
+            self.assertIn("FAILED:", r.stdout)
+
+    def test_refuses_non_string_number_or_bad_config(self):
+        for raw in (json.dumps({"whatsapp": 15551234567}), "not json", json.dumps({})):
+            r = self._run(None, raw_config=raw)
+            self.assertEqual(r.returncode, 1, (raw, r.stdout, r.stderr))
+            self.assertIn("FAILED:", r.stdout)
+
+    def test_refuses_empty_message(self):
+        r = self._run("15551234567", message="  \n")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("FAILED:", r.stdout)
+
+    def test_shipped_contact_json_is_valid(self):
+        cfg = json.loads((PLUGIN_ROOT / "contact.json").read_text(encoding="utf-8"))
+        self.assertEqual(list(cfg), ["whatsapp"])
+        self.assertRegex(cfg["whatsapp"], r"^(\d{8,15})?$")
+
+
+class ContactWiringTests(unittest.TestCase):
+    def test_command_renamed_and_skill_replaced(self):
+        cmds = PLUGIN_ROOT / "commands"
+        self.assertTrue((cmds / "contact.md").is_file())
+        self.assertFalse((cmds / "ask.md").exists())
+        self.assertIn("contact-nova-caelum", (cmds / "contact.md").read_text(encoding="utf-8"))
+        skills = PLUGIN_ROOT / "skills"
+        self.assertTrue((skills / "contact-nova-caelum" / "SKILL.md").is_file())
+        self.assertFalse((skills / ("ask" + "-nova-caelum")).exists())
+
+    def test_skill_uses_the_subcommand_not_a_placeholder(self):
+        text = (PLUGIN_ROOT / "skills" / "contact-nova-caelum" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("name: contact-nova-caelum", text)
+        self.assertIn("whatsapp-link", text)
+        self.assertNotIn("<WHATSAPP_NUMBER>", text)
+        self.assertNotIn("python3 -c", text)
+        self.assertIn("Messaging the founder directly is being set up. For now you can leave a note on GitHub",
+                      " ".join(text.split()))
+
+    def test_no_stale_ask_references_remain(self):
+        stale = ("ask" + "-nova-caelum", "base-novacaelum" + ":ask")
+        skip = {".git", "__pycache__"}
+        for path in REPO_ROOT.rglob("*"):
+            if not path.is_file() or skip & set(path.parts) or path == Path(__file__).resolve():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            for needle in stale:
+                self.assertNotIn(needle, text, f"{needle!r} still in {path.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":

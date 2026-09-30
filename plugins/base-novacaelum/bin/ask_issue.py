@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Redact-and-post helper behind the ask-nova-caelum skill.
+"""Redact-and-post helper behind the contact-nova-caelum skill.
 
 Usage:
     python3 ask_issue.py redact <draft.md>
     python3 ask_issue.py env
     python3 ask_issue.py post <draft.md> --title "<title>"
+    python3 ask_issue.py whatsapp-link <message.txt>
 
 `redact` rewrites a draft file in place, replacing home-directory paths,
 email addresses and several key-shaped strings with `[redacted]`, and prints
@@ -19,6 +20,11 @@ footer to the draft, re-runs `redact` (defence in depth), then posts via
 `gh issue create` when `gh auth status` succeeds, or prints a prefilled
 `issues/new?` URL otherwise. It never posts anywhere but
 Nova-Caelum/technical-cofounder, and never invokes a shell.
+
+`whatsapp-link` reads the founder's number from contact.json in the plugin
+root, prints `NOT_SET` if it is empty, otherwise `OPEN: <wa.me link>` with the
+message prefixed by "[Technical Cofounder] ". The number must be digits only,
+8-15 characters; anything else prints `FAILED: <reason>` and exits 1.
 
 Standard library only.
 """
@@ -38,6 +44,8 @@ PLUGIN_ROOT = Path(os.environ.get("CLAUDE_PLUGIN_ROOT") or HERE.parent)
 
 REPO = "Nova-Caelum/technical-cofounder"
 ASK_PREFIX = "[ask] "
+WHATSAPP_PREFIX = "[Technical Cofounder] "
+WHATSAPP_RE = re.compile(r"\d{8,15}")
 MAX_URL_LEN = 7000
 TRUNCATION_NOTE = "\n\n[Note: this draft was truncated to fit the link's length limit.]"
 
@@ -245,9 +253,46 @@ def cmd_post(argv):
     return 1
 
 
+# --- whatsapp-link -------------------------------------------------------
+
+def cmd_whatsapp_link(argv):
+    parser = argparse.ArgumentParser(prog="ask_issue.py whatsapp-link")
+    parser.add_argument("message")
+    args = parser.parse_args(argv)
+
+    try:
+        cfg = json.loads((PLUGIN_ROOT / "contact.json").read_text(encoding="utf-8"))
+        number = cfg["whatsapp"]
+    except (OSError, ValueError, KeyError, TypeError):
+        print("FAILED: contact.json is missing or unreadable")
+        return 1
+    if not isinstance(number, str):
+        print("FAILED: contact.json whatsapp must be a string of digits")
+        return 1
+    if number == "":
+        print("NOT_SET")
+        return 0
+    if not WHATSAPP_RE.fullmatch(number):
+        print("FAILED: contact.json whatsapp must be digits only, 8-15 characters")
+        return 1
+
+    try:
+        message = Path(args.message).read_text(encoding="utf-8").strip()
+    except OSError:
+        print("FAILED: message file unreadable")
+        return 1
+    if not message:
+        print("FAILED: message is empty")
+        return 1
+
+    text = urllib.parse.quote(WHATSAPP_PREFIX + message, safe="")
+    print(f"OPEN: https://wa.me/{number}?text={text}")
+    return 0
+
+
 def main(argv):
     if len(argv) < 2:
-        sys.stderr.write("usage: ask_issue.py redact <draft.md> | env | post <draft.md> --title \"<t>\"\n")
+        sys.stderr.write("usage: ask_issue.py redact <draft.md> | env | post <draft.md> --title \"<t>\" | whatsapp-link <message.txt>\n")
         return 2
     sub, rest = argv[1], argv[2:]
     if sub == "redact":
@@ -256,6 +301,8 @@ def main(argv):
         return cmd_env(rest)
     if sub == "post":
         return cmd_post(rest)
+    if sub == "whatsapp-link":
+        return cmd_whatsapp_link(rest)
     sys.stderr.write(f"ask_issue.py: unknown subcommand {sub!r}\n")
     return 2
 

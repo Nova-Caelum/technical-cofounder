@@ -36,7 +36,7 @@ set -euo pipefail
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
 [ -n "$PLUGIN_ROOT" ] || PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)" || PLUGIN_ROOT=""
-ASK_LINE="Stuck, found a bug, or have an idea? /base-novacaelum:ask reaches Nova Caelum."
+ASK_LINE="Stuck, found a bug, or have an idea? /base-novacaelum:contact reaches Nova Caelum."
 
 USER_MD="$PROJECT_DIR/core_text/user.md"
 LEGACY=0
