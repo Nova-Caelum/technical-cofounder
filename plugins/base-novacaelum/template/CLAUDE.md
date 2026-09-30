@@ -26,4 +26,4 @@ present or missing, and how far setup has got.
 
 Re-run `/base-novacaelum:quick-start`, or say "continue setup", any time. It never
 overwrites a file that's already here. Stuck, found a bug, or have an idea?
-`/base-novacaelum:ask` reaches Nova Caelum.
+`/base-novacaelum:contact` reaches Nova Caelum.

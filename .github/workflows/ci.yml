@@ -35,7 +35,7 @@ jobs:
             tests.test_template_hooks \
             tests.test_installer \
             tests.test_loop \
-            tests.test_ask \
+            tests.test_contact \
             tests.test_setup_record \
             tests.test_he_bridge
 
