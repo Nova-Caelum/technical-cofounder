@@ -8,6 +8,7 @@ Standard library only.
 """
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -29,12 +30,25 @@ EVENT_FIELDS = {
 SHELL_DEBRIS = ("$'\\r'", "\r", "bad interpreter")
 
 
+def _bash():
+    """Git Bash, which is what Claude Code runs hooks in on Windows. A bare "bash"
+    there resolves to System32's WSL launcher, which is not a shell for these."""
+    git = shutil.which("git") if os.name == "nt" else None
+    for parent in Path(git).resolve().parents if git else ():
+        if (parent / "bin" / "bash.exe").is_file():
+            return str(parent / "bin" / "bash.exe")
+    return "bash"
+
+
+BASH = _bash()
+
+
 def run_hook(command, event, project, data):
     env = {k: v for k, v in os.environ.items() if k != "TC_CONCISION"}
     env.update(CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT), CLAUDE_PROJECT_DIR=project, CLAUDE_PLUGIN_DATA=data)
     payload = {"session_id": "hooktest", "hook_event_name": event, "cwd": project, **EVENT_FIELDS[event]}
     return subprocess.run(
-        ["bash", "-c", command], input=json.dumps(payload).encode("utf-8"), capture_output=True, env=env
+        [BASH, "-c", command], input=json.dumps(payload).encode("utf-8"), capture_output=True, env=env
     )
 
 
