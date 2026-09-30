@@ -29,7 +29,7 @@ claude plugin install super-novacaelum@technical-cofounder --scope project
 
 New to API keys? Let lead-fde know so he can walk you through accounts, generating keys and storing safely.
 
-**Needs:** Claude Code, `git` and `python3`. Super also needs Node.js.
+**Needs:** Claude Code, `git` and `python3`. Super also needs Node.js. What each one is for, and what breaks without it: [plugins/base-novacaelum/reference/dependencies.md](plugins/base-novacaelum/reference/dependencies.md).
 
 On Windows, install Python from python.org (the Python Install Manager) and check `python3 --version`. If `python3` opens the Microsoft Store or isn't found, click Start, open *Manage app execution aliases*, and check that the aliases for *Python (default)* are enabled.
 
