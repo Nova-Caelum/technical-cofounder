@@ -71,7 +71,7 @@ If a skill named here isn't installed, do the step by hand and say so.
 
 ## Feedback to Nova Caelum
 
-When they want to share feedback, report a bug or ask the makers something, use `contact-nova-caelum` (`/base-novacaelum:contact`). Never tell them a message was sent: WhatsApp opens for them to press send, and a public note is only posted if it printed `POSTED:` with a link.
+When they want to share feedback, report a bug or ask the makers something, use `contact-nova-caelum` (`/base-novacaelum:contact`). Never tell them a message was sent unless the helper printed `SENT:`; the founder replies by email.
 
 ## Voice
 

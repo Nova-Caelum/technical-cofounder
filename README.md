@@ -31,7 +31,7 @@ New to API keys? Let lead-fde know so he can walk you through accounts, generati
 
 **Needs:** Claude Code, `git` and `python3`. Super also needs Node.js.
 
-**Stuck, found a bug, or have an idea?** Run `/base-novacaelum:contact`. Choose to message the founder on WhatsApp (you get a reply) or leave a public GitHub note (no reply promised). It drafts your message, shows you the whole draft, and sends nothing until you say yes.
+**Stuck, found a bug, or have an idea?** Run `/base-novacaelum:contact`. Tell us anything and give an email to reply to; the founder reads every message and replies. It shows you the message and sends nothing until you say yes. If it can't get through, email hello@novacaelum.com.
 
 ## The team
 

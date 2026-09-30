@@ -47,7 +47,7 @@ STEPS_FILE = PLUGIN_ROOT / "setup" / "steps.json"
 PLUGIN_JSON = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
 
 sys.path.insert(0, str(HERE))
-from ask_issue import redact_text  # noqa: E402  (key-, path- and email-shaped patterns)
+from redact import redact_text  # noqa: E402  (key-, path- and email-shaped patterns)
 
 STATUSES = ("done", "skipped", "pending")
 MAX_VALUE = 40
