@@ -234,7 +234,7 @@ class SessionPreloadTests(unittest.TestCase):
     def test_without_super_pointer_resolves(self):
         lines = [ln for ln in self.preload().splitlines() if "without-super.md" in ln]
         self.assertEqual(len(lines), 1)
-        path = re.search(r"(/\S*/reference/without-super\.md)", lines[0]).group(1)
+        path = re.search(r"(\S*[\\/]reference[\\/]without-super\.md)", lines[0]).group(1)
         self.assertTrue(Path(path).is_file(), path)
 
     def test_prints_no_settings_value(self):
