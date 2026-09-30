@@ -6,7 +6,7 @@ description: Use when a project needs setting up on this plugin or setup needs f
 # Setup
 
 The only conversational surface for setting up a project.
-`/base-novacaelum:setup` and `/base-novacaelum:onboard` point here.
+`/base-novacaelum:quick-start` and `/base-novacaelum:onboard` point here.
 
 What each step does, why, whether it can be skipped and how long it takes
 live in `${CLAUDE_PLUGIN_ROOT}/setup/steps.json`. Read it first. This skill
