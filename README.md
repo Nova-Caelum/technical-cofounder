@@ -31,6 +31,8 @@ New to API keys? Let lead-fde know so he can walk you through accounts, generati
 
 **Needs:** Claude Code, `git` and `python3`. Super also needs Node.js.
 
+On Windows, install Python from python.org (the Python Install Manager) and check `python3 --version`. If it opens the Microsoft Store instead, open "Manage app execution aliases" and turn off the `python.exe`/`python3.exe` Store aliases; leave the install manager's "Python (default)" aliases on.
+
 **Stuck, found a bug, or have an idea?** Run `/base-novacaelum:contact`. Tell us anything and give an email to reply to; the founder reads every message and replies. It shows you the message and sends nothing until you say yes. If it can't get through, email hello@novacaelum.com.
 
 ## The team
