@@ -1,6 +1,6 @@
 # Technical Cofounder Agent
 
-** Your new senior development team, ready to plug in and help you build whatever you can imagine.** A technical cofounder orchestrator, an engineer who builds it, a DevOps lead who audits it, and a forward-deployed engineer who gets you set up. Built to work in tandem to provide technical support through design, development, and implementation of whatever you hope to build. They come with deeply rooted governance mechanisms that enable state-aware workflow automation, independent completion verification, and anti-hallucination mechanisms built in by default.
+**Your new senior development team, ready to plug in and help you build whatever you can imagine.** A technical cofounder orchestrator, an engineer who builds it, a DevOps lead who audits it, and a forward-deployed engineer who gets you set up. Built to work in tandem to provide technical support through design, development, and implementation of whatever you hope to build. They come with deeply rooted governance mechanisms that enable state-aware workflow automation, independent completion verification, and anti-hallucination mechanisms built in by default.
 
 > For vibe coders and non-technical founders: all the senior-engineer paranoia, none of the cap-table drama.
 
