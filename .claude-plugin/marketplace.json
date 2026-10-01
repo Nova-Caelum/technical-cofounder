@@ -7,12 +7,22 @@
   "plugins": [
     {
       "name": "base-novacaelum",
-      "source": "./plugins/base-novacaelum",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Nova-Caelum/technical-cofounder.git",
+        "path": "plugins/base-novacaelum",
+        "sha": "0d481148d312570441ec01bbdbef7f23eb3628a7"
+      },
       "description": "A senior technical team for Claude Code: agents, guardrails, a working loop and a local verifier."
     },
     {
       "name": "super-novacaelum",
-      "source": "./plugins/super-novacaelum",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Nova-Caelum/technical-cofounder.git",
+        "path": "plugins/super-novacaelum",
+        "sha": "0d481148d312570441ec01bbdbef7f23eb3628a7"
+      },
       "description": "Opt-in extras for the base team — documentation lookup, web research and a cloud browser, using your own keys."
     }
   ]
