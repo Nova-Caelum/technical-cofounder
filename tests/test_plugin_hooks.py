@@ -72,5 +72,36 @@ class PluginHooksTests(unittest.TestCase):
         self.assertGreater(ran, 0, "hooks.json named no commands")
 
 
+MOVED_LINE = (
+    "Technical Cofounder has moved. New installs: claude plugin marketplace add Nova-Caelum/plugins, "
+    "then claude plugin install technical-cofounder@nova-caelum --scope project."
+)
+
+
+class LegacyAddressBriefingTests(unittest.TestCase):
+    """An install made from the old address keeps working and is told, once and
+    near the top of the briefing, where the product moved."""
+
+    def preload(self, project, home):
+        env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PROJECT_DIR")}
+        env.update(CLAUDE_PROJECT_DIR=project, HOME=home)
+        r = subprocess.run(
+            [BASH, str(PLUGIN_ROOT / "hooks" / "session-preload.sh")],
+            input="{}", capture_output=True, text=True, encoding="utf-8", env=env,
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def test_moved_line_is_printed_once_near_the_top_in_both_output_paths(self):
+        for label, profile in (("project not set up", False), ("project set up", True)):
+            with self.subTest(path=label), tempfile.TemporaryDirectory() as project, tempfile.TemporaryDirectory() as home:
+                if profile:
+                    (Path(project) / "core_text").mkdir()
+                    (Path(project) / "core_text" / "user.md").write_text("# profile\n", encoding="utf-8")
+                out = self.preload(project, home)
+                self.assertEqual(out.count(MOVED_LINE), 1, out)
+                self.assertIn(MOVED_LINE, out.splitlines()[:3], out)
+
+
 if __name__ == "__main__":
     unittest.main()

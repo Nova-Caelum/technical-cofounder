@@ -7,6 +7,8 @@
 # If this project has been set up (core_text/user.md, or a legacy user.md at
 # the project root), inject it plus the 3 most recent worklog entries into
 # context. Otherwise print one line pointing at /base-novacaelum:quick-start.
+# Both paths then carry one line saying the product moved to a new install
+# address (this plugin's old address keeps working, pinned to this version).
 # Either way, print the live tech primer: which Nova Caelum plugins are
 # present, expected but missing, or not chosen; a pointer to the
 # without-super fallbacks when super isn't present; and setup progress while
@@ -37,6 +39,7 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
 [ -n "$PLUGIN_ROOT" ] || PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)" || PLUGIN_ROOT=""
 ASK_LINE="Stuck, found a bug, or have an idea? /base-novacaelum:contact reaches Nova Caelum."
+MOVED_LINE="Technical Cofounder has moved. New installs: claude plugin marketplace add Nova-Caelum/plugins, then claude plugin install technical-cofounder@nova-caelum --scope project."
 
 USER_MD="$PROJECT_DIR/core_text/user.md"
 LEGACY=0
@@ -116,6 +119,7 @@ PY
 
 if [ ! -f "$USER_MD" ]; then
     echo "base-novacaelum: this project hasn't been set up yet — run /base-novacaelum:quick-start to copy the starter workspace in."
+    echo "$MOVED_LINE"
     echo
     tech_primer
     echo
@@ -124,6 +128,7 @@ if [ ! -f "$USER_MD" ]; then
 fi
 
 echo "═══ base-novacaelum session preload ═══"
+echo "$MOVED_LINE"
 echo
 echo "## user.md"
 echo
