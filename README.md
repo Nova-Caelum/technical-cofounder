@@ -5,18 +5,20 @@
 
 # Technical Cofounder
 
+
 For solo builders and the build-curious.
 
 **An AI senior dev team - give them your idea, build it together.**
 
 
-[Get started](#get-started) · [Meet the team](#meet-the-team) · [What’s inside](#whats-inside) · [Built together](#built-together) · [Roadmap](#roadmap)
 
-[![Agents: Claude Code](https://img.shields.io/badge/agents-Claude%20Code-D97757)](https://claude.com/claude-code) [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE) [![CI](https://github.com/Nova-Caelum/technical-cofounder/actions/workflows/ci.yml/badge.svg)](https://github.com/Nova-Caelum/technical-cofounder/actions/workflows/ci.yml) ![Tested on macOS, Linux and Windows](https://img.shields.io/badge/tested%20on-macOS%20%7C%20Linux%20%7C%20Windows-informational) [![Substack: Deploy the Deck](https://img.shields.io/badge/Substack-Deploy%20the%20Deck-FF6719?logo=substack&logoColor=white)](https://novacaelum.substack.com/)
+<p align="center"> [Get started](#get-started) · [Meet the team](#meet-the-team) · [What’s inside](#whats-inside) · [Built together](#built-together) · [Roadmap](#roadmap)
+
+[![Agents: Claude Code](https://img.shields.io/badge/agents-Claude%20Code-D97757)](https://claude.com/claude-code) [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE) [![CI](https://github.com/Nova-Caelum/technical-cofounder/actions/workflows/ci.yml/badge.svg)](https://github.com/Nova-Caelum/technical-cofounder/actions/workflows/ci.yml) ![Tested on macOS, Linux and Windows](https://img.shields.io/badge/tested%20on-macOS%20%7C%20Linux%20%7C%20Windows-informational) [![Substack: Deploy the Deck](https://img.shields.io/badge/Substack-Deploy%20the%20Deck-FF6719?logo=substack&logoColor=white)](https://novacaelum.substack.com/) </p>
 
 > "The original version of Technical Cofounder was the first thing I built with agents. The tool has evolved alongside myself and my capabilities with each new build. It has put new things within reach, which is the core mission of Nova Caelum."
 >
-> *Founder of Nova Caelum*
+> *Daniel, Founder and Principal*
 
 ## Get started
 
