@@ -1,0 +1,79 @@
+{
+  "about": "The one source of 'why' and 'how long' for setup. The install script and the setup guide both read this file.",
+  "install": [
+    {
+      "id": "claude-cli",
+      "title": "Claude Code's command line",
+      "why": "Installing Claude Code's command line so your team can be installed and updated reliably.",
+      "minutes": 1
+    },
+    {
+      "id": "git",
+      "title": "Git",
+      "why": "Installing Git so your team can tell exactly what changed in your project.",
+      "why_windows": "Installing Git because you're on Windows: it gives your team the command line its safety checks run in.",
+      "minutes": 2
+    },
+    {
+      "id": "uv",
+      "title": "uv",
+      "why": "Installing uv, a small tool that fetches the right Python for your team without touching the one your computer came with.",
+      "minutes": 1
+    },
+    {
+      "id": "python",
+      "title": "Python",
+      "why": "Installing Python so your team's memory and safety checks can run.",
+      "minutes": 1
+    },
+    {
+      "id": "jq",
+      "title": "jq",
+      "why": "Installing jq so your team's guardrails can read what's happening in a session.",
+      "minutes": 1
+    },
+    {
+      "id": "network",
+      "title": "Internet check",
+      "why": "Checking that this computer can reach GitHub, where your team is downloaded from.",
+      "minutes": 1
+    },
+    {
+      "id": "project-folder",
+      "title": "Your project folder",
+      "why": "Creating a folder just for this project, so your team's files stay in one place and your other folders stay as they are.",
+      "minutes": 1
+    },
+    {
+      "id": "existing-config",
+      "title": "Instructions already here",
+      "why": "Checking for instructions you already wrote for Claude here, so nothing of yours gets replaced.",
+      "minutes": 1
+    },
+    {
+      "id": "marketplace",
+      "title": "Nova Caelum's plugin catalog",
+      "why": "Adding Nova Caelum's plugin catalog so Claude Code knows where your team comes from.",
+      "minutes": 1
+    },
+    {
+      "id": "team-plugin",
+      "title": "Your team",
+      "why": "Installing your team, and Hyperspace Engine with it.",
+      "minutes": 1
+    },
+    {
+      "id": "engine-env",
+      "title": "Hyperspace Engine's workspace",
+      "why": "Building Hyperspace Engine's private workspace, where your task graph and its checks run.",
+      "minutes": 2
+    },
+    {
+      "id": "obsidian",
+      "title": "Obsidian check",
+      "why": "Checking whether Obsidian is installed, so setup can offer it without asking you to look.",
+      "minutes": 1
+    }
+  ],
+  "steps": []
+}
