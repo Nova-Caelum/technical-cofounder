@@ -62,9 +62,19 @@ claude plugin install technical-cofounder@nova-caelum --scope project
 
 Start a new session in that folder and say "set up hyperspace" to build the task graph and open its console in your browser.
 
-[![Claude Code CLI](https://img.shields.io/badge/Claude%20Code%20CLI-D97757)](plugins/technical-cofounder-setup/reference/dependencies.md) [![Git](https://img.shields.io/badge/Git-F05032?logo=git&logoColor=white)](plugins/technical-cofounder-setup/reference/dependencies.md) [![Python 3.11 or newer](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](plugins/technical-cofounder-setup/reference/dependencies.md) [![uv](https://img.shields.io/badge/uv-DE5FE9?logo=uv&logoColor=white)](plugins/technical-cofounder-setup/reference/dependencies.md) [![jq](https://img.shields.io/badge/jq-555555)](plugins/technical-cofounder-setup/reference/dependencies.md)
 
-You need Claude Code and Git. Hyperspace Engine needs Python 3.11 or newer, or [`uv`](https://docs.astral.sh/uv/); the message below installs one for you. What each tool is for is written down in [dependencies.md](plugins/technical-cofounder-setup/reference/dependencies.md).
+<p align="center">
+  <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Claude%20Code%20CLI-D97757" alt="Claude Code CLI"></a>
+  <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Git-F05032?logo=git&logoColor=white" alt="Git"></a>
+  <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11 or newer"></a>
+  <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/uv-DE5FE9?logo=uv&logoColor=white" alt="uv"></a>
+  <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/jq-555555" alt="jq"></a>
+</p>
+
+<p align="center">
+  You need Claude Code and Git. Hyperspace Engine needs Python 3.11 or newer, or <a href="https://docs.astral.sh/uv/"><code>uv</code></a>; the message below installs one for you. What each tool is for is written down in <a href="plugins/technical-cofounder-setup/reference/dependencies.md">dependencies.md</a>.
+</p>
+
 
 Want the research extras too? `super-novacaelum` adds current documentation lookup, web research and a cloud browser, each on your own account:
 <h6></h6>
