@@ -12,6 +12,7 @@ For solo builders and the build-curious.
 **your new AI senior dev team - give them your idea, build it together.**
 
 <h6></h6>
+<h6></h6>
 
 
 <p align="center">
@@ -32,6 +33,7 @@ For solo builders and the build-curious.
   <a href="https://novacaelum.substack.com/"><img src="https://img.shields.io/badge/Substack-Deploy%20the%20Deck-FF6719?logo=substack&logoColor=white" alt="Substack: Deploy the Deck"></a>
 </p>
 
+<h6></h6>
 <h6></h6>
 
 
