@@ -7,10 +7,12 @@
 
 <h6></h6>
 
-For solo builders and the build-curious: 
+For solo builders and the build-curious.
+
 **your new AI senior dev team - give them your idea, build it together.**
 
 <h6></h6>
+
 
 <p align="center">
   <a href="#get-started">Get started</a> · 
@@ -47,10 +49,14 @@ For solo builders and the build-curious:
 
 Run these from a dedicated project folder. The team installs for that project only, and Hyperspace Engine installs with it.
 
+<h6></h6>
+
 ```bash
 claude plugin marketplace add https://github.com/Nova-Caelum/plugins.git
 claude plugin install technical-cofounder@nova-caelum --scope project
 ```
+<h6></h6>
+
 
 Start a new session in that folder and say "set up hyperspace" to build the task graph and open its console in your browser.
 
@@ -59,11 +65,14 @@ Start a new session in that folder and say "set up hyperspace" to build the task
 You need Claude Code and Git. Hyperspace Engine needs Python 3.11 or newer, or [`uv`](https://docs.astral.sh/uv/); the message below installs one for you. What each tool is for is written down in [dependencies.md](plugins/technical-cofounder-setup/reference/dependencies.md).
 
 Want the research extras too? `super-novacaelum` adds current documentation lookup, web research and a cloud browser, each on your own account:
+<h6></h6>
 
 ```bash
 claude plugin install super-novacaelum@nova-caelum --scope project
 ```
 <h6></h6>
+<h6></h6>
+
 
 ### New to building with agents?
 
@@ -72,6 +81,8 @@ You don't need to type a single command, create a folder or open a terminal. You
 **Before you start,** you need [Claude Code](https://claude.com/claude-code), installed and signed in. That is all. Setup finds what your computer is missing (Git, Python, a couple of small tools), tells you what each one is for, and installs only that.
 
 **1. Give this to your agent.** Copy the whole message and paste it into Claude Code:
+
+<h6></h6>
 
 ```text
 Set up Technical Cofounder for me, from https://github.com/Nova-Caelum/plugins
@@ -89,6 +100,8 @@ Set up Technical Cofounder for me, from https://github.com/Nova-Caelum/plugins
 4. Run `claude plugin list --json`, find the installPath of technical-cofounder-setup, read skills/setup/SKILL.md inside it, and follow it from the top. Tell me what each step is for before you run it, and go one step at a time.
 ```
 
+<h6></h6>
+
 **2. Follow along.** Your agent says what each step is for and how long it takes before it runs it. It asks what to call your project and where it should live, then creates that folder with your team and Hyperspace Engine in it. On a new Windows PC or a new Mac it may ask you to restart Claude Code once, or to click Install in one window. The whole thing takes about 20 minutes, and it never asks for a key or password in the chat. Skip any step you like, then say "continue setup" whenever you want to pick it back up.
 
 **3. Say what you want to build.** Open Claude Code in your new project folder. Your technical cofounder is there, and takes it from there.
@@ -99,6 +112,8 @@ Stuck at any point? Run `/technical-cofounder:contact`, or email hello@novacaelu
 
 
 ## Meet the team
+<h6></h6>
+
 
 **The right help. At the right moment.**
 
@@ -155,6 +170,8 @@ Set up your project, work through unfamiliar tools, and get unstuck when somethi
 ### A way forward. Powered by Hyperspace Engine.
 
 Turn a goal into a plan, then carry it through with agents equipped to act. Follow the work, review the evidence, and step in where your judgment matters.
+<h6></h6>
+
 
 ![The Hyperspace workflow: Understand, Decide, Draft and Build each pass through a numbered check before Use it live, under a Verification machinery band that combines Deterministic checks and Intelligent judgment](docs/images/hyperspace-workflow.png)
 
