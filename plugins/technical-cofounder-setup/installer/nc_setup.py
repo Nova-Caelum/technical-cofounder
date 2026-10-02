@@ -525,8 +525,15 @@ def git_bash(ctx, git):
     return str(bash) if bash and not _windows_stand_in(bash) else None
 
 
+def _named(ctx, name):
+    """What the environment holds under a Windows name. Windows ignores the
+    letter case of a name, and Python hands a real Windows environment over
+    with every name in capitals: PROGRAMFILES, never ProgramFiles."""
+    return ctx.env.get(name) or ctx.env.get(name.upper())
+
+
 def _git_installs(ctx):
-    roots = [ctx.env.get(var) for var in ("ProgramFiles", "ProgramW6432", "ProgramFiles(x86)")]
+    roots = [_named(ctx, var) for var in ("ProgramFiles", "ProgramW6432", "ProgramFiles(x86)")]
     local = ctx.env.get("LOCALAPPDATA")
     roots.append(str(Path(local) / "Programs") if local else None)
     return [Path(root) / "Git" / "cmd" / "git.exe" for root in roots if root]
