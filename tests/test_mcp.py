@@ -274,7 +274,8 @@ class HyperspaceAdapterTests(unittest.TestCase):
             with self.subTest(tool=name):
                 is_error, text = self.call(name, arguments)
                 self.assertTrue(is_error)
-                self.assertIn("hyperspace-setup", text)
+                self.assertIn('Fix: run /technical-cofounder-setup:start (or say "set up hyperspace")', text)
+                self.assertNotIn("hyperspace-setup", text)
         self.assertEqual(self.markdown(), [])
 
     def test_cli_error_is_isError_and_no_markdown(self):

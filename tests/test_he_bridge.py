@@ -54,6 +54,9 @@ SUMMARY_TOO_LONG = '{"ok": false, "error": "summary exceeds 280 characters (got 
 UNKNOWN_WORK_ITEM = '{"ok": false, "error": "no such work item: \'nope\'"}'
 USAGE_ERROR = '{"ok": false, "error": "usage error \\u2014 see stderr"}'
 MISSING_DIR = '{"ok": false, "error": "no such directory: <project>/no/such/dir"}'
+# The fix a broken worklog names: the setup command first, then what to say when
+# the setup plugin was never installed. The same order as the briefing's lines.
+SETUP_FIX = '/technical-cofounder-setup:start (or say "set up hyperspace")'
 # Exit 3: the contract states the shape only; this body is from a real run of
 # the v0.1.2 CLI against a directory with no store (path shortened).
 NO_STORE = '{"ok": false, "error": "no /tmp/x/.hyperspace/graph.db \\u2014 run `hyperspace init` first"}'
@@ -451,9 +454,17 @@ class ResponseMappingTests(_Tmp):
         self.fake.python.unlink()
         with self.assertRaises(he_bridge.BridgeError) as ctx:
             he_bridge.append(self.root, "x")
-        self.assertIn("hyperspace-setup", str(ctx.exception))
+        self.assertIn(f"Fix: run {SETUP_FIX}", str(ctx.exception))
+        self.assertNotIn("hyperspace-setup", str(ctx.exception))
         self.assertIn("markdown", str(ctx.exception))
         self.assertFalse((self.root / "worklog").exists())
+
+    def test_a_project_with_no_store_is_sent_to_setup(self):
+        self.fake.respond("recent", NO_STORE, 3)
+        with self.assertRaises(he_bridge.BridgeError) as ctx:
+            he_bridge.recent(self.root)
+        self.assertIn(f"run {SETUP_FIX}", str(ctx.exception))
+        self.assertNotIn("hyperspace-setup", str(ctx.exception))
 
 
 class PreloadTests(_Tmp):

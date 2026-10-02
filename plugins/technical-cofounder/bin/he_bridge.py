@@ -51,9 +51,13 @@ PRELOAD_N = 3
 BODY_CAP = 400
 GEAR_LINE = "Hyperspace Engine is installed: use its gear* skills for the working loop."
 
+# The fix for a missing store or a missing interpreter: the setup command
+# first, then what to say when the setup plugin was never installed. The
+# session briefing's health lines name the same two, in the same order.
+SETUP_FIX = 'run /technical-cofounder-setup:start (or say "set up hyperspace")'
 FIXES = {
     2: "the hyperspace CLI refused the request as invalid; correct it and retry",
-    3: "this project has no Hyperspace store; run the hyperspace-setup skill (hyperspace init)",
+    3: f"this project has no Hyperspace store; {SETUP_FIX}",
 }
 FIX_UNEXPECTED = "Hyperspace Engine hit an internal error; run `hyperspace doctor` and check its install"
 
@@ -188,9 +192,9 @@ def run_cli(root, verb, *args):
     if python is None:
         expected = _interpreters(root)[0].as_posix()
         raise BridgeError(
-            f"the hyperspace CLI is missing ({expected} not found). Fix: re-run the hyperspace-setup skill "
-            "(or `hyperspace init --provision`) to rebuild .hyperspace/env. Nothing was written: while "
-            "Hyperspace Engine holds this project's worklog, TC never falls back to markdown."
+            f"the hyperspace CLI is missing ({expected} not found). Fix: {SETUP_FIX} to rebuild "
+            ".hyperspace/env. Nothing was written: while Hyperspace Engine holds this project's worklog, "
+            "TC never falls back to markdown."
         )
     cmd = [str(python), "-m", "hyperspace.cli", "worklog", verb, *args, f"--dir={root}", "--json"]
     try:
