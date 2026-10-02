@@ -145,7 +145,9 @@ def set_step(project, step_id, status, pairs):
         check_value(key, value)
         choices[key] = value
     stamp = now()
-    entry = {"status": status, "at": None if status == "pending" else stamp, "part": step["part"]}
+    # The title goes in whatever the status: the team plugin's session briefing
+    # calls a skipped step by it, and reads this record and nothing else.
+    entry = {"status": status, "at": None if status == "pending" else stamp, "part": step["part"], "title": step["title"]}
     if status == "skipped":
         entry["if_skipped"] = step["if_skipped"]
     rec["steps"][step_id] = entry

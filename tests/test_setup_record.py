@@ -127,7 +127,8 @@ class SetTests(Project):
     def test_pending_clears_at(self):
         cli("set", self.project, "editor", "done", "--choice", "editor=vscode")
         cli("set", self.project, "editor", "pending")
-        self.assertEqual(record(self.project)["steps"]["editor"], {"status": "pending", "at": None, "part": 1})
+        editor = next(s for s in STEPS if s["id"] == "editor")
+        self.assertEqual(record(self.project)["steps"]["editor"], {"status": "pending", "at": None, "part": 1, "title": editor["title"]})
         self.assertEqual(record(self.project)["choices"], {"editor": "vscode"})
 
     def test_every_recorded_step_says_which_part_it_belongs_to(self):
@@ -145,6 +146,17 @@ class SetTests(Project):
         self.assertEqual(entry["status"], "skipped")
         self.assertEqual(entry["if_skipped"], github["if_skipped"])
         self.assertTrue(entry["at"].endswith("Z"))
+
+    def test_a_step_that_is_set_carries_its_title(self):
+        # The team plugin's session briefing names a skipped step by its title,
+        # and reads only this record. One rule: whatever the status, the entry
+        # `set` writes carries the title steps.json gives the step.
+        github = next(s for s in STEPS if s["id"] == "github")
+        for status in ("skipped", "done", "pending"):
+            with self.subTest(status=status):
+                r = cli("set", self.project, "github", status)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(record(self.project)["steps"]["github"]["title"], github["title"])
 
     def test_only_a_skipped_step_carries_that_text(self):
         cli("set", self.project, "github", "skipped", "--choice", "github=no")
