@@ -501,6 +501,30 @@ class ProjectFolderOnWindows(Case):
     def test_an_ordinary_windows_folder_is_accepted(self):
         self.assertEqual(self.verdict("project-folder", r"C:\Projects\my-project"), "install")
 
+    def test_system_folders_are_refused_when_the_environment_spells_its_names_in_capitals(self):
+        # Python hands over a Windows environment with every name in
+        # capitals: SYSTEMROOT, never SystemRoot. A Windows that is not on
+        # drive C is refused only through those names.
+        self.world.env.update({
+            "SYSTEMROOT": r"D:\Windows", "WINDIR": r"D:\Windows", "PROGRAMFILES": r"D:\Program Files",
+            "PROGRAMFILES(X86)": r"D:\Program Files (x86)", "PROGRAMDATA": r"D:\ProgramData",
+        })
+        for path in (r"D:\Windows\Temp\x", r"D:\Program Files\MyProject",
+                     r"d:\program files (x86)\thing", r"D:\ProgramData\x"):
+            with self.subTest(path=path):
+                row = self.row("project-folder", path)
+                self.assertEqual(row["verdict"], "needs-you")
+                self.assertIn("system folder", row["detail"])
+        self.assertEqual(self.verdict("project-folder", r"D:\Projects\my-project"), "install")
+
+    @unittest.skipUnless(sys.platform == "win32", "only a real Windows spells the names its own way")
+    def test_the_real_environment_names_a_system_folder_that_is_not_on_drive_c(self):
+        env = dict(os.environ)   # the environment as this machine gives it
+        spelled = next(name for name in env if name.upper() == "PROGRAMDATA")
+        env[spelled] = r"Q:\Elsewhere\Data"
+        ctx = nc.Ctx(r"Q:\Elsewhere\Data\my-project", env=env)
+        self.assertIn("system folder", nc.refusal(ctx) or "it was not refused")
+
 
 class ExistingConfig(Case):
     def test_nothing_there_is_ready(self):
