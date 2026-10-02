@@ -5,9 +5,7 @@
 
 # Technical Cofounder
 
-For solo builders and the build-curious.
-
-**An AI senior dev team - give them your idea, build it together.**
+For solo builders and the build-curious: **your new AI senior dev team - give them your idea, build it together.**
 
 <p align="center">
   <a href="#get-started">Get started</a> · 
