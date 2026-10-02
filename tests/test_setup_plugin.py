@@ -32,6 +32,22 @@ NARRATION = (
     "One step at a time.",
     'The re-scan is the only source of "done".',
 )
+# A shell call from the agent is cut off after two minutes unless it asks for
+# longer, and a cut-off call prints no last line and no JSON.
+FIRST_STEP_TIMEOUT = (
+    "Run it with a ten-minute timeout on the tool call.",
+    "A call that ends with no `BOOTSTRAP=` last line was cut off, not failed: run the same command again.",
+)
+APPLY_TIMEOUT = (
+    "Run every `apply` with a ten-minute timeout on the tool call.",
+    "A call that ends with no JSON document was cut off, not failed: run the same command again.",
+)
+TERMINAL_TOO = "If they started Claude Code from a terminal window, they close that window too."
+PROJECTS_DEFAULT = "a folder with that name in `Projects` inside their home folder, on every system."
+ONEDRIVE = (
+    "If the folder they choose has `OneDrive` in its path, say once that synced folders slow the workspace down "
+    "and offer the `Projects` default again; their choice stands."
+)
 ASK = "If anything is unclear, just ask me."
 GUIDE_STEPS = ("editor", "obsidian", "github", "workspace", "first-steps", "profile")
 
@@ -130,6 +146,29 @@ class TheSkill(unittest.TestCase):
         for sentence in NARRATION:
             with self.subTest(sentence=sentence):
                 self.assertIn(sentence, self.flat)
+
+    def section(self, title):
+        return flat(self.text.split("\n## %s\n" % title, 1)[1].split("\n## ", 1)[0])
+
+    def test_the_slow_calls_get_ten_minutes_and_a_cut_off_call_is_run_again(self):
+        first_step = self.section("First step")
+        for sentence in FIRST_STEP_TIMEOUT:
+            with self.subTest(section="First step", sentence=sentence):
+                self.assertIn(sentence, first_step)
+        scan = self.section("Scan, plan, apply, re-scan")
+        for sentence in APPLY_TIMEOUT:
+            with self.subTest(section="Scan, plan, apply, re-scan", sentence=sentence):
+                self.assertIn(sentence, scan)
+
+    def test_a_restart_means_the_terminal_window_too(self):
+        self.assertIn(TERMINAL_TOO, self.section("First step"))
+        self.assertIn(TERMINAL_TOO, self.section("Scan, plan, apply, re-scan"))
+
+    def test_the_project_goes_in_projects_on_every_system_and_onedrive_is_named_once(self):
+        where = self.section("Where the project goes")
+        self.assertIn(PROJECTS_DEFAULT, where)
+        self.assertIn(ONEDRIVE, where)
+        self.assertNotIn("Documents folder on Windows, or", where)
 
     def test_it_never_restates_a_reason_that_lives_in_steps_json(self):
         for entry in STEPS["install"]:
