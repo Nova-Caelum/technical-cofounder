@@ -122,7 +122,7 @@ Work through an idea, turn it into a plan, and build with specialists who bring 
 <h6></h6>
 
 
-### Technical Cofounder
+### I. Technical Cofounder
 
 *The one who brings it together.*
 
@@ -132,7 +132,7 @@ Think through what you want to build, compare approaches, and decide what matter
 
 <h6></h6>
 
-### Engineer
+### II. Engineer
 
 *The one who builds.*
 
@@ -142,7 +142,7 @@ Turn a clear brief into working software. Your engineer writes tests, implements
 <h6></h6>
 
 
-### DevOps Lead
+### III. DevOps Lead
 
 *The one who keeps standards high.*
 
@@ -153,7 +153,7 @@ Get a separate set of eyes on the work before moving on. Your DevOps Lead review
 <h6></h6>
 
 
-### Forward-Deployed Engineer
+### IV. Forward-Deployed Engineer
 
 *The one who gets you going–and helps you grow.*
 
