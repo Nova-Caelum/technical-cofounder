@@ -43,6 +43,36 @@ def _bash():
 BASH = _bash()
 
 
+def write_tool(path, text):
+    """A stand-in program: a shell script, written as bytes and made runnable."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode("utf-8"))  # bytes: a CRLF shebang does not start
+    path.chmod(0o755)
+    return path
+
+
+def path_without(scratch, *tools):
+    """PATH with the named tools taken out of it. A directory that holds one
+    beside the shell's own tools (/usr/bin on macOS) is replaced by a folder
+    of links, made under `scratch`, to everything else in it; on Windows such
+    a tool has a folder of its own, and that folder is dropped."""
+    names = {*tools, *(f"{tool}.exe" for tool in tools)}
+    kept = []
+    for entry in os.environ["PATH"].split(os.pathsep):
+        folder = Path(entry)
+        if not entry or not folder.is_dir():
+            continue
+        if not any((folder / name).exists() for name in names):
+            kept.append(entry)
+        elif os.name != "nt":
+            shadow = Path(tempfile.mkdtemp(prefix="path-", dir=scratch))
+            for tool in folder.iterdir():
+                if tool.name not in names:
+                    (shadow / tool.name).symlink_to(tool)
+            kept.append(str(shadow))
+    return os.pathsep.join(kept)
+
+
 def run_hook(command, event, project, data):
     env = {k: v for k, v in os.environ.items() if k != "TC_CONCISION"}
     env.update(CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT), CLAUDE_PROJECT_DIR=project, CLAUDE_PLUGIN_DATA=data)

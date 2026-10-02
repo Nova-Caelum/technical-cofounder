@@ -5,10 +5,14 @@
 #
 # Sourced by every hook in this plugin. Sets and exports two variables:
 #
-#   NC_PYTHON  the first of these that exists and runs:
+#   NC_PYTHON  the first of these that runs:
+#                python3, python, then `py -3` on PATH
 #                ${CLAUDE_PROJECT_DIR}/.hyperspace/env/bin/python
 #                ${CLAUDE_PROJECT_DIR}/.hyperspace/env/Scripts/python.exe
-#                python3, python, then `py -3` on PATH
+#              The project's own interpreter is the last resort, never the
+#              first choice: a downloaded repository can ship a file at that
+#              path, and a hook must not start it while this machine has a
+#              Python of its own.
 #              `py -3` is stored as the interpreter it starts, so the value
 #              is always one word a hook can run as "$NC_PYTHON".
 #   NC_JQ      the first of these that runs:
@@ -30,14 +34,6 @@
 
 nc_resolve_python() {
     local project="${CLAUDE_PROJECT_DIR:-}" candidate found
-    if [ -n "$project" ]; then
-        for candidate in "$project/.hyperspace/env/bin/python" "$project/.hyperspace/env/Scripts/python.exe"; do
-            if [ -f "$candidate" ] && "$candidate" -S -c '' </dev/null >/dev/null 2>&1; then
-                printf '%s' "$candidate"
-                return 0
-            fi
-        done
-    fi
     for candidate in python3 python; do
         if "$candidate" -S -c '' </dev/null >/dev/null 2>&1; then
             printf '%s' "$candidate"
@@ -48,7 +44,17 @@ nc_resolve_python() {
     # with forward slashes, bash runs it as a path, not as a command name.
     found="$(py -3 -c 'import sys; print(sys.executable)' </dev/null 2>/dev/null)" || found=""
     found="${found%$'\r'}"
-    printf '%s' "${found//\\//}"
+    if [ -n "$found" ]; then
+        printf '%s' "${found//\\//}"
+        return 0
+    fi
+    [ -n "$project" ] || return 0
+    for candidate in "$project/.hyperspace/env/bin/python" "$project/.hyperspace/env/Scripts/python.exe"; do
+        if [ -f "$candidate" ] && "$candidate" -S -c '' </dev/null >/dev/null 2>&1; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    done
     return 0
 }
 

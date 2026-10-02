@@ -294,7 +294,7 @@ class SessionPreloadTests(unittest.TestCase):
 
 sys.path.insert(0, str(REPO_ROOT))
 from tests.test_he_bridge import IMPORT_FIRST, MIRROR_REBUILT, NO_STORE, RECENT_OK, FakeHE  # noqa: E402
-from tests.test_plugin_hooks import BASH  # noqa: E402
+from tests.test_plugin_hooks import BASH, path_without, write_tool  # noqa: E402
 
 BLOCK_RE = re.compile(r"(?m)^## Recent worklog")
 
@@ -556,14 +556,15 @@ esac
 """
 # A stand-in interpreter: enough for the resolver's "does it run" probe.
 FAKE_PYTHON = "#!/bin/bash\nexit 0\n"
+# The two places a project's own interpreter can be (Mac and Linux, then Windows).
+PROJECT_PYTHONS = (".hyperspace/env/bin/python", ".hyperspace/env/Scripts/python.exe")
+NO_PYTHON = ("python3", "python", "py")
+
+
+def recording_tool(path, log):
+    """A stand-in that appends one line to `log` every time it is started."""
+    return write_tool(path, f'#!/bin/bash\necho "$0 $*" >> "{log.as_posix()}"\nexit 0\n')
 PLAIN_PROMPT = {"session_id": "sess-1", "hook_event_name": "UserPromptSubmit", "prompt": "add a retry to the upload function"}
-
-
-def write_tool(path, text):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(text.encode("utf-8"))  # bytes: a CRLF shebang does not start
-    path.chmod(0o755)
-    return path
 
 
 class ToolResolverTests(unittest.TestCase):
@@ -580,28 +581,9 @@ class ToolResolverTests(unittest.TestCase):
         self.stripped = {}
 
     def path_without(self, *tools):
-        """PATH with the named tools taken out of it. A directory that holds one
-        beside the shell's own tools (/usr/bin on macOS) is replaced by a folder
-        of links to everything else in it; on Windows such a tool has a folder
-        of its own, and that folder is dropped."""
-        if tools in self.stripped:
-            return self.stripped[tools]
-        names = {*tools, *(f"{tool}.exe" for tool in tools)}
-        kept = []
-        for i, entry in enumerate(os.environ["PATH"].split(os.pathsep)):
-            folder = Path(entry)
-            if not entry or not folder.is_dir():
-                continue
-            if not any((folder / name).exists() for name in names):
-                kept.append(entry)
-            elif os.name != "nt":
-                shadow = self.tmp / f"path-{len(self.stripped)}-{i}"
-                shadow.mkdir()
-                for tool in folder.iterdir():
-                    if tool.name not in names:
-                        (shadow / tool.name).symlink_to(tool)
-                kept.append(str(shadow))
-        self.stripped[tools] = os.pathsep.join(kept)
+        """PATH with the named tools taken out of it, built once per test."""
+        if tools not in self.stripped:
+            self.stripped[tools] = path_without(self.tmp, *tools)
         return self.stripped[tools]
 
     def path_without_jq(self):
@@ -654,18 +636,40 @@ class ToolResolverTests(unittest.TestCase):
         self.assertEqual(self.resolve(PATH=path, NC_TOOLS_DIR=str(tools))[1], f"{tools}/jq")
         self.assertEqual(self.resolve(PATH=path, NC_TOOLS_DIR=str(self.tmp / "nowhere"))[1], "")
 
-    def test_the_project_environment_python_wins(self):
-        for rel in (".hyperspace/env/Scripts/python.exe", ".hyperspace/env/bin/python"):
-            with self.subTest(interpreter=rel):
-                write_tool(self.project / rel, FAKE_PYTHON)
-                self.assertEqual(self.resolve()[0], f"{self.project}/{rel}")
-
-    def test_python_falls_back_to_one_on_path_that_runs(self):
-        broken = write_tool(self.project / ".hyperspace/env/bin/python", "#!/bin/bash\nexit 1\n")
+    def test_python_on_path_wins_over_a_planted_project_interpreter(self):
+        # A downloaded repository can ship a file at the project path. With a
+        # working interpreter on PATH it is neither chosen nor started.
+        started = self.tmp / "planted-started.log"
+        for rel in PROJECT_PYTHONS:
+            recording_tool(self.project / rel, started)
         python = self.resolve()[0]
-        self.assertNotIn(python, ("", str(broken)))
+        self.assertNotIn(str(self.project), python)
         r = subprocess.run([BASH, "-c", '"$0" -c "print(40 + 2)"', python], capture_output=True, text=True)
         self.assertEqual(r.stdout.strip(), "42", r.stderr)
+        self.assertFalse(started.exists(), f"the planted interpreter was started: {started.read_text() if started.exists() else ''}")
+
+    def test_the_project_interpreter_is_the_last_resort(self):
+        # Used only when nothing on PATH runs, and then in either layout.
+        path = self.path_without(*NO_PYTHON)
+        for rel in PROJECT_PYTHONS:
+            with self.subTest(interpreter=rel):
+                shutil.rmtree(self.project / ".hyperspace", ignore_errors=True)
+                write_tool(self.project / rel, FAKE_PYTHON)
+                self.assertEqual(self.resolve(PATH=path)[0], f"{self.project}/{rel}")
+
+    def test_a_project_interpreter_that_does_not_run_is_passed_over(self):
+        path = self.path_without(*NO_PYTHON)
+        write_tool(self.project / PROJECT_PYTHONS[0], "#!/bin/bash\nexit 1\n")
+        self.assertEqual(self.resolve(PATH=path)[0], "")
+        write_tool(self.project / PROJECT_PYTHONS[1], FAKE_PYTHON)
+        self.assertEqual(self.resolve(PATH=path)[0], f"{self.project}/{PROJECT_PYTHONS[1]}")
+
+    def test_the_py_launcher_wins_over_a_planted_project_interpreter(self):
+        launcher = self.tmp / "launcher"
+        write_tool(launcher / "py", "#!/bin/bash\nprintf '%s\\r\\n' 'C:\\Fake\\python.exe'\n")
+        write_tool(self.project / PROJECT_PYTHONS[0], FAKE_PYTHON)
+        path = os.pathsep.join([str(launcher), self.path_without(*NO_PYTHON)])
+        self.assertEqual(self.resolve(PATH=path)[0], "C:/Fake/python.exe")
 
     def test_py_launcher_is_stored_as_the_one_interpreter_it_starts(self):
         # With no python3 or python on PATH, `py -3` is the last resort. It is two

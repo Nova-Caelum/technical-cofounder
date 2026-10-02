@@ -14,9 +14,10 @@
 # CLAUDE.md, which Claude Code loads on its own.
 #
 # The primer reads JSON (settings enabledPlugins, core_text/setup.json) with
-# the Python lib/resolve-tools.sh finds: the project's Hyperspace environment
-# first, then one on PATH. It prints only the three fixed
-# plugin names and states, never a settings value, and never writes a file.
+# the Python lib/resolve-tools.sh finds: one on PATH first, and the project's
+# Hyperspace environment only when PATH has none. It prints only the three
+# fixed plugin names and states, never a settings value, and never writes a
+# file.
 #
 # With Hyperspace Engine present (.hyperspace/graph.db), bin/he_bridge.py
 # takes over the worklog block: in a set-up project it runs the one-time
