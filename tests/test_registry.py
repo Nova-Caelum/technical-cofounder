@@ -118,5 +118,42 @@ class ProjectRegistry(Scratch):
         self.assertIn("bookkeeper: field 'with_super' missing", r.stdout)
 
 
+class DevOpsLeadReadsTheVerdict(unittest.TestCase):
+    """Closing a task is the technical cofounder's call (`complete_workitem`).
+    The DevOps lead audits the verdict that call returns; it does not make it."""
+
+    def setUp(self):
+        self.text = (PLUGIN_ROOT / "agents" / "devops-lead.md").read_text(encoding="utf-8")
+
+    def section(self, heading):
+        body = self.text.split(f"\n## {heading}\n", 1)[1]
+        return body.split("\n## ", 1)[0]
+
+    def test_it_nowhere_says_it_runs_the_verifier(self):
+        flat = " ".join(self.text.split()).lower()
+        for phrase in ("runs the verifier", "run the verifier"):
+            with self.subTest(phrase=phrase):
+                self.assertNotIn(phrase, flat)
+
+    def test_the_description_says_it_reads_the_verdict(self):
+        (description,) = [ln for ln in self.text.splitlines() if ln.startswith("description:")]
+        self.assertIn("reviews diffs and PRs, runs the tests and the leak checks, reads the verifier's verdict, "
+                      "and returns PASS or FAIL with the evidence", description)
+
+    def test_the_opening_says_it_reads_the_verdict(self):
+        opening = self.text.split("\n## ", 1)[0]
+        self.assertIn("read the verifier's verdict", opening)
+
+    def test_the_verdict_is_something_it_reads_not_a_check_it_runs(self):
+        checks = self.section("The checks you run")
+        self.assertIn("Read the verifier's verdict", checks)
+        self.assertIn("`complete_workitem`", checks)
+        self.assertFalse([ln for ln in checks.splitlines() if ln.startswith("- `complete_workitem`")])
+
+    def test_it_says_who_closes_the_task(self):
+        self.assertIn("You don't call `complete_workitem` yourself: the technical cofounder closes the task, "
+                      "and you audit the verdict it returns.", self.section("Who you work with"))
+
+
 if __name__ == "__main__":
     unittest.main()
