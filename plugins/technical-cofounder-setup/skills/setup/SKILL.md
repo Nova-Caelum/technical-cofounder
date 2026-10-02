@@ -43,8 +43,12 @@ continue or repair? Read **Repair and another project** first.
 
 1. Ask what they want to call the project.
 2. Offer where it will live, and let them change it: a folder with that name
-   in their Documents folder on Windows, or in `Projects` inside their home
-   folder on a Mac or Linux. A folder they already have is fine too.
+   in `Projects` inside their home folder, on every system. Not Documents:
+   on Windows that is usually a OneDrive folder, and a workspace with
+   thousands of files does badly under sync. A folder they already have is
+   fine too. If the folder they choose has `OneDrive` in its path, say once
+   that synced folders slow the workspace down and offer the `Projects`
+   default again; their choice stands.
 3. Create nothing yet. The install script creates the folder. It refuses the
    home folder itself and system folders; when it does, say its sentence and
    ask for another folder.
@@ -67,11 +71,20 @@ one, and changes only what is missing.
    - Windows, `installer/bootstrap.ps1`, through PowerShell, with the path in
      Windows form (`C:\...`):
      `powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}\installer\bootstrap.ps1"`
+
+   Run it with a ten-minute timeout on the tool call. A shell call is cut off
+   after two minutes unless you ask for longer, and a first Python download
+   can take longer than that on a slow connection. A call that ends with no
+   `BOOTSTRAP=` last line was cut off, not failed: run the same command
+   again.
 3. Act on that line:
    - `BOOTSTRAP=OK python=<path>`: keep the path. It is `<python>` in every
-     command below.
+     command below. On Windows it comes with forward slashes: use it as
+     printed, always inside double quotes.
    - `BOOTSTRAP=NEEDS_RESTART`: tell the user exactly what to do: close Claude
-     Code completely, open it again, and paste the same message. Then stop.
+     Code completely, open it again, and paste the same message. If they
+     started Claude Code from a terminal window, they close that window too.
+     Then stop.
    - `BOOTSTRAP=NEEDS_YOU reason=...`: say the one thing they need to do, in
      plain words, and wait. When they say it is done, run the first step again.
 
@@ -86,6 +99,11 @@ never guess what it says.
 "<python>" "${CLAUDE_PLUGIN_ROOT}/installer/nc_setup.py" ack --project "<project>" --item <id>
 "<python>" "${CLAUDE_PLUGIN_ROOT}/installer/nc_setup.py" scan --project "<project>" --record
 ```
+
+Run every `apply` with a ten-minute timeout on the tool call. A shell call is
+cut off after two minutes unless you ask for longer, and building the engine's
+workspace can take longer than that on a slow connection. A call that ends
+with no JSON document was cut off, not failed: run the same command again.
 
 1. **Plan.** Run `plan`. Every row in `items` has an `id`, a `verdict`, a
    `detail`, a `why` and `minutes`. The verdict is one of `ready`, `install`,
@@ -110,7 +128,8 @@ never guess what it says.
      row. If the detail says to run the first-step script, go back to
      **First step**.
    - `needs-restart`: explain that Claude Code has to be closed completely
-     and opened again, and the same message pasted. Then stop.
+     and opened again, and the same message pasted. If they started Claude
+     Code from a terminal window, they close that window too. Then stop.
 4. **Finish.** Run `scan` with `--record` and say what it shows: how many
    items are `ready`, anything that is not, and where the record is
    (`recorded`). A row that is not `ready` goes back through step 3.

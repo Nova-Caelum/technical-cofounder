@@ -22,6 +22,14 @@
 # file plain ASCII and free of anything newer.
 param([switch]$DryRun)
 
+# Read and print UTF-8. Without this, a Windows account name with an accent
+# in it arrives garbled in the Python path, both from uv and in the last line.
+# A session with no console has no encoding to set, and must not fail on it.
+try {
+    $OutputEncoding = New-Object System.Text.UTF8Encoding $false
+    [Console]::OutputEncoding = $OutputEncoding
+} catch { }
+
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
 $SetupArgs = @($args)
@@ -29,9 +37,11 @@ $SetupArgs = @($args)
 $WingetGit = 'winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements'
 $UvInstall = 'irm https://astral.sh/uv/install.ps1 | iex'
 $Proof = 'import sys, tomllib, sqlite3, venv; print(sys.version)'
-$RestartAfterInstall = 'Git was installed. Close Claude Code completely, open it again, and paste the same message.'
-$RestartStaleSession = 'Git is installed, but this session started before it was. Close Claude Code completely, open it again, and paste the same message.'
-$GitByHand = 'Git could not be installed automatically. Download and run the installer from https://git-scm.com/downloads/win, then close Claude Code completely, open it again, and paste the same message.'
+# A Claude Code started from a terminal window keeps that window's old PATH,
+# so every sentence that asks for a restart says to close the window too.
+$RestartAfterInstall = 'Git was installed. Close Claude Code completely, open it again, and paste the same message. If you started Claude Code from a terminal window, close that window too.'
+$RestartStaleSession = 'Git is installed, but this session started before it was. Close Claude Code completely, open it again, and paste the same message. If you started Claude Code from a terminal window, close that window too.'
+$GitByHand = 'Git could not be installed automatically. Download and run the installer from https://git-scm.com/downloads/win, then close Claude Code completely, open it again, and paste the same message. If you started Claude Code from a terminal window, close that window too.'
 
 function Say([string]$Text) {
     Write-Host "bootstrap: $Text"
@@ -192,7 +202,7 @@ if ($uv) {
     # with what was just installed.
     $uv = Find-Uv
     if (-not $uv) {
-        Stop-NeedsYou 'uv could not be installed from https://astral.sh/uv/install.ps1. Check the internet connection, then paste the same message again.'
+        Stop-NeedsYou 'uv could not be installed from https://astral.sh/uv/install.ps1. Check the internet connection, then paste the same message again. If the connection is fine, an antivirus that blocked the installer is the other common cause, and uv can be installed by hand from https://docs.astral.sh/uv/ before pasting the message again.'
     }
 }
 
@@ -226,7 +236,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 Say "Python is ready: $($version[0])"
 
-Write-Output "BOOTSTRAP=OK python=$python"
+# Printed with forward slashes, which every shell on Windows takes inside
+# double quotes; a backslash is an escape in Git Bash. This script keeps
+# using the path as uv gave it.
+Write-Output "BOOTSTRAP=OK python=$($python.Replace('\', '/'))"
 if ($SetupArgs.Count -gt 0) {
     & $python (Join-Path $PSScriptRoot 'nc_setup.py') @SetupArgs
     exit $LASTEXITCODE

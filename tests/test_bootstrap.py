@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import venv
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -27,6 +28,12 @@ LAST_LINE = re.compile(r"^BOOTSTRAP=(OK python=\S.*|NEEDS_RESTART reason=\S.*|NE
 UV_INSTALL = "curl -LsSf https://astral.sh/uv/install.sh | sh"
 WINDOWS = sys.platform == "win32"
 BASE_PATH = "/usr/bin:/bin"
+# A Claude Code started from a terminal window keeps that window's old PATH,
+# so closing Claude Code alone is not a restart.
+TERMINAL_TOO = "If you started Claude Code from a terminal window, close that window too."
+REOPEN = "Close Claude Code completely, open it again, and paste the same message. " + TERMINAL_TOO
+RESTART_AFTER_INSTALL = "Git was installed. " + REOPEN
+RESTART_STALE_SESSION = "Git is installed, but this session started before it was. " + REOPEN
 
 
 def snapshot(root):
@@ -292,9 +299,64 @@ class Ps1Text(unittest.TestCase):
             "python install 3.12",
             "python find 3.12",
             "import sys, tomllib, sqlite3, venv; print(sys.version)",
-            "Git was installed. Close Claude Code completely, open it again, and paste the same message.",
         ):
             self.assertIn(needle, self.text)
+
+    def test_every_sentence_that_asks_for_a_restart_says_to_close_the_terminal_window_too(self):
+        self.assertIn("'%s'" % RESTART_AFTER_INSTALL, self.text)
+        self.assertIn("'%s'" % RESTART_STALE_SESSION, self.text)
+        asking = [line for line in self.text.splitlines() if "lose Claude Code completely" in line]
+        self.assertEqual(len(asking), 3)   # the two above, and Git that has to be installed by hand
+        for line in asking:
+            self.assertIn("close that window too", line)
+
+    def test_output_is_set_to_utf8_before_anything_else_runs(self):
+        # A Windows account name with an accent otherwise arrives garbled in
+        # the python= path. A session with no console cannot have its
+        # encoding set, and must not fail on that: hence the try.
+        code = "\n".join(
+            line for line in self.text.splitlines() if line.strip() and not line.lstrip().startswith("#")
+        )
+        after_param = code.split("param([switch]$DryRun)\n", 1)[1]
+        block = re.match(r"try \{\n(.*?)\n\} catch \{ ?\}\n", after_param, re.S)
+        self.assertIsNotNone(block, after_param[:120])
+        for target in ("$OutputEncoding = ", "[Console]::OutputEncoding = "):
+            with self.subTest(target=target):
+                self.assertIn(target, block.group(1))
+        self.assertIn("UTF8Encoding", block.group(1))
+
+    def test_the_python_path_is_printed_with_forward_slashes_and_used_unchanged(self):
+        self.assertIn("""Write-Output "BOOTSTRAP=OK python=$($python.Replace('\\', '/'))\"""", self.text)
+        self.assertNotIn('"BOOTSTRAP=OK python=$python"', self.text)
+        for use in ("& $python -c $Proof", "& $python (Join-Path $PSScriptRoot 'nc_setup.py') @SetupArgs"):
+            with self.subTest(use=use):
+                self.assertIn(use, self.text)
+
+    def test_a_failed_uv_install_names_antivirus_and_where_to_get_uv_by_hand(self):
+        reasons = [line for line in self.text.splitlines() if "uv could not be installed" in line]
+        self.assertEqual(len(reasons), 1)
+        for needle in ("Check the internet connection", "antivirus", "https://docs.astral.sh/uv/",
+                       "before pasting the message again."):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, reasons[0])
+
+
+# A folder name the way a Windows account name can be: with an accent in it.
+ACCENT = "caf\N{LATIN SMALL LETTER E WITH ACUTE}"
+
+
+def run_powershell(*args, env, creationflags=0):
+    """Windows PowerShell on bootstrap.ps1, its output read as UTF-8.
+
+    CREATE_NO_WINDOW gives the script a console of its own with no window,
+    which is how a program that hides its child processes starts one. That
+    console begins in the system's own code page, not in whatever the
+    console these tests run in was switched to."""
+    return subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(BOOTSTRAP_PS1), *args],
+        env=env, capture_output=True, encoding="utf-8", errors="replace",
+        stdin=subprocess.DEVNULL, timeout=120, creationflags=creationflags,
+    )
 
 
 @unittest.skipUnless(WINDOWS, "bootstrap.ps1 is the Windows first step")
@@ -323,7 +385,7 @@ class Ps1DryRun(unittest.TestCase):
             kept.append(folder)
         return os.pathsep.join(kept)
 
-    def run_ps(self, path=None, program_files=None, persisted_path=None):
+    def run_ps(self, path=None, program_files=None, persisted_path=None, creationflags=0):
         env = dict(os.environ)
         if path is not None:
             env["PATH"] = path
@@ -336,10 +398,7 @@ class Ps1DryRun(unittest.TestCase):
         env.pop("NC_PERSISTED_PATH", None)
         if persisted_path:
             env["NC_PERSISTED_PATH"] = persisted_path
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(BOOTSTRAP_PS1), "-DryRun"],
-            env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=120,
-        )
+        result = run_powershell("-DryRun", env=env, creationflags=creationflags)
         lines = [line for line in result.stdout.splitlines() if line.strip()]
         self.assertTrue(lines, result.stderr)
         self.assertRegex(lines[-1], LAST_LINE)
@@ -350,11 +409,7 @@ class Ps1DryRun(unittest.TestCase):
         self.assertEqual(result.returncode, 4, result.stdout)
         self.assertIn("Git", result.stdout)
         self.assertRegex(result.stdout, r"bootstrap: would (run: winget install --id Git\.Git|download)")
-        self.assertEqual(
-            last,
-            "BOOTSTRAP=NEEDS_RESTART reason=Git was installed. Close Claude Code completely, "
-            "open it again, and paste the same message.",
-        )
+        self.assertEqual(last, "BOOTSTRAP=NEEDS_RESTART reason=" + RESTART_AFTER_INSTALL)
 
     def test_bash_under_system32_with_no_git_is_no_git(self):
         stub = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "bash.exe"
@@ -376,8 +431,8 @@ class Ps1DryRun(unittest.TestCase):
         self.assertNotIn("winget install", result.stdout)
         self.assertTrue(last.startswith("BOOTSTRAP=OK python="))
 
-    def fake_git_install(self):
-        root = self.root / "ProgramFiles"
+    def fake_git_install(self, under=None):
+        root = (under or self.root) / "ProgramFiles"
         (root / "Git" / "cmd").mkdir(parents=True)
         (root / "Git" / "bin").mkdir(parents=True)
         (root / "Git" / "cmd" / "git.exe").write_bytes(b"")
@@ -392,7 +447,7 @@ class Ps1DryRun(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 4, result.stdout)
         self.assertNotIn("winget install", result.stdout)
-        self.assertTrue(last.startswith("BOOTSTRAP=NEEDS_RESTART reason=Git is installed, but this session"))
+        self.assertEqual(last, "BOOTSTRAP=NEEDS_RESTART reason=" + RESTART_STALE_SESSION)
 
     def test_git_installed_but_never_on_path_is_used_where_it_is(self):
         root = self.fake_git_install()
@@ -401,6 +456,69 @@ class Ps1DryRun(unittest.TestCase):
         self.assertNotIn("winget install", result.stdout)
         self.assertIn("bootstrap: Git is already here", result.stdout)
         self.assertTrue(last.startswith("BOOTSTRAP=OK python="))
+
+    def test_a_folder_name_with_an_accent_is_printed_as_utf8(self):
+        root = self.fake_git_install(under=self.root / ACCENT)
+        result, last = self.run_ps(
+            path=self.path_without_git(), program_files=root, creationflags=subprocess.CREATE_NO_WINDOW)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stderr.strip(), "")
+        self.assertIn("bootstrap: Git is already here: %s (" % (root / "Git" / "cmd" / "git.exe"), result.stdout)
+
+
+# What uv does, as far as bootstrap.ps1 asks: it prints the path of the
+# Python it found as UTF-8, which is what the real one writes to a pipe.
+UV_STAND_IN = '''\
+import sys
+args = sys.argv[1:]
+with open(%r, "a", encoding="utf-8") as log:
+    log.write(" ".join(args) + "\\n")
+if args == ["python", "install", "3.12"]:
+    sys.exit(0)
+if args == ["python", "find", "3.12"]:
+    sys.stdout.buffer.write((%r + "\\n").encode("utf-8"))
+    sys.exit(0)
+sys.exit(64)
+'''
+
+
+@unittest.skipUnless(WINDOWS, "bootstrap.ps1 is the Windows first step")
+class Ps1RealRun(unittest.TestCase):
+    """bootstrap.ps1 run for real on Windows PowerShell, through to its last
+    line, against a stand-in uv, so nothing is installed. The Python that uv
+    "finds" is a real one under a folder with an accent in its name, the way
+    a Windows account name can have one."""
+
+    def setUp(self):
+        if not shutil.which("git"):
+            self.skipTest("this machine has no Git")
+        self._td = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.addCleanup(self._td.cleanup)
+        self.root = Path(self._td.name).resolve()
+        self.shims = self.root / "shims"
+        self.shims.mkdir()
+        home = self.root / ACCENT
+        venv.create(home / "python", with_pip=False)
+        self.python = home / "python" / "Scripts" / "python.exe"
+        self.log = self.root / "uv.log"
+        (self.shims / "uv_stand_in.py").write_text(
+            UV_STAND_IN % (str(self.log), str(self.python)), encoding="utf-8")
+        (self.shims / "uv.cmd").write_text(
+            '@echo off\n"%s" "%%~dp0uv_stand_in.py" %%*\nexit /b %%ERRORLEVEL%%\n' % sys.executable,
+            encoding="ascii", newline="\r\n")
+
+    def test_a_python_under_a_folder_with_an_accent_is_found_proven_and_printed_with_forward_slashes(self):
+        self.assertTrue(self.python.is_file())
+        env = dict(os.environ)
+        env["PATH"] = str(self.shims) + os.pathsep + env.get("PATH", "")
+        env.pop("XDG_BIN_HOME", None)
+        result = run_powershell(env=env, creationflags=subprocess.CREATE_NO_WINDOW)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.log.read_text(encoding="utf-8").splitlines(),
+                         ["python install 3.12", "python find 3.12"])
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        self.assertEqual(lines[-1], "BOOTSTRAP=OK python=" + str(self.python).replace("\\", "/"))
+        self.assertIn("bootstrap: Python is ready: %s" % sys.version.split()[0], result.stdout)
 
 
 if __name__ == "__main__":

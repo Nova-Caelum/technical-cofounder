@@ -32,6 +32,23 @@ NARRATION = (
     "One step at a time.",
     'The re-scan is the only source of "done".',
 )
+# A shell call from the agent is cut off after two minutes unless it asks for
+# longer, and a cut-off call prints no last line and no JSON.
+FIRST_STEP_TIMEOUT = (
+    "Run it with a ten-minute timeout on the tool call.",
+    "A call that ends with no `BOOTSTRAP=` last line was cut off, not failed: run the same command again.",
+)
+APPLY_TIMEOUT = (
+    "Run every `apply` with a ten-minute timeout on the tool call.",
+    "A call that ends with no JSON document was cut off, not failed: run the same command again.",
+)
+PATH_AS_PRINTED = "On Windows it comes with forward slashes: use it as printed, always inside double quotes."
+TERMINAL_TOO = "If they started Claude Code from a terminal window, they close that window too."
+PROJECTS_DEFAULT = "a folder with that name in `Projects` inside their home folder, on every system."
+ONEDRIVE = (
+    "If the folder they choose has `OneDrive` in its path, say once that synced folders slow the workspace down "
+    "and offer the `Projects` default again; their choice stands."
+)
 ASK = "If anything is unclear, just ask me."
 GUIDE_STEPS = ("editor", "obsidian", "github", "workspace", "first-steps", "profile")
 
@@ -131,6 +148,33 @@ class TheSkill(unittest.TestCase):
             with self.subTest(sentence=sentence):
                 self.assertIn(sentence, self.flat)
 
+    def section(self, title):
+        return flat(self.text.split("\n## %s\n" % title, 1)[1].split("\n## ", 1)[0])
+
+    def test_the_slow_calls_get_ten_minutes_and_a_cut_off_call_is_run_again(self):
+        first_step = self.section("First step")
+        for sentence in FIRST_STEP_TIMEOUT:
+            with self.subTest(section="First step", sentence=sentence):
+                self.assertIn(sentence, first_step)
+        scan = self.section("Scan, plan, apply, re-scan")
+        for sentence in APPLY_TIMEOUT:
+            with self.subTest(section="Scan, plan, apply, re-scan", sentence=sentence):
+                self.assertIn(sentence, scan)
+
+    def test_the_python_path_is_used_as_the_first_step_printed_it(self):
+        # A backslash is an escape in Git Bash, so the path is never retyped.
+        self.assertIn(PATH_AS_PRINTED, self.section("First step"))
+
+    def test_a_restart_means_the_terminal_window_too(self):
+        self.assertIn(TERMINAL_TOO, self.section("First step"))
+        self.assertIn(TERMINAL_TOO, self.section("Scan, plan, apply, re-scan"))
+
+    def test_the_project_goes_in_projects_on_every_system_and_onedrive_is_named_once(self):
+        where = self.section("Where the project goes")
+        self.assertIn(PROJECTS_DEFAULT, where)
+        self.assertIn(ONEDRIVE, where)
+        self.assertNotIn("Documents folder on Windows, or", where)
+
     def test_it_never_restates_a_reason_that_lives_in_steps_json(self):
         for entry in STEPS["install"]:
             for key in ("why", "why_windows"):
@@ -210,15 +254,54 @@ class TheMessage(unittest.TestCase):
             "curl -fsSL https://claude.ai/install.sh | bash",
             "irm https://claude.ai/install.ps1 | iex",
             "   winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements",
-            "   claude plugin marketplace add Nova-Caelum/plugins",
+            "   claude plugin marketplace add https://github.com/Nova-Caelum/plugins.git",
             "   claude plugin install technical-cofounder-setup@nova-caelum",
             "close Claude Code completely, open it again and paste this same message",
             "Run `claude plugin list --json`, find the installPath of technical-cofounder-setup, read skills/setup/SKILL.md "
             "inside it, and follow it from the top.",
             "Tell me what each step is for before you run it, and go one step at a time.",
+            # A command line installed a moment ago is not on this session's PATH.
+            "~/.local/bin/claude on macOS or Linux",
+            r"%USERPROFILE%\.local\bin\claude.exe on Windows",
+            # Git has to be here before the plugin that checks for it can be downloaded.
+            "xcode-select --install",
+            r"C:\Program Files\Git\cmd\git.exe",
+            r"%LOCALAPPDATA%\Programs\Git\cmd\git.exe",
+            "https://git-scm.com/downloads/win",
+            "close that window too",
         ):
             with self.subTest(needle=needle[:40]):
                 self.assertIn(needle, self.blocks[0])
+
+    def test_every_line_of_the_message_starts_where_it_was_agreed(self):
+        # Numbered steps at the margin; commands three spaces in, alone on
+        # their line, so they can be copied whole; what belongs under the
+        # Windows bullet five spaces in.
+        starts = [
+            "Set up Technical Cofounder for me, ",
+            "",
+            "1. If `claude --version` does not work here, ",
+            "2. Git has to be on this computer before anything can be downloaded. ",
+            "   - On a Mac, if `xcode-select -p` fails: ",
+            "   - On Windows, if `git --version` does not work: ",
+            "   winget install ",
+            "     If winget is not found, ",
+            "     Then, or if one of those two files was already there, ",
+            "3. Run these two commands:",
+            "   claude plugin marketplace add ",
+            "   claude plugin install ",
+            "4. Run `claude plugin list --json`, ",
+        ]
+        lines = self.blocks[0].splitlines()
+        self.assertEqual(len(lines), len(starts))
+        for line, start in zip(lines, starts):
+            with self.subTest(start=start):
+                self.assertTrue(line.startswith(start) if start else line == "", line[:60])
+                self.assertEqual(line, line.rstrip())
+
+    def test_the_installer_adds_the_catalog_from_the_address_the_message_gives(self):
+        source = re.search(r'(?m)^MARKETPLACE_SOURCE = "([^"]+)"', (SETUP / "installer" / "nc_setup.py").read_text(encoding="utf-8"))
+        self.assertIn("   claude plugin marketplace add %s\n" % source.group(1), self.blocks[0])
 
     def test_the_file_it_points_at_exists_at_that_path_in_the_plugin(self):
         self.assertTrue((SETUP / "skills" / "setup" / "SKILL.md").is_file())

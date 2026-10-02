@@ -58,7 +58,9 @@ class World:
         self.apps = self.root / "Applications"
         (self.root / "work").mkdir()
         self.project = self.root / "work" / "my-project"
-        self.env = {"PATH": "/fake/bin"}
+        # NC_PERSISTED_PATH is the saved PATH. It is always set here, so no
+        # test ever reads the registry of the machine it runs on.
+        self.env = {"PATH": "/fake/bin", "NC_PERSISTED_PATH": ""}
         self.python = "/fake/python/bin/python3.12"
         self.python_version = (3, 12, 4)
         self.missing_modules = set()
@@ -696,13 +698,185 @@ class GitOnWindows(Case):
         self.assertEqual(row["verdict"], "needs-you")
         self.assertIn("bootstrap.ps1", row["detail"])
 
-    def test_git_installed_but_invisible_to_this_session_needs_restart(self):
-        self.install_git(on_path=False)
+    # -- installed, but this session's PATH does not lead to it ---------------
+
+    RESTART = (
+        "Git is installed, but this session started before it was; close Claude Code completely, "
+        "open it again, and paste the same message; if you started Claude Code from a terminal "
+        "window, close that window too"
+    )
+
+    def unseen_git(self, runs=True):
+        """A full Git for Windows that PATH does not lead to. Returns its
+        cmd folder and its git.exe."""
+        cmd = self.install_git(on_path=False) / "Git" / "cmd"
+        if runs:
+            self.world.tool_state["git"] = "ok"
+        self.world.on_path["bash"] = self.STUB
+        return str(cmd), str(cmd / "git.exe")
+
+    def save_path(self, *folders):
+        self.world.env["NC_PERSISTED_PATH"] = ";".join((r"C:\Windows\System32",) + folders)
+
+    def test_git_kept_off_path_is_ready_and_used_where_it_is(self):
+        # Git for Windows can be installed to stay off PATH. No restart ever
+        # makes that one visible, so asking for one would loop forever.
+        cmd, git = self.unseen_git()
+        self.save_path(r"C:\Users\me\AppData\Local\Programs\Python")
+        row = self.row("git")
+        self.assertEqual(row["verdict"], "ready")
+        self.assertIn(git, row["detail"])
+        self.assertIn("used directly", row["detail"])
+        self.assertIn([git, "--version"], self.world.calls)   # proven by running it, not by its file
+        code, doc = self.call("scan", "--project", self.world.project)
+        self.assertIs(doc["restart_required"], False)
+        self.assertEqual(doc["tools"]["git"], git)
+
+    def test_git_kept_off_path_goes_first_on_the_path_every_child_gets(self):
+        # `claude plugin marketplace add` clones with whatever git its PATH
+        # leads to, and that command is its own run of this script.
+        cmd, git = self.unseen_git()
+        self.world.have("claude")
+        self.call("apply", "--project", self.world.project, "--item", "marketplace")
+        add = self.world.calls.index(["/fake/bin/claude", "plugin", "marketplace", "add", nc.MARKETPLACE_SOURCE])
+        self.assertEqual(self.world.child_envs[add]["PATH"].split(os.pathsep), [cmd, "/fake/bin"])
+
+    def test_the_folder_is_put_on_path_once_however_often_git_is_checked(self):
+        cmd, git = self.unseen_git()
+        self.call("apply", "--project", self.world.project, "--all")
+        self.call("plan", "--project", self.world.project)
+        self.assertEqual(self.world.env["PATH"].split(os.pathsep), [cmd, "/fake/bin"])
+
+    def test_git_on_the_saved_path_that_this_session_cannot_see_needs_restart(self):
+        cmd, git = self.unseen_git()
+        self.save_path(cmd.upper() + "\\")   # Windows ignores letter case and a trailing backslash
+        row = self.row("git")
+        self.assertEqual(row["verdict"], "needs-restart")
+        self.assertEqual(row["detail"], self.RESTART)
+        self.assertNotIn([git, "--version"], self.world.calls)
+        self.assertEqual(self.world.env["PATH"], "/fake/bin")
+        code, doc = self.call("scan", "--project", self.world.project)
+        self.assertIs(doc["restart_required"], True)
+        self.assertIsNone(doc["tools"]["git"])
+
+    def test_the_saved_path_comes_from_the_registry_when_nothing_stands_in_for_it(self):
+        cmd, git = self.unseen_git()
+        del self.world.env["NC_PERSISTED_PATH"]
+        with mock.patch.object(nc, "registry_path", return_value=r"C:\Windows;" + cmd):
+            self.assertEqual(self.verdict("git"), "needs-restart")
+        with mock.patch.object(nc, "registry_path", return_value=r"C:\Windows"):
+            self.assertEqual(self.verdict("git"), "ready")
+
+    def test_the_stand_in_wins_over_the_registry(self):
+        cmd, git = self.unseen_git()
+        self.save_path()
+        with mock.patch.object(nc, "registry_path", side_effect=AssertionError("the registry was read")):
+            self.assertEqual(self.verdict("git"), "ready")
+
+    def test_a_git_kept_off_path_that_does_not_run_is_not_ready(self):
+        cmd, git = self.unseen_git(runs=False)
+        row = self.row("git")
+        self.assertEqual(row["verdict"], "needs-you")
+        self.assertIn(git, row["detail"])
+        self.assertIn("does not run", row["detail"])
+        self.assertIn("https://git-scm.com/downloads/win", row["detail"])
+
+    def test_a_bare_git_on_path_gives_way_to_a_full_install_kept_off_path(self):
+        # bootstrap.ps1 looks for an installed Git whenever the one on PATH
+        # has no Git Bash, and uses it; this script has to agree.
+        cmd, git = self.unseen_git()
+        self.world.on_path["git"] = "/fake/bin/git"
+        row = self.row("git")
+        self.assertEqual(row["verdict"], "ready")
+        self.assertIn(git, row["detail"])
+
+    def test_git_is_found_when_the_environment_spells_its_names_in_capitals(self):
+        # Python hands over a Windows environment with every name in
+        # capitals: PROGRAMFILES, never ProgramFiles.
+        cmd, git = self.unseen_git()
+        self.world.env["PROGRAMFILES"] = self.world.env.pop("ProgramFiles")
+        row = self.row("git")
+        self.assertEqual(row["verdict"], "ready")
+        self.assertIn(git, row["detail"])
+
+    @unittest.skipUnless(sys.platform == "win32", "only a real Windows has these folders")
+    def test_the_real_environment_leads_to_program_files(self):
+        ctx = nc.Ctx(str(self.world.project))   # the environment as this machine gives it
+        self.assertIn(
+            os.path.normcase(os.path.join(os.environ["ProgramFiles"], "Git", "cmd", "git.exe")),
+            [os.path.normcase(str(place)) for place in nc._git_installs(ctx)],
+        )
+
+    def test_an_unseen_install_with_no_git_bash_still_asks_for_a_restart(self):
+        # Not one of the two cases above: this answer is the one it had.
+        root = self.world.root / "ProgramFiles"
+        (root / "Git" / "cmd").mkdir(parents=True)
+        (root / "Git" / "cmd" / "git.exe").write_text("fake\n")
+        self.world.env["ProgramFiles"] = str(root)
         self.world.on_path["bash"] = self.STUB
         row = self.row("git")
         self.assertEqual(row["verdict"], "needs-restart")
-        code, doc = self.call("scan", "--project", self.world.project)
-        self.assertIs(doc["restart_required"], True)
+        self.assertEqual(row["detail"], self.RESTART)
+        self.assertEqual(self.world.env["PATH"], "/fake/bin")
+
+
+class FakeRegistry:
+    """Stands in for the standard library's winreg module."""
+
+    HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER = "machine", "user"
+    REG_SZ, REG_EXPAND_SZ = 1, 2
+
+    def __init__(self, values):
+        self.values = values   # (hive, key) -> (text, kind)
+        self.asked = []
+
+    @contextlib.contextmanager
+    def OpenKey(self, hive, key):
+        self.asked.append((hive, key))
+        if (hive, key) not in self.values:
+            raise FileNotFoundError(key)
+        yield (hive, key)
+
+    def QueryValueEx(self, handle, name):
+        self.asked.append(name)
+        return self.values[handle]
+
+    def ExpandEnvironmentStrings(self, text):
+        return text.replace("%SystemRoot%", r"C:\Windows")
+
+
+class SavedPath(unittest.TestCase):
+    MACHINE = ("machine", r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment")
+    USER = ("user", "Environment")
+
+    def read(self, values):
+        registry = FakeRegistry(values)
+        with mock.patch.dict(sys.modules, {"winreg": registry}):
+            return nc.registry_path(), registry
+
+    def test_it_is_the_machines_path_then_the_users(self):
+        text, registry = self.read({
+            self.MACHINE: (r"C:\Windows\System32;C:\Program Files\Git\cmd", FakeRegistry.REG_SZ),
+            self.USER: (r"C:\Users\me\.local\bin", FakeRegistry.REG_SZ),
+        })
+        self.assertEqual(text, r"C:\Windows\System32;C:\Program Files\Git\cmd;C:\Users\me\.local\bin")
+        self.assertEqual(registry.asked, [self.MACHINE, "Path", self.USER, "Path"])
+
+    def test_names_in_percent_signs_are_filled_in_as_powershell_does(self):
+        text, _ = self.read({self.MACHINE: (r"%SystemRoot%\System32", FakeRegistry.REG_EXPAND_SZ)})
+        self.assertEqual(text, r"C:\Windows\System32")
+
+    def test_a_missing_key_is_skipped_not_an_error(self):
+        text, _ = self.read({self.USER: (r"C:\Users\me\bin", FakeRegistry.REG_SZ)})
+        self.assertEqual(text, r"C:\Users\me\bin")
+
+    def test_no_registry_is_an_empty_path(self):
+        with mock.patch.dict(sys.modules, {"winreg": None}):   # what `import winreg` meets off Windows
+            self.assertEqual(nc.registry_path(), "")
+
+    @unittest.skipUnless(sys.platform == "win32", "only Windows has a registry")
+    def test_the_real_registry_answers_with_the_windows_folder_on_it(self):
+        self.assertIn("system32", nc.registry_path().casefold())
 
 
 class Uv(Case):
@@ -769,6 +943,28 @@ class Marketplace(Case):
     def test_a_similar_name_is_not_the_catalog(self):
         self.world.have("claude")
         self.world.marketplaces = ["nova-caelum-extras"]
+        self.assertEqual(self.verdict("marketplace"), "install")
+
+    def listing(self, entries):
+        real = self.world.run
+
+        def run(argv, **kw):
+            if list(argv)[1:4] == ["plugin", "marketplace", "list"]:
+                return nc.Result(0, json.dumps(entries), "")
+            return real(argv, **kw)
+
+        self.world.have("claude")
+        self.world.run = run
+
+    def test_the_catalog_is_known_by_its_name_whatever_address_it_was_added_from(self):
+        # What `claude plugin marketplace list --json` prints for a catalog
+        # added by its full address.
+        self.listing([{"name": "nova-caelum", "source": "git",
+                       "url": "https://github.com/Nova-Caelum/plugins.git", "installLocation": "/somewhere"}])
+        self.assertEqual(self.verdict("marketplace"), "ready")
+
+    def test_the_same_address_under_another_name_is_not_the_catalog(self):
+        self.listing([{"name": "plugins", "source": "git", "url": "https://github.com/Nova-Caelum/plugins.git"}])
         self.assertEqual(self.verdict("marketplace"), "install")
 
     def test_an_unreadable_answer_needs_you(self):
@@ -1014,9 +1210,14 @@ class ApplyItem(Case):
         self.assertEqual(snapshot(self.world.root), before)
 
     def test_the_catalog_comes_from_the_default_source_or_the_override(self):
+        # The full address: the owner/name shorthand leaves the choice of
+        # HTTPS or SSH to the machine, and a first-time user has no SSH key.
         self.world.have("claude")
         self.apply("marketplace")
-        self.assertIn(["/fake/bin/claude", "plugin", "marketplace", "add", "Nova-Caelum/plugins"], self.world.calls)
+        self.assertIn(
+            ["/fake/bin/claude", "plugin", "marketplace", "add", "https://github.com/Nova-Caelum/plugins.git"],
+            self.world.calls,
+        )
         other = World(Path(tempfile.mkdtemp(dir=self.world.root)))
         other.have("claude")
         other.env["NC_MARKETPLACE_SOURCE"] = "/some/local/catalog"
@@ -1230,10 +1431,15 @@ class ApplyAllOnWindows(Case):
     system = "windows"
 
     def test_it_stops_at_git_that_needs_a_restart(self):
+        # Git was installed after this session started: its folder is on the
+        # saved PATH and not on this session's.
         root = self.world.root / "ProgramFiles"
         (root / "Git" / "cmd").mkdir(parents=True)
+        (root / "Git" / "bin").mkdir(parents=True)
         (root / "Git" / "cmd" / "git.exe").write_text("fake\n")
+        (root / "Git" / "bin" / "bash.exe").write_text("fake\n")
         self.world.env["ProgramFiles"] = str(root)
+        self.world.env["NC_PERSISTED_PATH"] = str(root / "Git" / "cmd")
         code, doc = self.call("apply", "--project", self.world.project, "--all")
         self.assertEqual((code, doc["stopped_at"]), (0, "git"))
         self.assertEqual(doc["results"][-1]["after"], "needs-restart")
