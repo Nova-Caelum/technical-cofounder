@@ -1,0 +1,964 @@
+#!/usr/bin/env python3
+"""Technical Cofounder setup: look at this computer, say what is missing,
+install only that, and look again.
+
+    nc_setup.py scan  --project <absolute path> [--record]
+    nc_setup.py plan  --project <absolute path>
+    nc_setup.py apply --project <absolute path> --item <id>
+    nc_setup.py apply --project <absolute path> --all
+    nc_setup.py ack   --project <absolute path> --item <id>
+
+Every verb prints one JSON document on stdout and nothing else there;
+progress lines go to stderr. Exit 0: the command did what it was asked.
+Exit 1: an item failed. Exit 2: bad usage.
+
+scan   looks and changes nothing. With --record it also writes
+       <project>/core_text/setup-scan.json (only when the folder exists).
+plan   is the scan plus, for every item, one verdict out of six, a one-line
+       detail, and the "why" and "how long" from setup/steps.json.
+apply  acts on an item only when its verdict is install, upgrade or repair,
+       then checks the item again. The second check decides the result; a
+       command that exits 0 is never taken as proof.
+ack    records a yes to a question that only needed one.
+
+Standard library only. Python 3.11 or newer.
+"""
+import argparse
+import importlib
+import json
+import os
+import platform
+import shutil
+import subprocess
+import sys
+import threading
+import traceback
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path, PurePosixPath, PureWindowsPath
+
+READY, INSTALL, UPGRADE, REPAIR = "ready", "install", "upgrade", "repair"
+NEEDS_YOU, NEEDS_RESTART = "needs-you", "needs-restart"
+VERDICTS = (READY, INSTALL, UPGRADE, REPAIR, NEEDS_YOU, NEEDS_RESTART)
+ACTIONABLE = (INSTALL, UPGRADE, REPAIR)
+
+# Installing or repairing one of these means Claude Code has to be closed and
+# opened again before the change is visible to it.
+RESTART_ITEMS = frozenset({"claude-cli", "git", "team-plugin", "engine-env"})
+# Questions a plain yes can clear.
+ACKABLE = frozenset({"existing-config"})
+
+MIN_PYTHON = (3, 11)
+NEEDED_MODULES = ("tomllib", "sqlite3", "venv")
+NETWORK_URL = "https://github.com"
+NETWORK_SECONDS = 5
+EXISTING_CONFIG_QUESTION = (
+    "This folder already has instructions for Claude. Setup will keep them "
+    "and add nothing over them. OK to continue?"
+)
+
+MARKETPLACE = "nova-caelum"
+MARKETPLACE_SOURCE = "Nova-Caelum/plugins"          # NC_MARKETPLACE_SOURCE overrides it
+TEAM_PLUGIN = "technical-cofounder@nova-caelum"
+ENGINE_PLUGIN = "hyperspace-engine@nova-caelum"
+
+CLAUDE_INSTALL = {
+    "posix": ["bash", "-c", "curl -fsSL https://claude.ai/install.sh | bash"],
+    "windows": ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                "irm https://claude.ai/install.ps1 | iex"],
+}
+UV_INSTALL = {
+    "posix": ["sh", "-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"],
+    "windows": ["powershell", "-ExecutionPolicy", "ByPass", "-c",
+                "irm https://astral.sh/uv/install.ps1 | iex"],
+}
+JQ_DOWNLOADS = "https://github.com/jqlang/jq/releases/latest/download/"
+JQ_BUILDS = {
+    ("macos", "arm64"): "jq-macos-arm64",
+    ("macos", "amd64"): "jq-macos-amd64",
+    ("linux", "amd64"): "jq-linux-amd64",
+    ("linux", "arm64"): "jq-linux-arm64",
+    ("windows", "amd64"): "jq-windows-amd64.exe",
+    ("windows", "arm64"): "jq-windows-amd64.exe",   # Windows on Arm runs the 64-bit Intel build
+}
+
+STEPS_FILE = Path(__file__).resolve().parent.parent / "setup" / "steps.json"
+RECORD_PARTS = ("core_text", "setup-scan.json")
+
+POSIX_SYSTEM_DIRS = (
+    "/System", "/Library", "/Applications", "/usr", "/etc", "/bin", "/sbin",
+    "/dev", "/proc", "/sys", "/boot",
+)
+WINDOWS_SYSTEM_DIRS = (
+    r"C:\Windows", r"C:\Program Files", r"C:\Program Files (x86)", r"C:\ProgramData",
+)
+WINDOWS_SYSTEM_VARS = ("SystemRoot", "windir", "ProgramFiles", "ProgramFiles(x86)", "ProgramData")
+
+
+class UsageError(Exception):
+    """The command line asked for something this script does not do."""
+
+
+# ---------------------------------------------------------------------------
+# The outside world: one command runner, one network probe, one downloader.
+# ---------------------------------------------------------------------------
+
+class Result:
+    """What a child process left behind. A negative code means a signal
+    killed it; 124 a timeout; 126 and 127 that it could not be started."""
+
+    def __init__(self, code, out="", err=""):
+        self.code, self.out, self.err = code, out, err
+
+    def __repr__(self):
+        return "Result(%r, %r, %r)" % (self.code, self.out, self.err)
+
+
+def run_command(argv, cwd=None, env=None, timeout=60):
+    """The one place this script starts another program.
+
+    CLAUDECODE is removed from the child's environment: a `claude` started
+    from inside a Claude Code session can hang when it inherits it. Standard
+    input is closed, so nothing a child runs can wait for a keypress.
+    """
+    child_env = dict(os.environ if env is None else env)
+    child_env.pop("CLAUDECODE", None)
+    try:
+        done = subprocess.run(
+            [str(a) for a in argv], cwd=None if cwd is None else str(cwd), env=child_env,
+            stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=timeout,
+        )
+    except FileNotFoundError:
+        return Result(127, "", "%s: not found" % argv[0])
+    except subprocess.TimeoutExpired:
+        return Result(124, "", "no answer within %d seconds" % timeout)
+    except OSError as exc:
+        return Result(126, "", str(exc))
+    return Result(done.returncode, done.stdout, done.stderr)
+
+
+def http_reach(url, timeout):
+    """(True, note) when `url` answers a HEAD request within `timeout` seconds,
+    else (False, reason). The request runs on a helper thread so a slow name
+    lookup cannot stretch the wait."""
+    box = {}
+
+    def ask():
+        try:
+            request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "nc-setup"})
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                box["answer"] = (True, "HTTP %s" % response.status)
+        except urllib.error.HTTPError as exc:
+            box["answer"] = (False, "it answered HTTP %s" % exc.code)
+        except Exception as exc:  # any failure to connect is the same answer: not reachable
+            box["answer"] = (False, str(getattr(exc, "reason", exc)) or type(exc).__name__)
+
+    worker = threading.Thread(target=ask, daemon=True)
+    worker.start()
+    worker.join(timeout + 0.5)
+    return box.get("answer", (False, "no answer within %d seconds" % timeout))
+
+
+def download_file(url, dest):
+    """Fetch `url` to `dest`, landing it whole or not at all."""
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    partial = dest.with_name(dest.name + ".part")
+    request = urllib.request.Request(url, headers={"User-Agent": "nc-setup"})
+    with urllib.request.urlopen(request, timeout=60) as response, open(partial, "wb") as out:
+        shutil.copyfileobj(response, out)
+    os.replace(partial, dest)
+
+
+def detect_system():
+    if sys.platform == "darwin":
+        return "macos"
+    if sys.platform in ("win32", "cygwin", "msys"):
+        return "windows"
+    return "linux"
+
+
+def detect_machine():
+    machine = platform.machine().lower()
+    return {"aarch64": "arm64", "x86_64": "amd64"}.get(machine, machine)
+
+
+class Ctx:
+    """Everything a check or a fix may touch. Tests replace the runner, the
+    network probe, the downloader and the folders; real runs take the
+    defaults."""
+
+    def __init__(self, project, runner=run_command, which=None, reach=http_reach,
+                 download=download_file, home=None, system=None, machine=None,
+                 env=None, python=None, python_version=None,
+                 importer=importlib.import_module, applications=None,
+                 tools_dir=None, log=None):
+        self.project = str(project)
+        self.runner = runner
+        self.reach = reach
+        self.download = download
+        self.env = dict(os.environ) if env is None else env
+        self.home = Path(home) if home is not None else Path.home()
+        self.system = system or detect_system()
+        self.machine = machine or detect_machine()
+        self.python = python or sys.executable
+        self.python_version = tuple(python_version or sys.version_info[:3])
+        self.importer = importer
+        self.applications = Path(applications) if applications is not None else Path("/Applications")
+        self.tools_dir = Path(tools_dir or self.env.get("NC_TOOLS_DIR") or self.home / ".local" / "bin")
+        self.which = which or (lambda name: shutil.which(name, path=self.env.get("PATH")))
+        self.log = log or (lambda line: print("nc-setup: " + line, file=sys.stderr, flush=True))
+        self.probes = {}       # tool name -> (path, result), kept until something is installed
+        self.changed = set()   # items installed or repaired by this run
+        self.acks = set()      # questions answered yes by this run
+
+    def run(self, argv, cwd=None, env=None, timeout=60):
+        return self.runner(argv, cwd=cwd, env=self.env if env is None else env, timeout=timeout)
+
+    @property
+    def project_dir(self):
+        return Path(self.project)
+
+    @property
+    def record_path(self):
+        return self.project_dir.joinpath(*RECORD_PARTS)
+
+
+# ---------------------------------------------------------------------------
+# The record: <project>/core_text/setup-scan.json
+# ---------------------------------------------------------------------------
+
+def read_record(ctx):
+    try:
+        record = json.loads(ctx.record_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return record if isinstance(record, dict) else None
+
+
+def acknowledged(ctx):
+    record = read_record(ctx) or {}
+    known = record.get("acknowledged")
+    return set(known if isinstance(known, list) else ()) | ctx.acks
+
+
+def build_record(ctx, rows):
+    verdicts = {row["id"]: row["verdict"] for row in rows}
+    # A question stays answered once it was answered, or once a record saw
+    # there was nothing to ask about: files setup lays down later are not the
+    # user's earlier work.
+    answered = acknowledged(ctx) | {i for i in ACKABLE if verdicts.get(i) == READY}
+    return {
+        "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "platform": ctx.system,
+        "restart_required": NEEDS_RESTART in verdicts.values() or bool(ctx.changed & RESTART_ITEMS),
+        "tools": tool_paths(ctx),
+        "items": [{"id": r["id"], "verdict": r["verdict"], "detail": r["detail"]} for r in rows],
+        "acknowledged": sorted(answered),
+    }
+
+
+def save_record(ctx, record):
+    """Write the record into the project, or return None when there is no
+    usable project folder. A record that says what the file already says is
+    not rewritten, so a run that changed nothing leaves every file alone."""
+    verdicts = {item["id"]: item["verdict"] for item in record["items"]}
+    if verdicts.get("project-folder") != READY:
+        return None
+    path = ctx.record_path
+    previous = read_record(ctx)
+    if previous is not None:
+        same = all(previous.get(key) == record[key] for key in ("platform", "tools", "items", "acknowledged"))
+        if same and (previous.get("restart_required") or not record["restart_required"]):
+            return str(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_name(path.name + ".part")
+    partial.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(partial, path)
+    return str(path)
+
+
+def tool_paths(ctx):
+    """Where each tool really is, so later sessions need not trust PATH."""
+    paths = {"python": ctx.python}
+    for name in ("uv", "jq", "git", "claude"):
+        paths[name] = working(ctx, name)
+    return paths
+
+
+# ---------------------------------------------------------------------------
+# Checks. Each returns (verdict, one-line detail) and changes nothing.
+# ---------------------------------------------------------------------------
+
+def _flavour(ctx):
+    return PureWindowsPath if ctx.system == "windows" else PurePosixPath
+
+
+def _parts(ctx, path):
+    parts = _flavour(ctx)(str(path)).parts
+    if ctx.system in ("windows", "macos"):   # their disks ignore letter case
+        return tuple(part.casefold() for part in parts)
+    return parts
+
+
+def _forms(ctx, path):
+    """The path as given and, when this computer can follow it, with its
+    links resolved (/etc is /private/etc on a Mac)."""
+    forms = [_parts(ctx, path)]
+    if Path(str(path)).is_absolute():
+        forms.append(_parts(ctx, os.path.realpath(str(path))))
+    return forms
+
+
+def _within(inner, outer):
+    return inner[:len(outer)] == outer
+
+
+def _system_dirs(ctx):
+    if ctx.system == "windows":
+        named = [ctx.env.get(var) for var in WINDOWS_SYSTEM_VARS]
+        return [d for d in list(WINDOWS_SYSTEM_DIRS) + named if d]
+    return list(POSIX_SYSTEM_DIRS)
+
+
+def refusal(ctx):
+    """One plain sentence saying why this path cannot be a project folder,
+    or None when it can."""
+    given = ctx.project
+    pure = _flavour(ctx)(given)
+    hint = "pick a new folder inside your home folder instead"
+    if not (pure.is_absolute() or Path(given).is_absolute()):
+        return "Setup needs the full path to the project folder, starting from the top of the disk."
+    if pure.parent == pure:
+        return "The top of the disk is not a place for a project; %s." % hint
+    project_forms = _forms(ctx, given)
+    home_forms = _forms(ctx, ctx.home)
+    if any(p == h for p in project_forms for h in home_forms):
+        return "Setup will not turn your home folder into a project; pick a new folder inside it."
+    if any(_within(h, p) for p in project_forms for h in home_forms):
+        return "That folder contains your home folder; %s." % hint
+    system_forms = [form for d in _system_dirs(ctx) for form in _forms(ctx, d)]
+    if any(_within(p, s) for p in project_forms for s in system_forms):
+        return "%s is a system folder; %s." % (given, hint)
+    if ctx.system != "windows" and len(pure.parts) == 2:
+        return "%s is a system folder at the top of the disk; %s." % (given, hint)
+    return None
+
+
+def check_project_folder(ctx):
+    reason = refusal(ctx)
+    if reason:
+        return NEEDS_YOU, reason
+    project = ctx.project_dir
+    if project.is_dir():
+        return READY, "the folder exists"
+    if project.exists():
+        return NEEDS_YOU, "%s is a file, not a folder; pick a folder for the project." % ctx.project
+    return INSTALL, "the folder does not exist yet"
+
+
+def check_existing_config(ctx):
+    project = ctx.project_dir
+    if not ((project / "CLAUDE.md").exists() or (project / ".claude" / "rules").is_dir()):
+        return READY, "no earlier instructions for Claude here"
+    if "existing-config" in acknowledged(ctx):
+        return READY, "the instructions already here stay as they are"
+    return NEEDS_YOU, EXISTING_CONFIG_QUESTION
+
+
+def check_python(ctx):
+    version = ".".join(str(part) for part in ctx.python_version[:3])
+    if tuple(ctx.python_version[:2]) < MIN_PYTHON:
+        return NEEDS_YOU, "this is Python %s and setup needs 3.11 or newer; run the first-step script again" % version
+    for module in NEEDED_MODULES:
+        try:
+            ctx.importer(module)
+        except Exception:
+            return NEEDS_YOU, "this Python %s cannot load %s; run the first-step script again" % (version, module)
+    return READY, "Python %s at %s" % (version, ctx.python)
+
+
+def check_network(ctx):
+    ok, note = ctx.reach(NETWORK_URL, NETWORK_SECONDS)
+    if ok:
+        return READY, "%s answered" % NETWORK_URL
+    return NEEDS_YOU, (
+        "could not reach %s within %d seconds (%s); check the connection or ask "
+        "whoever runs this network, then run setup again" % (NETWORK_URL, NETWORK_SECONDS, note)
+    )
+
+
+def check_obsidian(ctx):
+    if (ctx.project_dir / ".obsidian").is_dir():
+        return READY, "this folder is already a vault"
+    if ctx.system == "macos":
+        places = [ctx.applications / "Obsidian.app", ctx.home / "Applications" / "Obsidian.app"]
+    elif ctx.system == "windows":
+        local = ctx.env.get("LOCALAPPDATA")
+        places = [Path(local) / "Programs" / "Obsidian", Path(local) / "Obsidian"] if local else []
+    else:
+        places = [Path(found)] if (found := ctx.which("obsidian")) else []
+    return READY, "installed" if any(place.exists() for place in places) else "not installed"
+
+
+# -- tools ------------------------------------------------------------------
+
+def exe(ctx, name):
+    return name + ".exe" if ctx.system == "windows" else name
+
+
+def copies(ctx, name):
+    """Every copy of a tool worth trying: the one on PATH, then the per-user
+    folders the installers write to. A fresh install is found there even
+    though this session's PATH has not caught up."""
+    found = ctx.which(name)
+    places = [str(found)] if found else []
+    for folder in (ctx.tools_dir, ctx.home / ".local" / "bin"):
+        candidate = folder / exe(ctx, name)
+        if candidate.is_file() and str(candidate) not in places:
+            places.append(str(candidate))
+    return places
+
+
+def probe(ctx, name):
+    """(path, result) for the first copy of `name` that answers --version;
+    when none does, the last copy tried; (None, None) when there is none."""
+    if name not in ctx.probes:
+        answer = (None, None)
+        for path in copies(ctx, name):
+            answer = (path, ctx.run([path, "--version"], timeout=30))
+            if answer[1].code == 0:
+                break
+        ctx.probes[name] = answer
+    return ctx.probes[name]
+
+
+def working(ctx, name):
+    path, result = probe(ctx, name)
+    return path if result is not None and result.code == 0 else None
+
+
+def first_line(text):
+    lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
+    return lines[0] if lines else ""
+
+
+def last_line(text):
+    lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
+    return lines[-1] if lines else ""
+
+
+def killed_on_launch(ctx, result):
+    """macOS kills a program it will not trust before it prints a thing."""
+    return ctx.system == "macos" and result is not None and result.code < 0
+
+
+def tool_verdict(ctx, name, label):
+    path, result = probe(ctx, name)
+    if path is None:
+        return INSTALL, "%s is not installed" % label
+    if result.code == 0:
+        return READY, "%s at %s" % (first_line(result.out) or label, path)
+    if result.code == 124:
+        return NEEDS_YOU, "%s at %s did not answer within 30 seconds; run setup again" % (label, path)
+    if killed_on_launch(ctx, result):
+        return REPAIR, "macOS stopped %s at %s from starting; it has to be signed again" % (label, path)
+    return REPAIR, "%s at %s does not run (exit %s)" % (label, path, result.code)
+
+
+def check_claude(ctx):
+    return tool_verdict(ctx, "claude", "Claude Code's command line")
+
+
+def check_uv(ctx):
+    return tool_verdict(ctx, "uv", "uv")
+
+
+def check_jq(ctx):
+    verdict, detail = tool_verdict(ctx, "jq", "jq")
+    if verdict in (INSTALL, REPAIR) and (ctx.system, ctx.machine) not in JQ_BUILDS:
+        return NEEDS_YOU, "there is no official jq download for %s %s; install jq yourself, then run setup again" % (
+            ctx.system, ctx.machine)
+    return verdict, detail
+
+
+def _windows_stand_in(path):
+    """Windows ships its own bash.exe that is not Git Bash."""
+    folded = str(path).replace("/", "\\").casefold()
+    return "\\windows\\system32\\" in folded or "\\windowsapps\\" in folded
+
+
+def git_bash(ctx, git):
+    """Git's own bash.exe: beside git.exe the way Git for Windows lays itself
+    out (which is how Claude Code finds it), or on PATH and not Windows'
+    stand-in. By default Git for Windows puts only Git\\cmd on PATH, so a
+    `bash` that resolves to the stand-in says nothing about Git."""
+    for folder in list(Path(git).parents)[:3]:
+        if (folder / "bin" / "bash.exe").is_file():
+            return str(folder / "bin" / "bash.exe")
+    bash = ctx.which("bash")
+    return str(bash) if bash and not _windows_stand_in(bash) else None
+
+
+def _git_installs(ctx):
+    roots = [ctx.env.get(var) for var in ("ProgramFiles", "ProgramW6432", "ProgramFiles(x86)")]
+    local = ctx.env.get("LOCALAPPDATA")
+    roots.append(str(Path(local) / "Programs") if local else None)
+    return [Path(root) / "Git" / "cmd" / "git.exe" for root in roots if root]
+
+
+def check_git_windows(ctx):
+    path, result = probe(ctx, "git")
+    if result is not None and result.code == 0:
+        if git_bash(ctx, path):
+            return READY, "%s at %s" % (first_line(result.out) or "Git", path)
+        return NEEDS_YOU, (
+            "the Git at %s has no Git Bash with it; run the first-step script, bootstrap.ps1, "
+            "which installs Git for Windows" % path
+        )
+    if result is not None and result.code == 124:
+        return NEEDS_YOU, "Git at %s did not answer within 30 seconds; run setup again" % path
+    if any(copy.is_file() for copy in _git_installs(ctx)):
+        return NEEDS_RESTART, (
+            "Git is installed, but this session started before it was; close Claude Code "
+            "completely, open it again, and paste the same message"
+        )
+    return NEEDS_YOU, "Git for Windows is missing; run the first-step script, bootstrap.ps1, which installs it"
+
+
+def check_git(ctx):
+    if ctx.system == "windows":
+        return check_git_windows(ctx)
+    if ctx.system == "macos" and ctx.which("git") in (None, "/usr/bin/git"):
+        # /usr/bin/git is Apple's stand-in: without the command line tools,
+        # running it opens a window. Ask whether the tools exist instead.
+        if ctx.run(["xcode-select", "-p"], timeout=30).code != 0:
+            return NEEDS_YOU, (
+                "Apple's command line tools, which include Git, are missing; run this one command, "
+                "accept the window that opens, then run setup again: xcode-select --install"
+            )
+    path, result = probe(ctx, "git")
+    if result is not None and result.code == 0:
+        return READY, "%s at %s" % (first_line(result.out) or "Git", path)
+    if result is not None and result.code == 124:
+        return NEEDS_YOU, "Git at %s did not answer within 30 seconds; run setup again" % path
+    if ctx.system == "macos":
+        return NEEDS_YOU, "Git did not run; run this one command, then run setup again: xcode-select --install"
+    return NEEDS_YOU, (
+        "Git is missing; install it with your system's package manager "
+        "(for example: sudo apt install git), then run setup again"
+    )
+
+
+# -- the catalog, the team, the engine's workspace ---------------------------
+
+def claude_json(ctx, args, cwd=None):
+    """(list, None) from a `claude ... --json` call, or (None, the reason it
+    could not be read)."""
+    shown = "claude " + " ".join(args)
+    result = ctx.run([working(ctx, "claude")] + args, cwd=cwd, timeout=120)
+    if result.code != 0:
+        return None, "`%s` exited %s: %s" % (shown, result.code, last_line(result.err or result.out))
+    try:
+        data = json.loads(result.out)
+    except ValueError:
+        data = None
+    if not isinstance(data, list):
+        return None, "`%s` gave an answer setup could not read; update Claude Code and run setup again" % shown
+    return [entry for entry in data if isinstance(entry, dict)], None
+
+
+def check_marketplace(ctx):
+    if not working(ctx, "claude"):
+        return INSTALL, "waits for Claude Code's command line"
+    listed, problem = claude_json(ctx, ["plugin", "marketplace", "list", "--json"])
+    if problem:
+        return NEEDS_YOU, problem
+    if any(entry.get("name") == MARKETPLACE for entry in listed):
+        return READY, "the %s catalog is added" % MARKETPLACE
+    return INSTALL, "the %s catalog is not added yet" % MARKETPLACE
+
+
+def _same_folder(a, b):
+    def norm(path):
+        return os.path.normcase(os.path.realpath(str(path)))
+    return bool(a) and norm(a) == norm(b)
+
+
+def plugin_state(ctx, entries, plugin_id):
+    """"ok", "broken" or "absent", as seen from the project folder. The list
+    also shows installs that belong to other projects; those are not ours."""
+    mine = [entry for entry in entries if entry.get("id") == plugin_id]
+    if any(entry.get("enabled") and not entry.get("errors") for entry in mine):
+        return "ok"
+    here = [
+        entry for entry in mine
+        if entry.get("enabled") or entry.get("scope") != "project"
+        or _same_folder(entry.get("projectPath"), ctx.project)
+    ]
+    return "broken" if here else "absent"
+
+
+def plugin_entries(ctx):
+    return claude_json(ctx, ["plugin", "list", "--json"], cwd=ctx.project)
+
+
+def check_team_plugin(ctx):
+    if not working(ctx, "claude"):
+        return INSTALL, "waits for Claude Code's command line"
+    if not ctx.project_dir.is_dir():
+        return INSTALL, "waits for the project folder"
+    entries, problem = plugin_entries(ctx)
+    if problem:
+        return NEEDS_YOU, problem
+    team = plugin_state(ctx, entries, TEAM_PLUGIN)
+    engine = plugin_state(ctx, entries, ENGINE_PLUGIN)
+    if team == engine == "ok":
+        return READY, "your team and Hyperspace Engine are installed and switched on here"
+    if team == engine == "absent":
+        return INSTALL, "your team is not installed in this project yet"
+    faulty = " and ".join(
+        label for label, state in (("your team", team), ("Hyperspace Engine", engine)) if state != "ok"
+    )
+    return REPAIR, "%s is missing, switched off or did not load" % faulty
+
+
+def engine_env(ctx):
+    """(the folder, the interpreter inside it, the path the engine's server
+    starts). The last two differ only on Windows, where the engine links
+    env\\bin to env\\Scripts."""
+    env = ctx.project_dir / ".hyperspace" / "env"
+    if ctx.system == "windows":
+        return env, env / "Scripts" / "python.exe", env / "bin" / "python.exe"
+    return env, env / "bin" / "python", env / "bin" / "python"
+
+
+def engine_loads(ctx, python):
+    return ctx.run([str(python), "-c", "import hyperspace"], timeout=60)
+
+
+def check_engine_env(ctx):
+    env, python, served = engine_env(ctx)
+    if not env.exists():
+        return INSTALL, ("the workspace is not built yet" if ctx.project_dir.is_dir() else "waits for the project folder")
+    if not python.is_file():
+        return REPAIR, "the workspace folder is there but has no Python in it"
+    result = engine_loads(ctx, python)
+    if result.code == 124:
+        return NEEDS_YOU, "the workspace's Python did not answer within 60 seconds; run setup again"
+    if killed_on_launch(ctx, result):
+        return REPAIR, "macOS stopped the workspace's Python from starting; it has to be signed again"
+    if result.code != 0:
+        return REPAIR, "the workspace is there but Hyperspace Engine does not load in it"
+    if not served.is_file():
+        return REPAIR, "the workspace works but %s is missing, so the engine's server cannot start" % served
+    return READY, "Hyperspace Engine loads in %s" % env
+
+
+# ---------------------------------------------------------------------------
+# Fixes. Each acts once and returns None, or a note about what went wrong.
+# The note is only ever extra detail: the check that runs afterwards, not the
+# fix and not a command's exit code, decides whether the item is ready.
+# ---------------------------------------------------------------------------
+
+def run_install(ctx, argv, **options):
+    options.setdefault("timeout", 900)
+    result = ctx.run(argv, **options)
+    if result.code == 0:
+        return None
+    shown = " ".join(str(part) for part in argv)
+    return "`%s` exited %s: %s" % (shown, result.code, last_line(result.err or result.out) or "no message")
+
+
+def sign_again(ctx, path):
+    """macOS can kill a freshly downloaded program on launch until it carries
+    a signature made on this Mac."""
+    return run_install(ctx, ["codesign", "--force", "-s", "-", os.path.realpath(str(path))], timeout=60)
+
+
+def _family(ctx):
+    return "windows" if ctx.system == "windows" else "posix"
+
+
+def fix_claude(ctx, verdict):
+    return run_install(ctx, CLAUDE_INSTALL[_family(ctx)])
+
+
+def fix_uv(ctx, verdict):
+    return run_install(ctx, UV_INSTALL[_family(ctx)])
+
+
+def fix_jq(ctx, verdict):
+    path, result = probe(ctx, "jq")
+    if verdict == REPAIR and killed_on_launch(ctx, result):
+        return sign_again(ctx, path)
+    url = JQ_DOWNLOADS + JQ_BUILDS[(ctx.system, ctx.machine)]
+    target = ctx.tools_dir / exe(ctx, "jq")
+    try:
+        ctx.download(url, target)
+        if ctx.system != "windows":
+            os.chmod(target, 0o755)
+    except Exception as exc:   # a failed download is a failed item, never a crash
+        return "could not download %s: %s" % (url, exc)
+    if killed_on_launch(ctx, ctx.run([str(target), "--version"], timeout=30)):
+        return sign_again(ctx, target)
+    return None
+
+
+def fix_project_folder(ctx, verdict):
+    try:
+        ctx.project_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        return "could not create the folder: %s" % exc
+    return None
+
+
+def fix_marketplace(ctx, verdict):
+    claude = working(ctx, "claude")
+    if not claude:
+        return "Claude Code's command line is not installed yet; install it first"
+    source = ctx.env.get("NC_MARKETPLACE_SOURCE") or MARKETPLACE_SOURCE
+    return run_install(ctx, [claude, "plugin", "marketplace", "add", source])
+
+
+def fix_team_plugin(ctx, verdict):
+    """One install, run from the project folder. Hyperspace Engine is the
+    team's dependency and arrives with it; the same command brings back an
+    engine that went missing."""
+    claude = working(ctx, "claude")
+    if not claude:
+        return "Claude Code's command line is not installed yet; install it first"
+    return run_install(ctx, [claude, "plugin", "install", TEAM_PLUGIN, "--scope", "project"], cwd=ctx.project)
+
+
+def engine_judge(ctx):
+    """The judge this project already chose, so a rebuild does not reset it;
+    `none` for a project that has not chosen."""
+    try:
+        import tomllib
+        with open(ctx.project_dir / ".hyperspace" / "config.toml", "rb") as handle:
+            judge = tomllib.load(handle).get("judge")
+    except Exception:   # no file yet, or one that cannot be read
+        judge = None
+    return judge if isinstance(judge, str) and judge else "none"
+
+
+def fix_engine_env(ctx, verdict):
+    """Hand the build to the engine's own setup script, with this Python and
+    with uv's folder first on the child's PATH."""
+    env, python, _ = engine_env(ctx)
+    if python.is_file() and killed_on_launch(ctx, engine_loads(ctx, python)):
+        sign_again(ctx, python)
+        if engine_loads(ctx, python).code == 0:
+            return None
+    if not working(ctx, "claude"):
+        return "Claude Code's command line is not installed yet; install it first"
+    entries, problem = plugin_entries(ctx)
+    if problem:
+        return problem
+    engines = [e for e in entries if e.get("id") == ENGINE_PLUGIN and e.get("installPath")]
+    engines.sort(key=lambda entry: not entry.get("enabled"))
+    if not engines:
+        return "Hyperspace Engine is not installed yet; install your team first"
+    child_env = dict(ctx.env)
+    uv = working(ctx, "uv")
+    if uv:
+        child_env["PATH"] = os.pathsep.join(filter(None, [os.path.dirname(uv), child_env.get("PATH")]))
+    if env.exists():
+        child_env["UV_VENV_CLEAR"] = "1"   # uv will not build over an existing environment unless told to replace it
+    setup = Path(engines[0]["installPath"]) / "bin" / "hyperspace_setup.py"
+    return run_install(
+        ctx,
+        [ctx.python, str(setup), "--dir", ctx.project, "--provision", "--judge", engine_judge(ctx)],
+        cwd=ctx.project, env=child_env, timeout=1800,
+    )
+
+
+# ---------------------------------------------------------------------------
+# The items, in the order setup walks them. An item with no fix can only be
+# ready or wait for the user.
+# ---------------------------------------------------------------------------
+
+class Item:
+    def __init__(self, item_id, check, fix=None):
+        self.id, self.check, self.fix = item_id, check, fix
+
+
+ITEMS = [
+    Item("claude-cli", check_claude, fix_claude),
+    Item("git", check_git),
+    Item("uv", check_uv, fix_uv),
+    Item("python", check_python),
+    Item("jq", check_jq, fix_jq),
+    Item("network", check_network),
+    Item("project-folder", check_project_folder, fix_project_folder),
+    Item("existing-config", check_existing_config),
+    Item("marketplace", check_marketplace, fix_marketplace),
+    Item("team-plugin", check_team_plugin, fix_team_plugin),
+    Item("engine-env", check_engine_env, fix_engine_env),
+    Item("obsidian", check_obsidian),
+]
+ITEM_BY_ID = {item.id: item for item in ITEMS}
+
+
+def load_reasons():
+    """setup/steps.json: the one source of 'why' and 'how long'."""
+    entries = json.loads(STEPS_FILE.read_text(encoding="utf-8"))["install"]
+    return {entry["id"]: entry for entry in entries}
+
+
+def check_item(ctx, item):
+    """One row of the scan. A check that cannot tell is never `ready`: it
+    waits for the user, with the reason."""
+    try:
+        verdict, detail = item.check(ctx)
+    except Exception as exc:
+        verdict, detail = NEEDS_YOU, "setup could not check this (%s: %s); run setup again" % (type(exc).__name__, exc)
+    return {"id": item.id, "verdict": verdict, "detail": " ".join(str(detail).split())}
+
+
+def scan_rows(ctx):
+    return [check_item(ctx, item) for item in ITEMS]
+
+
+# ---------------------------------------------------------------------------
+# The verbs.
+# ---------------------------------------------------------------------------
+
+def do_scan(ctx, record):
+    document = build_record(ctx, scan_rows(ctx))
+    recorded = save_record(ctx, document) if record else None
+    return 0, dict(document, command="scan", project=ctx.project, recorded=recorded)
+
+
+def why(ctx, entry):
+    return (entry.get("why_windows") if ctx.system == "windows" else None) or entry["why"]
+
+
+def do_plan(ctx):
+    reasons = load_reasons()
+    rows = scan_rows(ctx)
+    for row in rows:
+        entry = reasons[row["id"]]
+        row.update(title=entry["title"], why=why(ctx, entry), minutes=entry["minutes"])
+    waiting = [row["id"] for row in rows if row["verdict"] != READY]
+    return 0, {
+        "command": "plan", "project": ctx.project, "platform": ctx.system,
+        "items": rows, "next": waiting[0] if waiting else None,
+    }
+
+
+def apply_item(ctx, item, reasons):
+    """Act on one item if its verdict asks for it, then check it again."""
+    before = check_item(ctx, item)
+    result = {"id": item.id, "before": before["verdict"], "after": before["verdict"],
+              "detail": before["detail"], "acted": False}
+    if before["verdict"] not in ACTIONABLE or item.fix is None:
+        return result
+    ctx.log(why(ctx, reasons[item.id]))
+    try:
+        note = item.fix(ctx, before["verdict"])
+    except Exception as exc:
+        note = "%s: %s" % (type(exc).__name__, exc)
+    ctx.probes.clear()
+    after = check_item(ctx, item)
+    result.update(after=after["verdict"], detail=after["detail"], acted=True)
+    if after["verdict"] == READY:
+        ctx.changed.add(item.id)
+    elif note:
+        result["detail"] = "%s (%s)" % (after["detail"], " ".join(note.split()))
+    ctx.log("%s: %s" % (item.id, result["after"] if result["after"] == READY else result["detail"]))
+    return result
+
+
+def do_apply(ctx, item_id):
+    """`item_id` None walks every item in order and stops at the first one
+    that is not ready afterwards: a failure, or something only the user or a
+    restart can settle."""
+    reasons = load_reasons()
+    everything = item_id is None
+    results, stopped_at = [], None
+    for item in (ITEMS if everything else [ITEM_BY_ID[item_id]]):
+        result = apply_item(ctx, item, reasons)
+        results.append(result)
+        if result["after"] != READY:
+            stopped_at = item.id
+            break
+    acted = any(result["acted"] for result in results)
+    restart = any(r["after"] == NEEDS_RESTART for r in results) or bool(ctx.changed & RESTART_ITEMS)
+    recorded = None
+    if everything or acted:
+        if everything and stopped_at is None and not acted:
+            rows = [{"id": r["id"], "verdict": r["after"], "detail": r["detail"]} for r in results]
+        else:
+            ctx.probes.clear()
+            rows = scan_rows(ctx)   # the re-scan is the only source of "done"
+        recorded = save_record(ctx, build_record(ctx, rows))
+    failed = any(result["acted"] and result["after"] != READY for result in results)
+    return (1 if failed else 0), {
+        "command": "apply", "project": ctx.project, "results": results,
+        "stopped_at": stopped_at, "failed": failed,
+        "restart_required": restart, "recorded": recorded,
+    }
+
+
+def do_ack(ctx, item_id):
+    if item_id not in ACKABLE:
+        raise UsageError("%s is not a question setup can take a yes for" % item_id)
+    ctx.acks.add(item_id)
+    rows = scan_rows(ctx)
+    recorded = save_record(ctx, build_record(ctx, rows))
+    row = next(row for row in rows if row["id"] == item_id)
+    return 0, {"command": "ack", "project": ctx.project, "item": row, "recorded": recorded}
+
+
+def parse(argv):
+    parser = argparse.ArgumentParser(prog="nc_setup.py", description=__doc__.split("\n\n")[0])
+    verbs = parser.add_subparsers(dest="verb", required=True)
+    scan = verbs.add_parser("scan", help="look at this computer; change nothing")
+    scan.add_argument("--record", action="store_true", help="also write the scan record into the project")
+    verbs.add_parser("plan", help="scan, plus one verdict, a why and a time for every item")
+    apply_ = verbs.add_parser("apply", help="install or repair what the plan says is missing")
+    which = apply_.add_mutually_exclusive_group(required=True)
+    which.add_argument("--item", choices=[item.id for item in ITEMS])
+    which.add_argument("--all", action="store_true")
+    ack = verbs.add_parser("ack", help="record a yes to a question setup asked")
+    ack.add_argument("--item", required=True)
+    for verb in (scan, verbs.choices["plan"], apply_, ack):
+        verb.add_argument("--project", required=True, help="absolute path of the project folder")
+    return parser.parse_args(argv)
+
+
+def main(argv=None, **overrides):
+    for stream in (sys.stdout, sys.stderr):   # Windows consoles default to a legacy code page
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+    try:
+        args = parse(sys.argv[1:] if argv is None else argv)
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else 2
+    ctx = Ctx(args.project, **overrides)
+    try:
+        if args.verb == "scan":
+            code, document = do_scan(ctx, args.record)
+        elif args.verb == "plan":
+            code, document = do_plan(ctx)
+        elif args.verb == "ack":
+            code, document = do_ack(ctx, args.item)
+        else:
+            code, document = do_apply(ctx, None if args.all else args.item)
+    except UsageError as exc:
+        print("nc_setup.py: %s" % exc, file=sys.stderr)
+        return 2
+    except Exception as exc:   # still one JSON document, and never a zero exit
+        traceback.print_exc(file=sys.stderr)
+        code = 1
+        document = {"command": args.verb, "project": ctx.project, "error": "%s: %s" % (type(exc).__name__, exc)}
+    print(json.dumps(document, indent=2, ensure_ascii=False))
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main())
