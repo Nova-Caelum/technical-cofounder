@@ -58,6 +58,17 @@ EXISTING_CONFIG_QUESTION = (
     "and add nothing over them. OK to continue?"
 )
 
+# Two ways a Git for Windows can be installed and still not be on this
+# session's PATH; unseen_git() tells them apart.
+DIRECT, STALE = "direct", "stale"
+GIT_RESTART = (
+    "Git is installed, but this session started before it was; close Claude Code "
+    "completely, open it again, and paste the same message; if you started Claude "
+    "Code from a terminal window, close that window too"
+)
+REGISTRY_MACHINE_ENV = r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+REGISTRY_USER_ENV = "Environment"
+
 MARKETPLACE = "nova-caelum"
 MARKETPLACE_SOURCE = "Nova-Caelum/plugins"          # NC_MARKETPLACE_SOURCE overrides it
 TEAM_PLUGIN = "technical-cofounder@nova-caelum"
@@ -211,6 +222,7 @@ class Ctx:
         self.which = which or (lambda name: shutil.which(name, path=self.env.get("PATH")))
         self.log = log or (lambda line: print("nc-setup: " + line, file=sys.stderr, flush=True))
         self.probes = {}       # tool name -> (path, result), kept until something is installed
+        self.unseen_git = None # (git.exe, DIRECT or STALE) on Windows, once it has been worked out
         self.changed = set()   # items installed or repaired by this run
         self.acks = set()      # questions answered yes by this run
 
@@ -419,6 +431,10 @@ def copies(ctx, name):
     """Every copy of a tool worth trying: the one on PATH, then the per-user
     folders the installers write to. A fresh install is found there even
     though this session's PATH has not caught up."""
+    if name == "git":
+        git, how = unseen_git(ctx)
+        if how == DIRECT:
+            return [git]   # its folder is first on this run's PATH: it is the Git every child gets
     found = ctx.which(name)
     places = [str(found)] if found else []
     for folder in (ctx.tools_dir, ctx.home / ".local" / "bin"):
@@ -515,9 +531,86 @@ def _git_installs(ctx):
     return [Path(root) / "Git" / "cmd" / "git.exe" for root in roots if root]
 
 
+def registry_path():
+    """The machine's saved PATH and then the user's, as Windows keeps them in
+    the registry, joined into one. Empty where there is no registry."""
+    try:
+        import winreg
+    except ImportError:
+        return ""
+    found = []
+    for hive, key in ((winreg.HKEY_LOCAL_MACHINE, REGISTRY_MACHINE_ENV), (winreg.HKEY_CURRENT_USER, REGISTRY_USER_ENV)):
+        try:
+            with winreg.OpenKey(hive, key) as handle:
+                text, kind = winreg.QueryValueEx(handle, "Path")
+            if kind == winreg.REG_EXPAND_SZ:   # %SystemRoot% and the like, which PowerShell fills in too
+                text = winreg.ExpandEnvironmentStrings(text)
+        except OSError:
+            continue
+        found.append(str(text))
+    return ";".join(found)
+
+
+def saved_path(ctx):
+    """The PATH a newly started program gets, which a session that is already
+    running does not see. NC_PERSISTED_PATH stands in for it, as it does in
+    bootstrap.ps1, so the rule below can be tested on any system."""
+    stand_in = ctx.env.get("NC_PERSISTED_PATH")
+    if stand_in is not None:
+        return stand_in
+    return registry_path() if ctx.system == "windows" else ""
+
+
+def _on_saved_path(ctx, folder):
+    def plain(entry):   # Windows ignores letter case and a trailing backslash
+        return str(entry).strip().replace("/", "\\").rstrip("\\").casefold()
+    return plain(folder) in {plain(entry) for entry in saved_path(ctx).split(";")}
+
+
+def _find_unseen_git(ctx):
+    if ctx.system != "windows":
+        return None, None
+    on_path = ctx.which("git")
+    if on_path and git_bash(ctx, on_path):
+        return None, None
+    installed = next((copy for copy in _git_installs(ctx) if copy.is_file()), None)
+    if installed is None or not git_bash(ctx, installed):
+        return None, None
+    return str(installed), (STALE if _on_saved_path(ctx, installed.parent) else DIRECT)
+
+
+def unseen_git(ctx):
+    """A full Git for Windows (its own Git Bash beside it) that this session's
+    PATH does not lead to, ruled the way bootstrap.ps1 rules it. Returns
+    (its git.exe, which of the two it is):
+
+    DIRECT  its folder is not on the saved PATH either. It was installed to
+            stay off PATH, so no restart would ever show it: it is used where
+            it is, and its folder goes first on the PATH this run hands to
+            every program it starts, so a `claude plugin` command can clone.
+    STALE   its folder is on the saved PATH. This session started before Git
+            was installed, and only a restart shows it.
+
+    (None, None) when PATH already leads to a Git with its Git Bash, or no
+    such install exists. Worked out once per run."""
+    if ctx.unseen_git is None:
+        ctx.unseen_git = _find_unseen_git(ctx)
+        git, how = ctx.unseen_git
+        if how == DIRECT:
+            folder = os.path.dirname(git)
+            rest = [entry for entry in ctx.env.get("PATH", "").split(os.pathsep) if entry and entry != folder]
+            ctx.env["PATH"] = os.pathsep.join([folder] + rest)
+    return ctx.unseen_git
+
+
 def check_git_windows(ctx):
+    git, how = unseen_git(ctx)
+    if how == STALE:
+        return NEEDS_RESTART, GIT_RESTART
     path, result = probe(ctx, "git")
     if result is not None and result.code == 0:
+        if how == DIRECT:
+            return READY, "%s at %s (not on PATH; used directly)" % (first_line(result.out) or "Git", path)
         if git_bash(ctx, path):
             return READY, "%s at %s" % (first_line(result.out) or "Git", path)
         return NEEDS_YOU, (
@@ -526,11 +619,13 @@ def check_git_windows(ctx):
         )
     if result is not None and result.code == 124:
         return NEEDS_YOU, "Git at %s did not answer within 30 seconds; run setup again" % path
-    if any(copy.is_file() for copy in _git_installs(ctx)):
-        return NEEDS_RESTART, (
-            "Git is installed, but this session started before it was; close Claude Code "
-            "completely, open it again, and paste the same message"
+    if how == DIRECT:
+        return NEEDS_YOU, (
+            "the Git at %s does not run (exit %s); install Git for Windows again from "
+            "https://git-scm.com/downloads/win, then run setup again" % (path, result.code)
         )
+    if any(copy.is_file() for copy in _git_installs(ctx)):
+        return NEEDS_RESTART, GIT_RESTART
     return NEEDS_YOU, "Git for Windows is missing; run the first-step script, bootstrap.ps1, which installs it"
 
 
@@ -947,6 +1042,7 @@ def main(argv=None, **overrides):
         return exc.code if isinstance(exc.code, int) else 2
     ctx = Ctx(args.project, **overrides)
     try:
+        unseen_git(ctx)   # before any verb: every program this run starts gets the same PATH
         if args.verb == "scan":
             code, document = do_scan(ctx, args.record)
         elif args.verb == "plan":

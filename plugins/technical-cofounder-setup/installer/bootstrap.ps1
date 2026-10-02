@@ -29,9 +29,11 @@ $SetupArgs = @($args)
 $WingetGit = 'winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements'
 $UvInstall = 'irm https://astral.sh/uv/install.ps1 | iex'
 $Proof = 'import sys, tomllib, sqlite3, venv; print(sys.version)'
-$RestartAfterInstall = 'Git was installed. Close Claude Code completely, open it again, and paste the same message.'
-$RestartStaleSession = 'Git is installed, but this session started before it was. Close Claude Code completely, open it again, and paste the same message.'
-$GitByHand = 'Git could not be installed automatically. Download and run the installer from https://git-scm.com/downloads/win, then close Claude Code completely, open it again, and paste the same message.'
+# A Claude Code started from a terminal window keeps that window's old PATH,
+# so every sentence that asks for a restart says to close the window too.
+$RestartAfterInstall = 'Git was installed. Close Claude Code completely, open it again, and paste the same message. If you started Claude Code from a terminal window, close that window too.'
+$RestartStaleSession = 'Git is installed, but this session started before it was. Close Claude Code completely, open it again, and paste the same message. If you started Claude Code from a terminal window, close that window too.'
+$GitByHand = 'Git could not be installed automatically. Download and run the installer from https://git-scm.com/downloads/win, then close Claude Code completely, open it again, and paste the same message. If you started Claude Code from a terminal window, close that window too.'
 
 function Say([string]$Text) {
     Write-Host "bootstrap: $Text"

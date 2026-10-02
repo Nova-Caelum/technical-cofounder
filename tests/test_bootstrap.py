@@ -27,6 +27,12 @@ LAST_LINE = re.compile(r"^BOOTSTRAP=(OK python=\S.*|NEEDS_RESTART reason=\S.*|NE
 UV_INSTALL = "curl -LsSf https://astral.sh/uv/install.sh | sh"
 WINDOWS = sys.platform == "win32"
 BASE_PATH = "/usr/bin:/bin"
+# A Claude Code started from a terminal window keeps that window's old PATH,
+# so closing Claude Code alone is not a restart.
+TERMINAL_TOO = "If you started Claude Code from a terminal window, close that window too."
+REOPEN = "Close Claude Code completely, open it again, and paste the same message. " + TERMINAL_TOO
+RESTART_AFTER_INSTALL = "Git was installed. " + REOPEN
+RESTART_STALE_SESSION = "Git is installed, but this session started before it was. " + REOPEN
 
 
 def snapshot(root):
@@ -292,9 +298,16 @@ class Ps1Text(unittest.TestCase):
             "python install 3.12",
             "python find 3.12",
             "import sys, tomllib, sqlite3, venv; print(sys.version)",
-            "Git was installed. Close Claude Code completely, open it again, and paste the same message.",
         ):
             self.assertIn(needle, self.text)
+
+    def test_every_sentence_that_asks_for_a_restart_says_to_close_the_terminal_window_too(self):
+        self.assertIn("'%s'" % RESTART_AFTER_INSTALL, self.text)
+        self.assertIn("'%s'" % RESTART_STALE_SESSION, self.text)
+        asking = [line for line in self.text.splitlines() if "lose Claude Code completely" in line]
+        self.assertEqual(len(asking), 3)   # the two above, and Git that has to be installed by hand
+        for line in asking:
+            self.assertIn("close that window too", line)
 
 
 @unittest.skipUnless(WINDOWS, "bootstrap.ps1 is the Windows first step")
@@ -350,11 +363,7 @@ class Ps1DryRun(unittest.TestCase):
         self.assertEqual(result.returncode, 4, result.stdout)
         self.assertIn("Git", result.stdout)
         self.assertRegex(result.stdout, r"bootstrap: would (run: winget install --id Git\.Git|download)")
-        self.assertEqual(
-            last,
-            "BOOTSTRAP=NEEDS_RESTART reason=Git was installed. Close Claude Code completely, "
-            "open it again, and paste the same message.",
-        )
+        self.assertEqual(last, "BOOTSTRAP=NEEDS_RESTART reason=" + RESTART_AFTER_INSTALL)
 
     def test_bash_under_system32_with_no_git_is_no_git(self):
         stub = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "bash.exe"
@@ -392,7 +401,7 @@ class Ps1DryRun(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 4, result.stdout)
         self.assertNotIn("winget install", result.stdout)
-        self.assertTrue(last.startswith("BOOTSTRAP=NEEDS_RESTART reason=Git is installed, but this session"))
+        self.assertEqual(last, "BOOTSTRAP=NEEDS_RESTART reason=" + RESTART_STALE_SESSION)
 
     def test_git_installed_but_never_on_path_is_used_where_it_is(self):
         root = self.fake_git_install()
