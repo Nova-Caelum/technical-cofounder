@@ -1,5 +1,5 @@
-"""Unit tests for the setup installer's branch behavior:
-plugins/technical-cofounder/bin/init_workspace.py's --obsidian/--no-obsidian
+"""Unit tests for the starter-workspace copy's branch behavior:
+plugins/technical-cofounder-setup/bin/init_workspace.py's --obsidian/--no-obsidian
 and --super/--no-super flags, and its no-overwrite guarantee across every
 combination.
 
@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_ROOT = REPO_ROOT / "plugins" / "technical-cofounder"
+PLUGIN_ROOT = REPO_ROOT / "plugins" / "technical-cofounder-setup"
 BIN_DIR = PLUGIN_ROOT / "bin"
 SCRIPT = BIN_DIR / "init_workspace.py"
 

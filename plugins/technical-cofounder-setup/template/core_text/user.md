@@ -1,9 +1,9 @@
 # Your Name — Personalization Layer
 
-> Preloaded into context at the start of every session by this plugin's
+> Preloaded into context at the start of every session by the team plugin's
 > SessionStart hook (`hooks/session-preload.sh`).
-> Fill this in yourself, or run `/technical-cofounder:onboard` for a
-> guided, one-question-at-a-time interview.
+> Fill this in yourself, or run `/technical-cofounder-setup:start` and say
+> "continue setup" for a guided, one-question-at-a-time interview.
 
 ---
 

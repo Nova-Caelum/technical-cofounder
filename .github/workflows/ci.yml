@@ -37,6 +37,7 @@ jobs:
         run: |
           claude plugin validate --strict .
           claude plugin validate --strict plugins/technical-cofounder
+          claude plugin validate --strict plugins/technical-cofounder-setup
           claude plugin validate --strict plugins/super-novacaelum
 
       - name: Run tests
@@ -48,11 +49,18 @@ jobs:
             tests.test_installer \
             tests.test_contact \
             tests.test_setup_record \
-            tests.test_he_bridge
+            tests.test_he_bridge \
+            tests.test_nc_setup \
+            tests.test_bootstrap \
+            tests.test_reasons \
+            tests.test_registry \
+            tests.test_setup_plugin
 
-      - name: Shellcheck hooks
+      - name: Shellcheck hooks and the first-step script
         if: runner.os == 'Linux'
-        run: shellcheck plugins/technical-cofounder/hooks/*.sh plugins/technical-cofounder/hooks/lib/*.sh
+        run: |
+          shellcheck plugins/technical-cofounder/hooks/*.sh plugins/technical-cofounder/hooks/lib/*.sh
+          shellcheck plugins/technical-cofounder-setup/installer/bootstrap.sh
 
       - name: Leak scan (full history)
         if: runner.os == 'Linux'

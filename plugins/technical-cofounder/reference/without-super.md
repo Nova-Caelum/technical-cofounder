@@ -8,6 +8,6 @@ super-novacaelum adds three services, each on the user's own account. When the s
 | Exa (`web-research`) | Web research with sources | Use Claude Code's built-in web search (WebSearch), and cite each link. |
 | Browserbase | A cloud browser for pages that need clicks, a login or JavaScript | No team plugin equivalent: ask the user to open the page and tell you what it shows. |
 
-To add super later, say "continue setup" (its step is `super`) or run `/technical-cofounder:quick-start`.
+To add super later, say "continue setup" (its step is `super`) or run `/technical-cofounder-setup:start` from inside the project.
 
 Source: Nova Caelum (Apache-2.0).

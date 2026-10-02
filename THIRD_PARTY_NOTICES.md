@@ -128,6 +128,6 @@ From DietrichGebert/ponytail (MIT, Copyright (c) 2026 DietrichGebert):
 - `technical-cofounder/skills/overbloat-review/`: tag taxonomy, structured output and advise-only stance adapted from `ponytail-review`.
 
 Nova Caelum's own (Apache-2.0): the four agents, the registry,
-`engineering-architecture`, `engineering-code-review`, `new-agent`, `setup`,
-the rules, the hooks, the local MCP server, and the super plugin's
+`engineering-architecture`, `engineering-code-review`, `new-agent`, the setup
+plugin (its `setup` skill, installer and scripts), the rules, the hooks, the local MCP server, and the super plugin's
 `find-docs`, `web-research` and `get-api-keys`.

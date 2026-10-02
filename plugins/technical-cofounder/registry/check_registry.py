@@ -10,7 +10,10 @@ new-agent skill registers the agents a project adds.
 
 Every check runs and every failure is listed:
   - registry/agents.json parses and each entry has name, role, use_when,
-    skills, mcp_tools, with_engine and with_super
+    skills, mcp_tools, with_engine and with_super. In a project's own
+    registry (ROOT is not this plugin) with_engine may be left out and then
+    reads as empty, so a registry written before the field existed still
+    passes; this plugin's own registry must carry it
   - every role is one declared under "roles"
   - every registry agent has agents/<name>.md whose frontmatter name matches,
     and every agents/*.md is in the registry
@@ -39,6 +42,8 @@ from pathlib import Path
 PLUGIN = Path(__file__).resolve().parent.parent
 FIELDS = {"name": str, "role": str, "use_when": str, "skills": list, "mcp_tools": list,
           "with_engine": dict, "with_super": dict}
+# Fields a project's own registry may leave out; a missing one reads as empty.
+OPTIONAL_IN_A_PROJECT = frozenset({"with_engine"})
 # Registry field -> (label in messages, the plugin that ships the names it lists).
 COMPANIONS = {"with_engine": ("engine", "hyperspace-engine"), "with_super": ("super", "super-novacaelum")}
 
@@ -105,6 +110,7 @@ def check(root):
     except Exception as exc:
         return [f"{reg_path}: not a readable registry ({type(exc).__name__}: {exc})"], lines, 0
 
+    own = root.resolve() == PLUGIN
     roles = reg.get("roles", {})
     names = [a.get("name") for a in agents if isinstance(a, dict)]
     if len(names) != len(set(names)):
@@ -122,6 +128,8 @@ def check(root):
             continue
         name = a.get("name", "?")
         for field, kind in FIELDS.items():
+            if field in OPTIONAL_IN_A_PROJECT and not own and field not in a:
+                continue
             value = a.get(field)
             if not isinstance(value, kind) or (kind is str and not value.strip()):
                 failures.append(f"{name}: field {field!r} missing, empty or not a {kind.__name__}")

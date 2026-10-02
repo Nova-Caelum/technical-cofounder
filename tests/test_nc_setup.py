@@ -380,9 +380,12 @@ class PlanShape(Case):
             self.assertEqual(row["minutes"], entries[row["id"]]["minutes"])
             self.assertTrue(row["title"].strip())
 
-    def test_reasons_file_keeps_an_empty_steps_list_for_the_guide(self):
+    def test_reasons_file_holds_the_guide_steps_beside_the_install_items(self):
         doc = json.loads(STEPS_FILE.read_text(encoding="utf-8"))
-        self.assertEqual(doc["steps"], [])
+        self.assertTrue(doc["steps"], "the guide's steps live in the same file")
+        for step in doc["steps"]:
+            self.assertTrue(step["id"] and step["title"] and step["why"])
+            self.assertIn(step["part"], (1, 2))
         self.assertTrue(doc["about"].strip())
 
 

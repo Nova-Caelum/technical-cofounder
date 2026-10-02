@@ -6,7 +6,7 @@
 #
 # If this project has been set up (core_text/user.md, or a legacy user.md at
 # the project root), inject it plus the 3 most recent worklog entries into
-# context. Otherwise print one line pointing at /technical-cofounder:quick-start.
+# context. Otherwise print one line pointing at /technical-cofounder-setup:start.
 # Either way, print the live tech primer: which Nova Caelum plugins are
 # present, expected but missing, or not chosen; a pointer to the
 # without-super fallbacks when super isn't present; and setup progress while
@@ -110,15 +110,17 @@ if not super_present:
 
 if record:
     steps = record.get("steps") if isinstance(record.get("steps"), dict) else {}
-    ids = [s.get("id") for s in load(plugin / "setup" / "steps.json").get("steps", []) if isinstance(s, dict) and s.get("part", 1) == 1] or list(steps)
-    status = [(steps.get(i) if isinstance(steps.get(i), dict) else {}).get("status", "pending") for i in ids]
+    # The record says which part each step belongs to; part 2 (the extras)
+    # never holds up the count. A step with no part recorded counts as part 1.
+    entries = [s if isinstance(s, dict) else {} for s in steps.values()]
+    status = [s.get("status", "pending") for s in entries if s.get("part", 1) == 1]
     if "pending" in status:
-        print(f'Setup: {status.count("done")} of {len(ids)} steps done — say "continue setup" to pick up where you left off.')
+        print(f'Setup: {status.count("done")} of {len(status)} steps done — say "continue setup" to pick up where you left off.')
 PY
 }
 
 if [ ! -f "$USER_MD" ]; then
-    echo "technical-cofounder: this project hasn't been set up yet — run /technical-cofounder:quick-start to copy the starter workspace in."
+    echo "technical-cofounder: this project hasn't been set up yet — run /technical-cofounder-setup:start to copy the starter workspace in."
     echo
     tech_primer
     echo
@@ -132,7 +134,7 @@ echo "## user.md"
 echo
 cat "$USER_MD" 2>/dev/null || echo "(could not read user.md)"
 if [ "$LEGACY" = 1 ]; then
-    echo "Note: this profile is at the old location (./user.md); /technical-cofounder:quick-start can move it into core_text/ for you."
+    echo "Note: this profile is at the old location (./user.md); /technical-cofounder-setup:start can move it into core_text/ for you."
 fi
 echo
 

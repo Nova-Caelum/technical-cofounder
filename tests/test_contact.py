@@ -145,9 +145,14 @@ class RedactionKindTests(unittest.TestCase):
         self.assertNotIn(key, out)
         self.assertEqual(counts, {"keyshaped": 1})
 
-    def test_setup_record_uses_the_shared_module(self):
-        text = (BIN_DIR / "setup_record.py").read_text(encoding="utf-8")
+    def test_setup_record_uses_the_same_patterns(self):
+        # setup_record.py lives in the setup plugin, which is installed on its
+        # own and cannot import from this one. It carries its own copy of
+        # redact.py, and the two copies must stay the same file.
+        setup_bin = REPO_ROOT / "plugins" / "technical-cofounder-setup" / "bin"
+        text = (setup_bin / "setup_record.py").read_text(encoding="utf-8")
         self.assertIn("from redact import redact_text", text)
+        self.assertEqual((setup_bin / "redact.py").read_bytes(), (BIN_DIR / "redact.py").read_bytes())
 
 
 # ----------------------------------------------------------- contact.py send

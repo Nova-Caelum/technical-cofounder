@@ -6,20 +6,24 @@ Usage:
     python3 setup_record.py status <project>
     python3 setup_record.py render <project>
 
-The steps come from ../setup/steps.json, the one list the setup skill, this
-script and the session preload share. Everything this script writes lives in
-<project>/core_text/:
+The steps come from the `steps` list in ../setup/steps.json, which the setup
+skill reads too. Everything this script writes lives in <project>/core_text/:
 
-  setup.json        the record: each step's status and when it changed, plus
-                    the few choices a step declares (never free text, never
-                    a key)
+  setup.json        the record: each step's status, when it changed and which
+                    part of the guide it belongs to, plus the few choices a
+                    step declares (never free text, never a key). A skipped
+                    step also carries what skipping costs, copied from
+                    steps.json at that moment. The team plugin's session
+                    briefing reads this record and nothing in this plugin, so
+                    whatever it needs to say has to be written here.
   setup-guide.html  part 1 of the guide (about 20 minutes), one
                     self-contained page rendered from steps.json and the record
   setup-extras.html part 2, the optional extras, in the same style
 
 Every subcommand first creates setup.json when it is absent (all steps
 pending). An existing record is never replaced; a step added to steps.json
-later reads as pending. `set` refuses an unknown step, a choice key the step
+later reads as pending, and a record written before steps carried their part
+gains it the next time `set` writes. `set` refuses an unknown step, a choice key the step
 does not declare, an `os` other than mac, windows or linux, and a value that
 is longer than 40 characters, is not a plain word, or looks like a key, path
 or email. A refusal never echoes the value and never touches the record.
@@ -87,7 +91,8 @@ def write_json(path, data):
 
 def load_record(project, steps):
     """The project's record, created first when absent. Steps missing from an
-    older record are filled in as pending in memory only."""
+    older record are filled in as pending, and every step is given its part,
+    in memory only: nothing is written until `set` writes."""
     path = record_path(project)
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -97,7 +102,7 @@ def load_record(project, steps):
             "plugin_version": plugin_version(),
             "created": stamp,
             "updated": stamp,
-            "steps": {s["id"]: {"status": "pending", "at": None} for s in steps},
+            "steps": {s["id"]: {"status": "pending", "at": None, "part": s["part"]} for s in steps},
             "choices": {},
         })
     try:
@@ -110,6 +115,7 @@ def load_record(project, steps):
         entry = rec["steps"].get(s["id"])
         if not isinstance(entry, dict) or entry.get("status") not in STATUSES:
             rec["steps"][s["id"]] = {"status": "pending", "at": None}
+        rec["steps"][s["id"]]["part"] = s["part"]
     return rec
 
 
@@ -139,7 +145,10 @@ def set_step(project, step_id, status, pairs):
         check_value(key, value)
         choices[key] = value
     stamp = now()
-    rec["steps"][step_id] = {"status": status, "at": None if status == "pending" else stamp}
+    entry = {"status": status, "at": None if status == "pending" else stamp, "part": step["part"]}
+    if status == "skipped":
+        entry["if_skipped"] = step["if_skipped"]
+    rec["steps"][step_id] = entry
     rec["choices"].update(choices)
     rec["updated"] = stamp
     write_json(record_path(project), rec)
@@ -306,7 +315,7 @@ PAGE = """<!doctype html>
 {closing}
 <footer>
 <p>Say <b>“continue setup”</b> to Claude to pick up any step.</p>
-<p class="muted">Updated {updated} · technical-cofounder {version}</p>
+<p class="muted">Updated {updated} · technical-cofounder-setup {version}</p>
 </footer>
 </main>
 </body>

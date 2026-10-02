@@ -1,5 +1,6 @@
-"""Unit tests for the technical-cofounder starter workspace: init_workspace.py
-and the guardrail hooks under plugins/technical-cofounder/hooks/.
+"""Unit tests for the starter workspace the setup plugin lays down
+(plugins/technical-cofounder-setup: bin/init_workspace.py and template/) and
+the guardrail hooks under plugins/technical-cofounder/hooks/.
 
 Standard library only.
 """
@@ -16,9 +17,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_ROOT = REPO_ROOT / "plugins" / "technical-cofounder"
+SETUP_ROOT = REPO_ROOT / "plugins" / "technical-cofounder-setup"
 HOOKS_DIR = PLUGIN_ROOT / "hooks"
-BIN_DIR = PLUGIN_ROOT / "bin"
-TEMPLATE_DIR = PLUGIN_ROOT / "template"
+BIN_DIR = SETUP_ROOT / "bin"
+TEMPLATE_DIR = SETUP_ROOT / "template"
 
 FIVE_RULES = {
     "frame-discipline.md",
@@ -122,9 +124,11 @@ class RulesPackTests(unittest.TestCase):
                 self.assertNotIn(term, text, f"{name} contains blocked term {term!r}")
 
 
-_STEPS = json.loads((PLUGIN_ROOT / "setup" / "steps.json").read_text(encoding="utf-8"))["steps"]
+_STEPS = json.loads((SETUP_ROOT / "setup" / "steps.json").read_text(encoding="utf-8"))["steps"]
 STEP_IDS = [s["id"] for s in _STEPS]
 PART1_IDS = [s["id"] for s in _STEPS if s["part"] == 1]
+PART_OF = {s["id"]: s["part"] for s in _STEPS}
+SETUP_COMMAND = "/technical-cofounder-setup:start"
 SUPER_KEY = "super-novacaelum@technical-cofounder"
 
 
@@ -153,8 +157,13 @@ class SessionPreloadTests(unittest.TestCase):
     def settings(self, rel, enabled, base=None, **extra):
         self.write(rel, json.dumps({"enabledPlugins": enabled, **extra}), base)
 
-    def record(self, done=(), choices=None):
+    def record(self, done=(), choices=None, parts=True):
+        """The record as setup_record.py writes it. parts=False is the shape a
+        record had before each step carried its part."""
         steps = {s: {"status": "done" if s in done else "pending", "at": None} for s in STEP_IDS}
+        if parts:
+            for s in STEP_IDS:
+                steps[s]["part"] = PART_OF[s]
         self.write("core_text/setup.json", json.dumps({"schema_version": 1, "steps": steps, "choices": choices or {}}))
 
     def stack(self, out):
@@ -184,7 +193,8 @@ class SessionPreloadTests(unittest.TestCase):
 
     def test_no_profile_points_to_setup(self):
         out = self.preload()
-        self.assertIn("/technical-cofounder:quick-start", out)
+        self.assertIn(SETUP_COMMAND, out)
+        self.assertNotIn("quick-start", out)
         self.assertIn("/technical-cofounder:contact", out)
         self.assertIn("## Tech primer (live)", out)
 
@@ -203,6 +213,26 @@ class SessionPreloadTests(unittest.TestCase):
         self.write("core_text/user.md", "# p\n")
         self.record(done=PART1_IDS)
         self.assertFalse([ln for ln in self.preload().splitlines() if ln.startswith("Setup:")])
+
+    def test_a_record_from_before_steps_carried_their_part_counts_every_step(self):
+        # The briefing reads only the record. An older record cannot say which
+        # steps are part 2, so each one counts until setup writes it again.
+        self.write("core_text/user.md", "# p\n")
+        self.record(done=PART1_IDS, parts=False)
+        want = f'Setup: {len(PART1_IDS)} of {len(STEP_IDS)} steps done — say "continue setup" to pick up where you left off.'
+        self.assertIn(want, self.preload().splitlines())
+
+    def test_the_briefing_reads_the_record_and_no_setup_plugin_file(self):
+        hook = (HOOKS_DIR / "session-preload.sh").read_text(encoding="utf-8")
+        for banned in ("steps.json", "technical-cofounder-setup/", "quick-start", ":onboard"):
+            with self.subTest(banned=banned):
+                self.assertNotIn(banned, hook)
+
+    def test_legacy_profile_note_names_the_setup_command(self):
+        self.write("user.md", "# legacy-profile-marker\n")
+        notes = [ln for ln in self.preload().splitlines() if "core_text/" in ln and "move" in ln.lower()]
+        self.assertEqual(len(notes), 1)
+        self.assertIn(SETUP_COMMAND, notes[0])
 
     def test_stack_defaults(self):
         self.assertEqual(self.stack(self.preload()), {
@@ -329,16 +359,18 @@ class HyperspacePreloadTests(unittest.TestCase):
         fake = FakeHE(self.project, entries=1)
         before = fake.config()
         out = self.preload()
-        self.assertIn("/technical-cofounder:quick-start", out)
+        self.assertIn(SETUP_COMMAND, out)
         self.assertEqual(fake.config(), before)
         self.assertEqual(fake.calls(), [])
 
 
-class QuickStartCommandTests(unittest.TestCase):
-    def test_quick_start_command_replaces_setup(self):
-        commands = PLUGIN_ROOT / "commands"
-        self.assertTrue((commands / "quick-start.md").is_file())
-        self.assertFalse((commands / "setup.md").exists())
+class StartCommandTests(unittest.TestCase):
+    def test_one_start_command_in_the_setup_plugin_replaces_the_team_plugins_two(self):
+        self.assertTrue((SETUP_ROOT / "commands" / "start.md").is_file())
+        self.assertEqual(sorted(p.name for p in (SETUP_ROOT / "commands").iterdir()), ["start.md"])
+        for gone in ("quick-start.md", "onboard.md", "setup.md"):
+            with self.subTest(gone=gone):
+                self.assertFalse((PLUGIN_ROOT / "commands" / gone).exists())
 
 
 class HookSampleAndMalformedInputTests(unittest.TestCase):

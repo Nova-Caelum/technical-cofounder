@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy this plugin's starter workspace into a target project.
+"""Copy the starter workspace into a target project.
 
 Usage:
     python3 init_workspace.py <target-dir> [--obsidian|--no-obsidian] [--super|--no-super]
