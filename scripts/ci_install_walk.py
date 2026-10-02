@@ -19,7 +19,9 @@ install script, and checks each result:
      exist yet, scan --record, and a second apply --all that changes nothing;
   5. the team plugin as installed: its server started with the project's
      workspace Python, one worklog entry written and read back, and its
-     session briefing run under bash.
+     session briefing run under bash;
+  6. the guide's workspace step, then the briefing and the worklog again in
+     the set-up project, where Hyperspace Engine's store takes the worklog.
 
 jq is hidden from PATH for all of it, so the install script has to fetch it.
 
@@ -363,6 +365,16 @@ def hook_commands(declared, event):
         for hook in group.get("hooks") or []
         if isinstance(hook, dict) and hook.get("type") == "command" and hook.get("command")
     ]
+
+
+def guide_paths(out):
+    """The two pages `setup_record.py render` says it wrote."""
+    found = {}
+    for line in (out or "").splitlines():
+        name, _, path = line.partition(": ")
+        if name in ("GUIDE", "EXTRAS") and path.strip():
+            found[name] = path.strip()
+    return found
 
 
 def health_lines(text):
@@ -897,29 +909,67 @@ class Install:
 
     def team_plugin(self, entries):
         w = self.w
-        project = self.project
         w.section("The team plugin, as installed")
         team = plugin_entry(entries, TEAM)
         if not w.expect(team is not None, "the team plugin's installPath is known"):
             return
-        root = team["installPath"]
+        first = self.worklog_round_trip(team)
+        self.briefing(team)
+
+        # What the setup conversation does next, with the same Python, and
+        # then what a person's first session in the project starts with.
+        w.section("The guide's workspace step, then the team in a set-up project")
+        project = self.project
+        scripts = Path(self.setup_root) / "bin"
+        system = {"macos": "mac"}.get(self.system, self.system)
+        code, _, _ = w.run([self.python, scripts / "setup_record.py", "set", project, "prerequisites", "done",
+                            "--choice", "os=" + system], self.env, timeout=300)
+        w.expect(code == 0, "the finished install is recorded in the guide")
+        code, out, _ = w.run([self.python, scripts / "setup_record.py", "render", project], self.env, timeout=300)
+        pages = guide_paths(out)
+        w.expect(code == 0 and len(pages) == 2 and all(Path(page).is_file() for page in pages.values()),
+                 "the guide's two pages are written where the script says: %s" % pages)
+        code, out, _ = w.run([self.python, scripts / "init_workspace.py", project, "--no-obsidian", "--no-super"],
+                             self.env, timeout=300)
+        w.expect(code == 0 and "INIT_SUMMARY" in out and (project / "core_text" / "user.md").is_file(),
+                 "the starter workspace is copied in, with the profile at core_text/user.md")
+        out = self.briefing(team)
+        w.expect("worklog: hyperspace (owned by TC preload)" in out,
+                 "the first briefing in the set-up project handed the worklog to Hyperspace Engine's store")
+        w.expect(bool(first) and first in out, "the entry written before that is in the briefing's recent worklog")
+        self.worklog_round_trip(team, also=first)
+
+    def worklog_round_trip(self, team, also=None):
+        """Start the team's server the way Claude Code would, write one
+        worklog entry through it and read it back. Returns the entry's
+        summary, or None when the server could not be started."""
+        w = self.w
+        project, root = self.project, team["installPath"]
         env = dict(self.env, CLAUDE_PROJECT_DIR=str(project), CLAUDE_PLUGIN_ROOT=str(root))
-
         command = server_command(team, "cofounder", project=project, plugin_root=root)
-        if w.expect(command is not None, "the team plugin declares its `cofounder` server: %s" % command):
-            summary = "install walk %s" % uuid.uuid4().hex
-            code, out, _ = w.run(command, env, cwd=project, timeout=300, text_in=server_requests(summary, project))
-            w.expect(code == 0, "the server, started with the project's workspace Python, ends cleanly when its input closes")
-            w.none_of(server_problems(out, summary),
-                      "it answers `initialize`, takes one worklog entry and gives the same entry back")
+        if not w.expect(command is not None, "the team plugin declares its `cofounder` server: %s" % command):
+            return None
+        summary = "install walk %s" % uuid.uuid4().hex
+        code, out, _ = w.run(command, env, cwd=project, timeout=300, text_in=server_requests(summary, project))
+        w.expect(code == 0, "the server, started with the project's workspace Python, ends cleanly when its input closes")
+        w.none_of(server_problems(out, summary),
+                  "it answers `initialize`, takes one worklog entry and gives the same entry back")
+        if also:
+            w.expect(also in out, "the earlier entry is still among the recent ones")
+        return summary
 
+    def briefing(self, team):
+        """Run the session briefing the way Claude Code runs a hook: the
+        declared command under bash (Git Bash on Windows), the event on
+        standard input. Returns what it printed."""
+        w = self.w
+        project, root = self.project, team["installPath"]
+        env = dict(self.env, CLAUDE_PROJECT_DIR=str(project), CLAUDE_PLUGIN_ROOT=str(root))
         declared = json_document((Path(root) / "hooks" / "hooks.json").read_text(encoding="utf-8"))
         commands = [c for c in hook_commands(declared, "SessionStart") if c.endswith("/hooks/session-preload.sh")]
         if not w.expect(len(commands) == 1, "the team plugin declares its session briefing for SessionStart: %s" % commands):
-            return
-        # Run the way Claude Code runs a hook: the declared command under bash
-        # (Git Bash on Windows), the event on standard input. The command
-        # travels in the environment so its own quotes reach bash intact.
+            return ""
+        # The command travels in the environment so its own quotes reach bash intact.
         bash = self.git_root / "bin" / "bash.exe" if self.windows else which("bash", env) or "bash"
         event = json.dumps({"session_id": "install-walk", "hook_event_name": "SessionStart", "cwd": str(project), "source": "startup"})
         code, out, _ = w.run([bash, "-c", "eval $NC_WALK_LINE"], dict(env, NC_WALK_LINE=commands[0]), cwd=project,
@@ -927,6 +977,7 @@ class Install:
         w.expect(code == 0, "the session briefing exits 0")
         w.expect("- technical-cofounder: present" in out, "its live primer ran, which takes a Python that works")
         w.expect(not health_lines(out), "it prints no `## Health` block on a healthy install (found: %s)" % (health_lines(out) or "none"))
+        return out
 
     def windows_extras(self, stale):
         """Windows, three-system job: the two rules about a Git this session

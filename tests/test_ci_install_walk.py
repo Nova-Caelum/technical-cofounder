@@ -410,6 +410,17 @@ class TheSessionBriefing(unittest.TestCase):
         self.assertEqual(walk.health_lines(text), [])
 
 
+class TheGuidesPages(unittest.TestCase):
+    def test_both_pages_are_read_from_what_the_render_printed(self):
+        out = "RENDERED: core_text/setup-guide.html\r\nGUIDE: C:\\p q\\core_text\\setup-guide.html\r\nEXTRAS: C:\\p q\\core_text\\setup-extras.html\r\n"
+        self.assertEqual(walk.guide_paths(out), {
+            "GUIDE": "C:\\p q\\core_text\\setup-guide.html", "EXTRAS": "C:\\p q\\core_text\\setup-extras.html"})
+
+    def test_a_render_that_printed_neither_gives_neither(self):
+        self.assertEqual(walk.guide_paths("usage: setup_record.py\n"), {})
+        self.assertEqual(walk.guide_paths(""), {})
+
+
 class WhatChanged(Temp):
     def test_added_removed_and_changed_files_are_each_named(self):
         (self.root / "kept.txt").write_text("a")
