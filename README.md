@@ -4,7 +4,6 @@
 
 
 # Technical Cofounder
-<br>
 
 For solo builders and the build-curious.
 
@@ -27,16 +26,14 @@ For solo builders and the build-curious.
   <a href="https://novacaelum.substack.com/"><img src="https://img.shields.io/badge/Substack-Deploy%20the%20Deck-FF6719?logo=substack&logoColor=white" alt="Substack: Deploy the Deck"></a>
 </p>
 
-<br>
 
 > "The original version of Technical Cofounder was the first thing I built with agents. The tool has evolved alongside myself and my capabilities with each new build. It has put new things within reach, which is the core mission of Nova Caelum."
 >
 > *Daniel, Founder and Principal*
-<br><br>
+<br>
 
 
 ## Get started
-<br>
 
 
 ### Already know your way around?
@@ -59,8 +56,6 @@ Want the research extras too? `super-novacaelum` adds current documentation look
 ```bash
 claude plugin install super-novacaelum@nova-caelum --scope project
 ```
-
-<br>
 
 ### New to building with agents?
 
@@ -92,7 +87,7 @@ Set up Technical Cofounder for me, from https://github.com/Nova-Caelum/plugins
 
 Stuck at any point? Run `/technical-cofounder:contact`, or email hello@novacaelum.com. The founder reads every message.
 
-<br><br>
+<br>
 
 
 ## Meet the team
@@ -101,7 +96,6 @@ Stuck at any point? Run `/technical-cofounder:contact`, or email hello@novacaelu
 
 Work through an idea, turn it into a plan, and build with specialists who bring different skills to the work.
 
-<br>
 ### Technical Cofounder
 
 *The one who brings it together.*
@@ -134,11 +128,10 @@ Set up your project, work through unfamiliar tools, and get unstuck when somethi
 
 **Equipped for:** Setup and onboarding · Guided troubleshooting · Learning as you build · Creating agents and skills
 
-<br><br>
+<br>
 
 
 ## What’s inside
-<br>
 
 ### A way forward. Powered by Hyperspace Engine.
 
@@ -154,11 +147,10 @@ Turn a goal into a plan, then carry it through with agents equipped to act. Foll
 - **Hooks, guidance, and a verifier** guide how the team works, keep claims grounded in evidence, and check that every i is dotted and every t is crossed before work is declared complete.
 - **A shared task graph** interface gives you and your agents a workspace to follow the plan together, see what needs attention, and move the work forward together.
 
-<br><br>
+<br>
 
 
 ## Built together
-<br>
 
 ### Automated drafting for all flavors of professional emails
 
@@ -182,7 +174,7 @@ With Technical Cofounder, we built our own. Tasks could be promoted into subproj
 
 The task graph (now an integral part of our Caelos system) was exactly what I needed. The positive impact was instant, and this was something I never could have built 5 months ago.
 
-<br><br>
+<br>
 
 ## Roadmap
 
@@ -198,7 +190,7 @@ These are directions, not dates.
 Follow [Nova Caelum on GitHub](https://github.com/Nova-Caelum) for updates, and to see what else we’re building.
 
 
-<br><br>
+<br>
 
 
 ## About Nova Caelum
@@ -209,7 +201,7 @@ Follow [Nova Caelum on GitHub](https://github.com/Nova-Caelum) for updates, and 
 
 We build systems that give people time back, bring new capabilities within reach, and support them as their lives change. Technical Cofounder is one expression of that work.
 
-<br><br>
+<br>
 
 
 ## License and acknowledgments
