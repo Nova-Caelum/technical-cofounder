@@ -1,10 +1,14 @@
-![Technical Cofounder](docs/images/technical-cofounder-hero.png)
+<p align="center">
+  <img src="docs/images/technical-cofounder-hero.png" alt="Technical Cofounder" width="600">
+</p>
+
 
 # Technical Cofounder
 
+For solo builders and the build-curious.
+
 **An AI senior dev team - give them your idea, build it together.**
 
-For solo builders and the build-curious.
 
 [Get started](#get-started) · [Meet the team](#meet-the-team) · [What’s inside](#whats-inside) · [Built together](#built-together) · [Roadmap](#roadmap)
 
