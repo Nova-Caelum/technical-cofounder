@@ -692,7 +692,7 @@ class ToolResolverTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(started.exists(), "the recorder never ran, so the lines above proved nothing")
         lines = started.read_text(encoding="utf-8").splitlines()
-        self.assertFalse([ln for ln in lines if ln.startswith("project:")], "PATH had a python; the project's was started")
+        self.assertFalse([ln for ln in lines if ln.startswith("project:")], "PATH had a python; the search for one started the project's")
 
     def test_guardrail_hooks_behave_the_same_with_no_python_anywhere(self):
         def drive(path, state):
