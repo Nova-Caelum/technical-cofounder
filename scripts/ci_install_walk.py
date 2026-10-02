@@ -33,7 +33,8 @@ was really uninstalled: the first step installs Git and asks for a restart,
 then a new session, with the PATH Windows saved, carries on with the walk.
 
 Everything lives in one new temp folder (the Claude config, the catalog, the
-tools folder, the project), which is left in place. Outside continuous
+tools folder, the project), which is left in place. Its name has a space and
+an accent in it, the way a person's home folder can. Outside continuous
 integration uv's downloads go there too. In continuous integration uv and
 its Python are installed where a person's would be.
 
@@ -73,6 +74,9 @@ ITEMS = (
     "existing-config", "marketplace", "team-plugin", "engine-env", "obsidian",
 )
 MIN_PYTHON = (3, 11)
+# Everything the walk makes lives under a folder with a space and an accent in
+# its name, the way a person's home folder can have them.
+ROOT_PREFIX = "nc install walk \u00e9 "
 LAST_LINE = re.compile(r"^BOOTSTRAP=(?:(OK) python=(.+)|(NEEDS_RESTART|NEEDS_YOU) reason=(.+))$")
 INSTALLED_GIT = ("package-manager", "direct-download", "package-manager-failed-then-direct-download")
 
@@ -524,7 +528,7 @@ class Install:
         self.fresh_pc = fresh_pc
         self.system = detect_system()
         self.windows = self.system == "windows"
-        self.root = Path(tempfile.mkdtemp(prefix="nc-install-walk-")).resolve()
+        self.root = Path(tempfile.mkdtemp(prefix=ROOT_PREFIX)).resolve()
         for name in ("claude-config", "tools", "work", "empty"):
             (self.root / name).mkdir()
         self.catalog = self.root / "marketplace"
@@ -777,7 +781,7 @@ class Install:
             branch = git_branch(out)
             wanted = ("present", "used-directly") if self.fresh_pc else ("used-directly",)
             fine = w.expect(branch in wanted, "about Git, the first step ruled: %s" % branch)
-            fine = w.expect("\\" not in value and "�" not in out,
+            fine = w.expect("\\" not in value and "\ufffd" not in out,
                             "the Python path is printed with forward slashes and as readable UTF-8: %s" % value) and fine
             if fine and self.powershell_version.startswith("5.1."):
                 w.note("WINDOWS_FIRST_STEP=PASS powershell=%s git_hidden=%s branch=%s" % (
@@ -845,12 +849,12 @@ class Install:
                 w.expect(_plain(tools.get("git", "")).startswith(root),
                          "the record names the Git that is kept off PATH: %s" % tools.get("git"))
 
-    def plan_from_git_bash(self):
+    def plan_from_git_bash(self, python=None, marker="GIT_BASH_PLAN"):
         """The command line the setup skill gives the agent, typed into Git
         Bash: the Python as the first step printed it, in double quotes."""
         w = self.w
         bash = self.git_root / "bin" / "bash.exe"
-        line = '"%s" "%s/installer/nc_setup.py" plan --project "%s"' % (self.python, self.setup_root, self.project)
+        line = '"%s" "%s/installer/nc_setup.py" plan --project "%s"' % (python or self.python, self.setup_root, self.project)
         w.note("\n-- the same plan, typed into Git Bash as the setup skill writes it")
         # The line travels in the environment: a double quote in a Windows
         # command line does not reach bash intact, and the quotes are the point.
@@ -859,7 +863,7 @@ class Install:
         doc = json_document(out)
         w.expect(code == 0 and not plan_problems(doc),
                  "from Git Bash, the forward-slash Python path in double quotes runs the install script and gives a plan")
-        w.note("GIT_BASH_PLAN=%s" % ("PASS" if code == 0 and not plan_problems(doc) else "FAIL"))
+        w.note("%s=%s" % (marker, "PASS" if code == 0 and not plan_problems(doc) else "FAIL"))
 
     def installed_team(self):
         w = self.w
@@ -939,6 +943,19 @@ class Install:
                           "the install script rules %s for Git, as the first-step script did from the same registry: %s" % (
                               wanted, row.get("detail")))
         w.note("REGISTRY_RULE_AGREES=%s" % ("yes" if agrees else "no"))
+
+        w.note("\n-- the real uv, asked for a Python under a folder with a space and an accent in its name")
+        folder = self.root / "uv python"
+        env = dict(self.env, UV_PYTHON_INSTALL_DIR=str(folder), UV_PYTHON_BIN_DIR=str(self.root / "uv bin"))
+        code, out, _, (status, value) = self.first_step(self.setup_root, env)
+        fine = w.expect(code == 0 and status == "OK" and "\\" not in value and "\ufffd" not in out
+                        and _plain(value).startswith(_plain(folder) + "\\"),
+                        "the first step prints that Python's path whole, in UTF-8, with forward slashes: %s" % value)
+        if fine:
+            code, _, _ = w.run([value, "-c", "import sys, tomllib, sqlite3, venv; print(sys.executable)"], self.env, timeout=120)
+            fine = w.expect(code == 0, "that Python runs from the path as printed")
+            self.plan_from_git_bash(python=value, marker="GIT_BASH_PLAN_ACCENTED_PYTHON")
+        w.note("REAL_UV_ACCENTED_PATH=%s" % ("PASS" if fine else "FAIL"))
 
         w.note("\n-- a catalog that has to be cloned, added by the install script with Git on neither PATH")
         config = self.root / "claude-config-clone"

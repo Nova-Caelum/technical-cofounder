@@ -97,6 +97,12 @@ class StandInCatalog(Temp):
         self.assertEqual([p for p in (self.root / "marketplace").rglob("*.pyc")], [])
 
 
+class TheFolderEverythingLivesIn(unittest.TestCase):
+    def test_its_name_has_a_space_and_an_accent_as_a_home_folder_can(self):
+        self.assertIn(" ", walk.ROOT_PREFIX.strip())
+        self.assertFalse(walk.ROOT_PREFIX.isascii())
+
+
 class FirstStepLastLine(unittest.TestCase):
     def test_ok_carries_the_python(self):
         out = "noise\nBOOTSTRAP=OK python=/home/me/.local/share/uv/python/cpython-3.12/bin/python3.12\n\n"
