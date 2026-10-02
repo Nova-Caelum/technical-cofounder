@@ -341,8 +341,17 @@ class Ps1Text(unittest.TestCase):
                 self.assertIn(needle, reasons[0])
 
 
+# A folder name the way a Windows account name can be: with an accent in it.
+ACCENT = "caf\N{LATIN SMALL LETTER E WITH ACUTE}"
+
+
 def run_powershell(*args, env, creationflags=0):
-    """Windows PowerShell on bootstrap.ps1, its output read as UTF-8."""
+    """Windows PowerShell on bootstrap.ps1, its output read as UTF-8.
+
+    CREATE_NO_WINDOW gives the script a console of its own with no window,
+    which is how a program that hides its child processes starts one. That
+    console begins in the system's own code page, not in whatever the
+    console these tests run in was switched to."""
     return subprocess.run(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(BOOTSTRAP_PS1), *args],
         env=env, capture_output=True, encoding="utf-8", errors="replace",
@@ -449,20 +458,12 @@ class Ps1DryRun(unittest.TestCase):
         self.assertTrue(last.startswith("BOOTSTRAP=OK python="))
 
     def test_a_folder_name_with_an_accent_is_printed_as_utf8(self):
-        root = self.fake_git_install(under=self.root / "José")
-        result, last = self.run_ps(path=self.path_without_git(), program_files=root)
+        root = self.fake_git_install(under=self.root / ACCENT)
+        result, last = self.run_ps(
+            path=self.path_without_git(), program_files=root, creationflags=subprocess.CREATE_NO_WINDOW)
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn("bootstrap: Git is already here: %s (" % (root / "Git" / "cmd" / "git.exe"), result.stdout)
-
-    def test_a_session_with_no_console_still_ends_with_its_last_line(self):
-        # There is no console whose encoding could be set. That must cost
-        # nothing: no error on the way, and the last line as always.
-        if not shutil.which("git"):
-            self.skipTest("this machine has no Git")
-        result, last = self.run_ps(creationflags=subprocess.DETACHED_PROCESS)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(result.stderr.strip(), "")
-        self.assertTrue(last.startswith("BOOTSTRAP=OK python="))
+        self.assertIn("bootstrap: Git is already here: %s (" % (root / "Git" / "cmd" / "git.exe"), result.stdout)
 
 
 # What uv does, as far as bootstrap.ps1 asks: it prints the path of the
@@ -496,7 +497,7 @@ class Ps1RealRun(unittest.TestCase):
         self.root = Path(self._td.name).resolve()
         self.shims = self.root / "shims"
         self.shims.mkdir()
-        home = self.root / "José"
+        home = self.root / ACCENT
         venv.create(home / "python", with_pip=False)
         self.python = home / "python" / "Scripts" / "python.exe"
         self.log = self.root / "uv.log"
@@ -511,7 +512,7 @@ class Ps1RealRun(unittest.TestCase):
         env = dict(os.environ)
         env["PATH"] = str(self.shims) + os.pathsep + env.get("PATH", "")
         env.pop("XDG_BIN_HOME", None)
-        result = run_powershell(env=env)
+        result = run_powershell(env=env, creationflags=subprocess.CREATE_NO_WINDOW)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(self.log.read_text(encoding="utf-8").splitlines(),
                          ["python install 3.12", "python find 3.12"])
