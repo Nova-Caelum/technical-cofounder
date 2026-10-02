@@ -8,32 +8,46 @@
 
 ## Install
 
-Run these from your project folder. The team is installed for this project only, so your other projects stay as they are.
+Paste this one message into Claude Code. Your agent does the rest: it finds what your computer is missing, tells you what each thing is for, installs only that, creates a project folder with your team in it, and walks you through setup. You don't need to open a terminal or create a folder first.
 
-```bash
-claude plugin marketplace add Nova-Caelum/technical-cofounder --scope project
-claude plugin install base-novacaelum@technical-cofounder --scope project
+```text
+Set up Technical Cofounder for me, from https://github.com/Nova-Caelum/plugins
+
+1. If `claude --version` does not work here, install Claude Code's command line first (macOS or Linux: curl -fsSL https://claude.ai/install.sh | bash   Windows PowerShell: irm https://claude.ai/install.ps1 | iex). If `claude` is still not found after that, use its full path in the steps below: ~/.local/bin/claude on macOS or Linux, %USERPROFILE%\.local\bin\claude.exe on Windows.
+2. Git has to be on this computer before anything can be downloaded. Check it first:
+   - On a Mac, if `xcode-select -p` fails: run `xcode-select --install`, tell me to click Install in the window that opens and to tell you when it has finished, then carry on from step 3.
+   - On Windows, if `git --version` does not work: look for C:\Program Files\Git\cmd\git.exe and %LOCALAPPDATA%\Programs\Git\cmd\git.exe. If neither is there, run this in PowerShell:
+   winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements
+     If winget is not found, tell me to download the installer from https://git-scm.com/downloads/win and run it with its default choices.
+     Then, or if one of those two files was already there, tell me to close Claude Code completely, open it again and paste this same message. If I started Claude Code from a terminal window, I have to close that window too. If I tell you I already did that, put that Git's cmd folder on PATH for your own commands and carry on from step 3.
+3. Run these two commands:
+   claude plugin marketplace add https://github.com/Nova-Caelum/plugins.git
+   claude plugin install technical-cofounder-setup@nova-caelum
+4. Run `claude plugin list --json`, find the installPath of technical-cofounder-setup, read skills/setup/SKILL.md inside it, and follow it from the top. Tell me what each step is for before you run it, and go one step at a time.
 ```
 
-Then open Claude Code in your project and say **"set me up"**. The setup skill asks two questions:
-- Do you use Obsidian? If yes, you get a ready-made vault pre-loaded with a structured filesystem and plugins that enhance Obsidian's use as a primary filesystem manager.
-- Do you want the super plugin? It adds a suite of curated tools we love and use every day.
-  
-It then adds the rules, a short profile of how you work, a worklog and templates, never overwriting your files.
+Setup then walks a short guide, one question at a time: where you read Markdown, whether you use Obsidian, GitHub, a starter workspace and a short profile of how you work. It never overwrites your files and never asks for a key or password in the chat. Skip any step you like, and say **"continue setup"** whenever you want to pick it back up.
+
+**Already know your way around?** From a dedicated project folder:
+
+```bash
+claude plugin marketplace add https://github.com/Nova-Caelum/plugins.git
+claude plugin install technical-cofounder@nova-caelum --scope project
+```
+
+The team is installed for that project only, and [Hyperspace Engine](https://github.com/Nova-Caelum/hyperspace-engine) installs with it. Start a session in that folder and say **"set up hyperspace"** to build the task graph.
 
 **Optional: `super-novacaelum`.** An add-on plugin that takes the agents' capabilities to the next level. The suite includes enhanced web search through Exa, a cloud browser through Browserbase to enable better agent web browsing, and a master, always up to date instruction manual for hundreds of tools, languages and platforms through Context7. Each comes as an MCP server with a Nova Caelum companion skill that helps your agent use it effectively. The tools are free or close to it, but you create your own accounts and API keys. Optional but encouraged. Your new forward-deployed engineer would be thrilled to help you set it up.
 
 ```bash
-claude plugin install super-novacaelum@technical-cofounder --scope project
+claude plugin install super-novacaelum@nova-caelum --scope project
 ```
 
 New to API keys? Let lead-fde know so he can walk you through accounts, generating keys and storing safely.
 
-**Needs:** Claude Code, `git` and `python3`. What each one is for, and what breaks without it: [plugins/base-novacaelum/reference/dependencies.md](plugins/base-novacaelum/reference/dependencies.md).
+**Needs:** Claude Code, installed and signed in. Setup installs the rest (Git on Windows, a Python for the team, and two small tools) and says what each one is for: [plugins/technical-cofounder-setup/reference/dependencies.md](plugins/technical-cofounder-setup/reference/dependencies.md).
 
-On Windows, install Python from python.org (the Python Install Manager) and check `python3 --version`. If `python3` opens the Microsoft Store or isn't found, click Start, open *Manage app execution aliases*, and check that the aliases for *Python (default)* are enabled.
-
-**Stuck, found a bug, or have an idea?** Run `/base-novacaelum:contact`. Tell us anything and give an email to reply to; the founder reads every message and replies. It shows you the message and sends nothing until you say yes. If it can't get through, email hello@novacaelum.com.
+**Stuck, found a bug, or have an idea?** Run `/technical-cofounder:contact`. Tell us anything and give an email to reply to; the founder reads every message and replies. It shows you the message and sends nothing until you say yes. If it can't get through, email hello@novacaelum.com.
 
 ## The team
 
@@ -44,7 +58,7 @@ On Windows, install Python from python.org (the Python Install Manager) and chec
 | `devops-lead` | Auditor: checks every "done" against evidence, reviews diffs, runs the leak and quality checks | Something claims to be finished |
 | `lead-fde` | Forward-deployed engineer: setup, onboarding, teaching, first-run fixes | You're new, stuck, or setting up |
 
-`plugins/base-novacaelum/registry/agents.json` maps every agent to its skills and tools, and a check keeps that map honest.
+`plugins/technical-cofounder/registry/agents.json` maps every agent to its skills and tools, and a check keeps that map honest.
 
 ## What's inside, and why each piece exists
 
@@ -52,18 +66,18 @@ Every mechanism here exists because we watched an agent fail without it.
 
 | Piece | What it does | The failure it prevents |
 |---|---|---|
-| **The loop**: understand → decide → draft → build → live | Each stage ends at a gate that reads a file, not a feeling. Tests are written before the design, and the design is cut against them | Plans that never became work; architectures designed before anyone wrote down what "done" means |
-| **Verifier** (local tool `verify`) | Checks typed acceptance criteria against your files (a file exists or contains something, tests pass, a human signed off), fails closed, and writes a verdict with evidence | "Done" claimed on a green status line while nothing actually changed |
+| **The loop** ([Hyperspace Engine](https://github.com/Nova-Caelum/hyperspace-engine), installed with the team): understand → decide → draft → build → live | Each stage ends at a gate that reads a file, not a feeling. Tests are written before the design, and the design is cut against them | Plans that never became work; architectures designed before anyone wrote down what "done" means |
+| **Verifier** (Hyperspace Engine's `complete_workitem`) | Checks typed acceptance criteria against your files (a file exists or contains something, tests pass, a human signed off), fails closed, and writes a verdict with evidence | "Done" claimed on a green status line while nothing actually changed |
 | **An auditor separate from the builder** | `devops-lead` checks `engineer`'s claims | An agent grading its own homework |
-| **Guardrail hooks** | A word budget per reply; a circuit breaker that stops the fifth identical failing retry; a session preload that brings back your profile and recent worklog | Padding; retry loops that burn an afternoon; every session starting from zero |
+| **Guardrail hooks** | A word budget per reply; a circuit breaker that stops the fifth identical failing retry; a session briefing that brings back your profile and recent worklog, and names anything that is broken | Padding; retry loops that burn an afternoon; every session starting from zero |
 | **Five rules**: frame discipline, anti-hallucination, act-and-disclose, eliminate-first, anti-truncation | Each ships with a table of the excuses agents use to skip it, and the answer to each | Rules that read well and get rationalized away |
 | **Engineering skills**: assumption check, verification before completion, overbloat review, architecture records, code review, option generation, stress testing | Senior judgment on demand | Building on a false premise; building the first idea; adding surface nobody needed |
 | **Authoring kit**: `new-agent`, `pressure-scenario-skill-authoring`, templates | Grow your own team with the same discipline. A gate asks "does this need its own agent?", and every skill starts from three observed failures | A folder of agents nobody uses and skills that encode a hunch |
-| **Local worklog** (tools `worklog_*`) | Markdown entries you own, with CSV and Obsidian views | Losing what was decided, and why, between sessions |
+| **Local worklog** (tools `worklog_*`) | Entries kept on your own computer, with an Obsidian view | Losing what was decided, and why, between sessions |
 
 ## How it was built
 
-This repository was built with the loop it ships. [`examples/toy-run/`](examples/) is a real run folder. It walks a small goal through every stage: the problem, the tests, the decision, the plan and the verifier's verdicts.
+This repository was built with the loop its team now runs on, [Hyperspace Engine](https://github.com/Nova-Caelum/hyperspace-engine): the problem, the tests, the decision, the plan and the verifier's verdicts, stage by stage.
 
 ## Roadmap
 
