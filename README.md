@@ -9,7 +9,6 @@ For solo builders and the build-curious.
 
 **An AI senior dev team - give them your idea, build it together.**
 
-<br>
 <p align="center">
   <a href="#get-started">Get started</a> · 
   <a href="#meet-the-team">Meet the team</a> · 
