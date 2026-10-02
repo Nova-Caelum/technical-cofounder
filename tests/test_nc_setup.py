@@ -790,6 +790,23 @@ class GitOnWindows(Case):
         self.assertEqual(row["verdict"], "ready")
         self.assertIn(git, row["detail"])
 
+    def test_git_is_found_when_the_environment_spells_its_names_in_capitals(self):
+        # Python hands over a Windows environment with every name in
+        # capitals: PROGRAMFILES, never ProgramFiles.
+        cmd, git = self.unseen_git()
+        self.world.env["PROGRAMFILES"] = self.world.env.pop("ProgramFiles")
+        row = self.row("git")
+        self.assertEqual(row["verdict"], "ready")
+        self.assertIn(git, row["detail"])
+
+    @unittest.skipUnless(sys.platform == "win32", "only a real Windows has these folders")
+    def test_the_real_environment_leads_to_program_files(self):
+        ctx = nc.Ctx(str(self.world.project))   # the environment as this machine gives it
+        self.assertIn(
+            os.path.normcase(os.path.join(os.environ["ProgramFiles"], "Git", "cmd", "git.exe")),
+            [os.path.normcase(str(place)) for place in nc._git_installs(ctx)],
+        )
+
     def test_an_unseen_install_with_no_git_bash_still_asks_for_a_restart(self):
         # Not one of the two cases above: this answer is the one it had.
         root = self.world.root / "ProgramFiles"
