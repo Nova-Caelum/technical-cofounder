@@ -302,7 +302,8 @@ When the user runs `/technical-cofounder-setup:start` later, look at where
 this session is running:
 
 - **Inside a project that was set up** (the current folder has
-  `core_text/setup-scan.json`): `<project>` is the current folder. Run the
+  `core_text/setup-scan.json`, or `core_text/setup.json` from an earlier
+  setup): `<project>` is the current folder. Run the
   **First step** again to get `<python>` (it is quick when everything is
   there), then `plan`, and fix what is not `ready` with the same protocol,
   ending with `scan --record`. If everything is `ready`, say so, then offer to
