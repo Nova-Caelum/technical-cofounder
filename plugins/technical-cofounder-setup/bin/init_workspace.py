@@ -43,7 +43,7 @@ PROFILE = Path("core_text") / "user.md"
 sys.path.insert(0, str(HERE))
 import setup_record  # noqa: E402
 
-SUPER_INSTALL_CMD = "claude plugin install super-novacaelum@technical-cofounder --scope project"
+SUPER_INSTALL_CMD = "claude plugin install super-novacaelum@nova-caelum --scope project"
 SUPER_KEY_GUIDE_POINTER = (
     "Next, the super-setup skill walks you through accounts and keys for "
     "each service, starting from zero if you have never used an API key."

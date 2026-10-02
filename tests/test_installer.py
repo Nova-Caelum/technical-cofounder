@@ -24,7 +24,7 @@ FIVE_RULES = {
     "anti-truncation.md",
 }
 
-SUPER_INSTALL_CMD = "claude plugin install super-novacaelum@technical-cofounder --scope project"
+SUPER_INSTALL_CMD = "claude plugin install super-novacaelum@nova-caelum --scope project"
 BRANCHES = list(itertools.product([True, False], repeat=2))  # (obsidian, super)
 
 

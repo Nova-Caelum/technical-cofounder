@@ -45,15 +45,16 @@ For each chosen service, one at a time: sign up, open the key page, create a key
 In a terminal (the window where you type commands), from the project root (its top folder), run:
 
 ```
-claude plugin marketplace add Nova-Caelum/technical-cofounder --scope project
-claude plugin install super-novacaelum@technical-cofounder --scope project
+claude plugin install super-novacaelum@nova-caelum --scope project
 ```
+
+The `nova-caelum` catalog is already on this computer: setup added it. If the command says it does not know that catalog, add it first with `claude plugin marketplace add https://github.com/Nova-Caelum/plugins.git`, then run the install again.
 
 `--scope project` turns super on for this project only. A note that options aren't set yet is expected.
 
 ## 6. Enter keys
 
-In Claude Code, opened in the project, run `/plugin configure super-novacaelum@technical-cofounder`, or open `/plugin`, pick super-novacaelum and choose configure. It asks for each key in a hidden field (Claude Code's docs say these fields are masked). Copy the key from the password manager, paste it into that prompt, press Enter. Never paste a key into this chat instead. Skip services they didn't choose.
+In Claude Code, opened in the project, run `/plugin configure super-novacaelum@nova-caelum`, or open `/plugin`, pick super-novacaelum and choose configure. It asks for each key in a hidden field (Claude Code's docs say these fields are masked). Copy the key from the password manager, paste it into that prompt, press Enter. Never paste a key into this chat instead. Skip services they didn't choose.
 
 Where it goes: on a Mac, the login Keychain (the Mac's built-in password store). Tested on macOS, through the store this prompt uses: the key landed there and in no settings or project file. Without a supported keychain, Claude Code's docs say it uses a credentials file in its own settings folder, outside the project.
 

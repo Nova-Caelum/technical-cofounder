@@ -129,7 +129,7 @@ STEP_IDS = [s["id"] for s in _STEPS]
 PART1_IDS = [s["id"] for s in _STEPS if s["part"] == 1]
 PART_OF = {s["id"]: s["part"] for s in _STEPS}
 SETUP_COMMAND = "/technical-cofounder-setup:start"
-SUPER_KEY = "super-novacaelum@technical-cofounder"
+SUPER_KEY = "super-novacaelum@nova-caelum"
 
 
 class SessionPreloadTests(unittest.TestCase):
