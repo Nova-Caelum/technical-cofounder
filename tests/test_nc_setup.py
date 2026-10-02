@@ -1187,6 +1187,31 @@ class ApplyAll(Case):
         self.assertFalse((self.world.home / "core_text").exists())
         self.assertFalse((self.world.home / ".claude").exists())
 
+    def test_restart_required_describes_the_last_change_and_is_not_cleared_by_a_quiet_rescan(self):
+        # Deliberate: a run that finds nothing new must not touch any file, and
+        # it cannot know whether Claude Code was restarted since. The record
+        # keeps saying "a restart was needed as of scanned_at".
+        self.fresh()
+        self.apply_all()
+        first = json.loads(self.record_path().read_text(encoding="utf-8"))
+        self.assertIs(first["restart_required"], True)
+        before = snapshot(self.world.root)
+        code, doc = self.call("scan", "--project", self.world.project, "--record")
+        self.assertEqual(code, 0)
+        self.assertIs(doc["restart_required"], False)   # this run installed nothing
+        self.assertEqual(snapshot(self.world.root), before)
+        self.assertEqual(json.loads(self.record_path().read_text(encoding="utf-8")), first)
+
+    def test_a_later_change_rewrites_the_record_with_its_own_restart_answer(self):
+        self.fresh()
+        self.apply_all()
+        self.world.tool_state["jq"] = "broken"        # something breaks after the restart
+        (self.world.tools / "jq").unlink()
+        self.call("scan", "--project", self.world.project, "--record")
+        record = json.loads(self.record_path().read_text(encoding="utf-8"))
+        self.assertIs(record["restart_required"], False)
+        self.assertEqual({i["id"]: i["verdict"] for i in record["items"]}["jq"], "install")
+
     def test_installing_only_jq_does_not_ask_for_a_restart(self):
         self.world.finished()
         del self.world.on_path["jq"]

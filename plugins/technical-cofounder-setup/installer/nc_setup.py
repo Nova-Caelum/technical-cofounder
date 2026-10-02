@@ -263,7 +263,13 @@ def build_record(ctx, rows):
 def save_record(ctx, record):
     """Write the record into the project, or return None when there is no
     usable project folder. A record that says what the file already says is
-    not rewritten, so a run that changed nothing leaves every file alone."""
+    not rewritten, so a run that changed nothing leaves every file alone.
+
+    That makes `scanned_at` the time of the last change, and
+    `restart_required` a statement about that moment: a restart was needed
+    as of `scanned_at`. A later run that finds nothing new cannot know
+    whether Claude Code was restarted since, so it leaves both as they are.
+    A reader decides by comparing `scanned_at` with when its session began."""
     verdicts = {item["id"]: item["verdict"] for item in record["items"]}
     if verdicts.get("project-folder") != READY:
         return None
