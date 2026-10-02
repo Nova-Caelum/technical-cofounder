@@ -79,7 +79,8 @@ one, and changes only what is missing.
    again.
 3. Act on that line:
    - `BOOTSTRAP=OK python=<path>`: keep the path. It is `<python>` in every
-     command below.
+     command below. On Windows it comes with forward slashes: use it as
+     printed, always inside double quotes.
    - `BOOTSTRAP=NEEDS_RESTART`: tell the user exactly what to do: close Claude
      Code completely, open it again, and paste the same message. If they
      started Claude Code from a terminal window, they close that window too.

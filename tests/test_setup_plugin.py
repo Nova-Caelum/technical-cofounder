@@ -42,6 +42,7 @@ APPLY_TIMEOUT = (
     "Run every `apply` with a ten-minute timeout on the tool call.",
     "A call that ends with no JSON document was cut off, not failed: run the same command again.",
 )
+PATH_AS_PRINTED = "On Windows it comes with forward slashes: use it as printed, always inside double quotes."
 TERMINAL_TOO = "If they started Claude Code from a terminal window, they close that window too."
 PROJECTS_DEFAULT = "a folder with that name in `Projects` inside their home folder, on every system."
 ONEDRIVE = (
@@ -159,6 +160,10 @@ class TheSkill(unittest.TestCase):
         for sentence in APPLY_TIMEOUT:
             with self.subTest(section="Scan, plan, apply, re-scan", sentence=sentence):
                 self.assertIn(sentence, scan)
+
+    def test_the_python_path_is_used_as_the_first_step_printed_it(self):
+        # A backslash is an escape in Git Bash, so the path is never retyped.
+        self.assertIn(PATH_AS_PRINTED, self.section("First step"))
 
     def test_a_restart_means_the_terminal_window_too(self):
         self.assertIn(TERMINAL_TOO, self.section("First step"))
