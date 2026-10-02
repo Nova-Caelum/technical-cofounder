@@ -1,14 +1,49 @@
-# Technical Cofounder Agent
+![Technical Cofounder](docs/images/technical-cofounder-hero.png)
 
-**Your new senior development team, ready to plug in and help you build whatever you can imagine.** A technical cofounder orchestrator, an engineer who builds it, a DevOps lead who audits it, and a forward-deployed engineer who gets you set up. Built to work in tandem to provide technical support through design, development, and implementation of whatever you hope to build. They come with deeply rooted governance mechanisms that enable state-aware workflow automation, independent completion verification, and anti-hallucination mechanisms built in by default.
+# Technical Cofounder
 
-> For vibe coders and non-technical founders: all the senior-engineer paranoia, none of the cap-table drama.
+**An AI senior dev team - give them your idea, build it together.**
 
-[![CI](https://github.com/Nova-Caelum/technical-cofounder/actions/workflows/ci.yml/badge.svg)](https://github.com/Nova-Caelum/technical-cofounder/actions/workflows/ci.yml) ![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)
+For solo builders and the build-curious.
 
-## Install
+[Get started](#get-started) · [Meet the team](#meet-the-team) · [What’s inside](#whats-inside) · [Built together](#built-together) · [Roadmap](#roadmap)
 
-Paste this one message into Claude Code. Your agent does the rest: it finds what your computer is missing, tells you what each thing is for, installs only that, creates a project folder with your team in it, and walks you through setup. You don't need to open a terminal or create a folder first.
+[![Agents: Claude Code](https://img.shields.io/badge/agents-Claude%20Code-D97757)](https://claude.com/claude-code) [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE) [![CI](https://github.com/Nova-Caelum/technical-cofounder/actions/workflows/ci.yml/badge.svg)](https://github.com/Nova-Caelum/technical-cofounder/actions/workflows/ci.yml) ![Tested on macOS, Linux and Windows](https://img.shields.io/badge/tested%20on-macOS%20%7C%20Linux%20%7C%20Windows-informational) [![Substack: Deploy the Deck](https://img.shields.io/badge/Substack-Deploy%20the%20Deck-FF6719?logo=substack&logoColor=white)](https://novacaelum.substack.com/)
+
+> "The original version of Technical Cofounder was the first thing I built with agents. The tool has evolved alongside myself and my capabilities with each new build. It has put new things within reach, which is the core mission of Nova Caelum."
+>
+> *Founder of Nova Caelum*
+
+## Get started
+
+### Already know your way around?
+
+Run these from a dedicated project folder. The team installs for that project only, and Hyperspace Engine installs with it.
+
+```bash
+claude plugin marketplace add https://github.com/Nova-Caelum/plugins.git
+claude plugin install technical-cofounder@nova-caelum --scope project
+```
+
+Start a new session in that folder and say "set up hyperspace" to build the task graph and open its console in your browser.
+
+[![Claude Code CLI](https://img.shields.io/badge/Claude%20Code%20CLI-D97757)](plugins/technical-cofounder-setup/reference/dependencies.md) [![Git](https://img.shields.io/badge/Git-F05032?logo=git&logoColor=white)](plugins/technical-cofounder-setup/reference/dependencies.md) [![Python 3.11 or newer](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](plugins/technical-cofounder-setup/reference/dependencies.md) [![uv](https://img.shields.io/badge/uv-DE5FE9?logo=uv&logoColor=white)](plugins/technical-cofounder-setup/reference/dependencies.md) [![jq](https://img.shields.io/badge/jq-555555)](plugins/technical-cofounder-setup/reference/dependencies.md)
+
+You need Claude Code and Git. Hyperspace Engine needs Python 3.11 or newer, or [`uv`](https://docs.astral.sh/uv/); the message below installs one for you. What each tool is for is written down in [dependencies.md](plugins/technical-cofounder-setup/reference/dependencies.md).
+
+Want the research extras too? `super-novacaelum` adds current documentation lookup, web research and a cloud browser, each on your own account:
+
+```bash
+claude plugin install super-novacaelum@nova-caelum --scope project
+```
+
+### New to building with agents?
+
+You don't need to type a single command, create a folder or open a terminal. Your agent does the install, and a setup guide walks you through the rest.
+
+**Before you start,** you need [Claude Code](https://claude.com/claude-code), installed and signed in. That is all. Setup finds what your computer is missing (Git, Python, a couple of small tools), tells you what each one is for, and installs only that.
+
+**1. Give this to your agent.** Copy the whole message and paste it into Claude Code:
 
 ```text
 Set up Technical Cofounder for me, from https://github.com/Nova-Caelum/plugins
@@ -26,68 +61,113 @@ Set up Technical Cofounder for me, from https://github.com/Nova-Caelum/plugins
 4. Run `claude plugin list --json`, find the installPath of technical-cofounder-setup, read skills/setup/SKILL.md inside it, and follow it from the top. Tell me what each step is for before you run it, and go one step at a time.
 ```
 
-Setup then walks a short guide, one question at a time: where you read Markdown, whether you use Obsidian, GitHub, a starter workspace and a short profile of how you work. It never overwrites your files and never asks for a key or password in the chat. Skip any step you like, and say **"continue setup"** whenever you want to pick it back up.
+**2. Follow along.** Your agent says what each step is for and how long it takes before it runs it. It asks what to call your project and where it should live, then creates that folder with your team and Hyperspace Engine in it. On a new Windows PC or a new Mac it may ask you to restart Claude Code once, or to click Install in one window. The whole thing takes about 20 minutes, and it never asks for a key or password in the chat. Skip any step you like, then say "continue setup" whenever you want to pick it back up.
 
-**Already know your way around?** From a dedicated project folder:
+**3. Say what you want to build.** Open Claude Code in your new project folder. Your technical cofounder is there, and takes it from there.
 
-```bash
-claude plugin marketplace add https://github.com/Nova-Caelum/plugins.git
-claude plugin install technical-cofounder@nova-caelum --scope project
-```
+Stuck at any point? Run `/technical-cofounder:contact`, or email hello@novacaelum.com. The founder reads every message.
 
-The team is installed for that project only, and [Hyperspace Engine](https://github.com/Nova-Caelum/hyperspace-engine) installs with it. Start a session in that folder and say **"set up hyperspace"** to build the task graph.
+## Meet the team
 
-**Optional: `super-novacaelum`.** An add-on plugin that takes the agents' capabilities to the next level. The suite includes enhanced web search through Exa, a cloud browser through Browserbase to enable better agent web browsing, and a master, always up to date instruction manual for hundreds of tools, languages and platforms through Context7. Each comes as an MCP server with a Nova Caelum companion skill that helps your agent use it effectively. The tools are free or close to it, but you create your own accounts and API keys. Optional but encouraged. Your new forward-deployed engineer would be thrilled to help you set it up.
+**The right help. At the right moment.**
 
-```bash
-claude plugin install super-novacaelum@nova-caelum --scope project
-```
+Work through an idea, turn it into a plan, and build with specialists who bring different skills to the work.
 
-New to API keys? Let lead-fde know so he can walk you through accounts, generating keys and storing safely.
+### Technical Cofounder
 
-**Needs:** Claude Code, installed and signed in. Setup installs the rest (Git on Windows, a Python for the team, and two small tools) and says what each one is for: [plugins/technical-cofounder-setup/reference/dependencies.md](plugins/technical-cofounder-setup/reference/dependencies.md).
+*The one who brings it together.*
 
-**Stuck, found a bug, or have an idea?** Run `/technical-cofounder:contact`. Tell us anything and give an email to reply to; the founder reads every message and replies. It shows you the message and sends nothing until you say yes. If it can't get through, email hello@novacaelum.com.
+Think through what you want to build, compare approaches, and decide what matters now–and what can wait. Your cofounder turns those decisions into a clear plan, coordinates the team, and keeps the work tied to your goals.
 
-## The team
+**Equipped for:** Architecture decisions · Comparing approaches · Planning and delegation · Challenging assumptions
 
-| Agent | Role | Reach for it when |
-|---|---|---|
-| `technical-cofounder` *(default)* | Orchestrator: frames the problem, weighs options, runs the loop, routes work | You have a goal, not a task |
-| `engineer` | Builder: writes the test first, then the code; never grades its own work | Something needs to exist |
-| `devops-lead` | Auditor: checks every "done" against evidence, reviews diffs, runs the leak and quality checks | Something claims to be finished |
-| `lead-fde` | Forward-deployed engineer: setup, onboarding, teaching, first-run fixes | You're new, stuck, or setting up |
+### Engineer
 
-`plugins/technical-cofounder/registry/agents.json` maps every agent to its skills and tools, and a check keeps that map honest.
+*The one who builds.*
 
-## What's inside, and why each piece exists
+Turn a clear brief into working software. Your engineer writes tests, implements features, investigates bugs, and works through review findings. Each handoff includes the changes, the evidence, and anything still unresolved.
 
-Every mechanism here exists because we watched an agent fail without it.
+**Equipped for:** Implementation · Test-first development · Debugging · Fixing review findings
 
-| Piece | What it does | The failure it prevents |
-|---|---|---|
-| **The loop** ([Hyperspace Engine](https://github.com/Nova-Caelum/hyperspace-engine), installed with the team): understand → decide → draft → build → live | Each stage ends at a gate that reads a file, not a feeling. Tests are written before the design, and the design is cut against them | Plans that never became work; architectures designed before anyone wrote down what "done" means |
-| **Verifier** (Hyperspace Engine's `complete_workitem`) | Checks typed acceptance criteria against your files (a file exists or contains something, tests pass, a human signed off), fails closed, and writes a verdict with evidence | "Done" claimed on a green status line while nothing actually changed |
-| **An auditor separate from the builder** | `devops-lead` checks `engineer`'s claims | An agent grading its own homework |
-| **Guardrail hooks** | A word budget per reply; a circuit breaker that stops the fifth identical failing retry; a session briefing that brings back your profile and recent worklog, and names anything that is broken | Padding; retry loops that burn an afternoon; every session starting from zero |
-| **Five rules**: frame discipline, anti-hallucination, act-and-disclose, eliminate-first, anti-truncation | Each ships with a table of the excuses agents use to skip it, and the answer to each | Rules that read well and get rationalized away |
-| **Engineering skills**: assumption check, verification before completion, overbloat review, architecture records, code review, option generation, stress testing | Senior judgment on demand | Building on a false premise; building the first idea; adding surface nobody needed |
-| **Authoring kit**: `new-agent`, `pressure-scenario-skill-authoring`, templates | Grow your own team with the same discipline. A gate asks "does this need its own agent?", and every skill starts from three observed failures | A folder of agents nobody uses and skills that encode a hunch |
-| **Local worklog** (tools `worklog_*`) | Entries kept on your own computer, with an Obsidian view | Losing what was decided, and why, between sessions |
+### DevOps Lead
 
-## How it was built
+*The one who keeps standards high.*
 
-This repository was built with the loop its team now runs on, [Hyperspace Engine](https://github.com/Nova-Caelum/hyperspace-engine): the problem, the tests, the decision, the plan and the verifier's verdicts, stage by stage.
+Get a separate set of eyes on the work before moving on. Your DevOps Lead reviews code and pull requests, checks security and secrets, and tests completion claims against the original brief. Findings go back to the engineer for fixes and another review.
+
+**Equipped for:** Code and PR review · Quality checks · Security and secrets checks · Evidence-based verification
+
+### Forward-Deployed Engineer
+
+*The one who gets you going–and helps you grow.*
+
+Set up your project, work through unfamiliar tools, and get unstuck when something doesn’t run. Your forward-deployed engineer explains the moving parts at your pace and helps you extend your team with agents and skills of your own.
+
+**Equipped for:** Setup and onboarding · Guided troubleshooting · Learning as you build · Creating agents and skills
+
+## What’s inside
+
+### A way forward. Powered by Hyperspace Engine.
+
+Turn a goal into a plan, then carry it through with agents equipped to act. Follow the work, review the evidence, and step in where your judgment matters.
+
+![The Hyperspace workflow: Understand, Decide, Draft and Build each pass through a numbered check before Use it live, under a Verification machinery band that combines Deterministic checks and Intelligent judgment](docs/images/hyperspace-workflow.png)
+
+[Explore the interactive workflow →](https://novacaelum.com/technical-cofounder/#hyperspace)
+
+### What equips the team
+
+- **Specialized skills** give your agents a playbook for each stage of the development loop, from shaping an idea to building and checking the result.
+- **Hooks, guidance, and a verifier** guide how the team works, keep claims grounded in evidence, and check that every i is dotted and every t is crossed before work is declared complete.
+- **A shared task graph** interface gives you and your agents a workspace to follow the plan together, see what needs attention, and move the work forward together.
+
+## Built together
+
+### Automated drafting for all flavors of professional emails
+
+While going through first year recruiting, I struggled to keep up with the volume of networking, follow-ups, and thank you emails while ensuring each one was thoughtful and personal.
+
+I wanted to automate the drafting, but the tools available never quite fit my needs: all the options required either full access to my emails or a monthly subscription, and failed to capture my voice nuance.
+
+Together with Technical Cofounder, I solved that problem. **Digital Twin** is a workflow that turns responses to a short form into full email drafts. We generated a unique voice profile and a ranking program to select best-fit examples from a curated library of my previous writing for that specific situation. The end result was a personalized, nuanced email ready to go (after a light screening) in a quarter of the time.
+
+I set three priorities: capture my voice and nuance, limit access to my email, and let me review drafts before sending.
+
+Technical Cofounder shaped a build plan around those priorities, streamlining research, design, and all the coding. We built it together, and I came away with the solution, I understood what we had built, and I leveled up through the process.
+
+### A task system built for both of us
+
+Keeping my To-Dos organized has always been a personal struggle. I have tried every tool and strategy you could imagine. Each task-management tool would help for a time, but became more effort than they were worth to maintain, and the systems fell apart when projects grew complex and requirements changed midway.
+
+My agents were running into the same problem. When a small task turned out to be more work than initially projected, we’d lose the thread of the original plan. None of the tools we tried could handle that reality, nor worked well for both humans and agents.
+
+With Technical Cofounder, we built our own. Tasks could be promoted into subprojects with a button, dispatching fresh agents to triage and address without derailing our main thread. It fit seamlessly into our existing workflows. And it was designed from the ground up so both humans and agents could use and maintain effectively. My data stayed with me, with no new subscriptions.
+
+The task graph (now an integral part of our Caelos system) was exactly what I needed. The positive impact was instant, and this was something I never could have built 5 months ago.
 
 ## Roadmap
 
-- **Hermes and Codex support:** the same team across every harness, alongside Claude Code
-- **A hosted option for super:** one Nova Caelum key instead of three vendor keys
-- An engineering-practice compiler skill and a context-window meter
-- A verifier that can also judge prose, using a model
+What we are working on next, in no fixed order:
 
-## Credits and license
+- **Codex and Hermes compatibility.** The same team in more agent platforms, alongside Claude Code.
+- **One super plugin, easier to install.** The research extras in a single package with fewer setup steps, including a hosted option: one Nova Caelum key in place of three vendor keys.
+- **Caelos beta features.** Memory management, cross-agent communication and specialized telemetry, brought over from Caelos as they mature.
+- **More in the toolkit.** An engineering-practice compiler skill, a context-window meter, and a verifier that can also judge prose.
 
-Apache-2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE). Parts are adapted from [obra/superpowers](https://github.com/obra/superpowers), [mattpocock/skills](https://github.com/mattpocock/skills), [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) and our own [no-mistakes](https://github.com/Nova-Caelum/no-mistakes), all MIT; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+These are directions, not dates.
 
-Built by [Nova Caelum](https://novacaelum.com) for those without enterprise budgets.
+Follow [Nova Caelum on GitHub](https://github.com/Nova-Caelum) for updates, and to see what else we’re building.
+
+## About Nova Caelum
+
+**Individual Empowerment Systems**
+
+*More room for what only you can do.*
+
+We build systems that give people time back, bring new capabilities within reach, and support them as their lives change. Technical Cofounder is one expression of that work.
+
+## License and acknowledgments
+
+Technical Cofounder is free and open source under the Apache-2.0 license. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Parts of it are adapted from [obra/superpowers](https://github.com/obra/superpowers), [mattpocock/skills](https://github.com/mattpocock/skills), [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) and Nova Caelum’s own [no-mistakes](https://github.com/Nova-Caelum/no-mistakes), all under the MIT license. The full notices, and which piece came from where, are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Our thanks to the people who built them.
