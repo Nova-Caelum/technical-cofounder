@@ -46,6 +46,7 @@ jobs:
             tests.test_mcp \
             tests.test_template_hooks \
             tests.test_plugin_hooks \
+            tests.test_health_briefing \
             tests.test_installer \
             tests.test_contact \
             tests.test_setup_record \
