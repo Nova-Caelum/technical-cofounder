@@ -1,5 +1,5 @@
 """Unit tests for the technical-cofounder starter workspace: init_workspace.py
-and the guardrail hooks under plugins/base-novacaelum/hooks/.
+and the guardrail hooks under plugins/technical-cofounder/hooks/.
 
 Standard library only.
 """
@@ -15,7 +15,7 @@ import uuid
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_ROOT = REPO_ROOT / "plugins" / "base-novacaelum"
+PLUGIN_ROOT = REPO_ROOT / "plugins" / "technical-cofounder"
 HOOKS_DIR = PLUGIN_ROOT / "hooks"
 BIN_DIR = PLUGIN_ROOT / "bin"
 TEMPLATE_DIR = PLUGIN_ROOT / "template"
@@ -158,14 +158,14 @@ class SessionPreloadTests(unittest.TestCase):
         self.write("core_text/setup.json", json.dumps({"schema_version": 1, "steps": steps, "choices": choices or {}}))
 
     def stack(self, out):
-        return dict(re.findall(r"(?m)^- (base-novacaelum|super-novacaelum|hyperspace-engine): (.+?)\s*$", out))
+        return dict(re.findall(r"(?m)^- (technical-cofounder|super-novacaelum|hyperspace-engine): (.+?)\s*$", out))
 
     def test_core_text_profile(self):
         self.write("core_text/user.md", "# core-profile-marker\n")
         out = self.preload()
         self.assertIn("core-profile-marker", out)
         self.assertIn("## Tech primer (live)", out)
-        self.assertIn("/base-novacaelum:contact", out)
+        self.assertIn("/technical-cofounder:contact", out)
 
     def test_core_text_wins_over_legacy(self):
         self.write("core_text/user.md", "# core-profile-marker\n")
@@ -180,12 +180,12 @@ class SessionPreloadTests(unittest.TestCase):
         self.assertIn("legacy-profile-marker", out)
         notes = [ln for ln in out.splitlines() if "core_text/" in ln and "move" in ln.lower()]
         self.assertEqual(len(notes), 1, out)
-        self.assertIn("/base-novacaelum:contact", out)
+        self.assertIn("/technical-cofounder:contact", out)
 
     def test_no_profile_points_to_setup(self):
         out = self.preload()
-        self.assertIn("/base-novacaelum:quick-start", out)
-        self.assertIn("/base-novacaelum:contact", out)
+        self.assertIn("/technical-cofounder:quick-start", out)
+        self.assertIn("/technical-cofounder:contact", out)
         self.assertIn("## Tech primer (live)", out)
 
     def test_setup_progress_line(self):
@@ -206,7 +206,7 @@ class SessionPreloadTests(unittest.TestCase):
 
     def test_stack_defaults(self):
         self.assertEqual(self.stack(self.preload()), {
-            "base-novacaelum": "present", "super-novacaelum": "not chosen", "hyperspace-engine": "not chosen"})
+            "technical-cofounder": "present", "super-novacaelum": "not chosen", "hyperspace-engine": "not chosen"})
 
     def test_super_expected_but_missing(self):
         self.record(choices={"super": "yes"})
@@ -248,8 +248,8 @@ class SessionPreloadTests(unittest.TestCase):
         self.write(".claude/settings.json", "{not json")
         self.write("core_text/setup.json", "{not json")
         out = self.preload()
-        self.assertEqual(self.stack(out)["base-novacaelum"], "present")
-        self.assertIn("/base-novacaelum:contact", out)
+        self.assertEqual(self.stack(out)["technical-cofounder"], "present")
+        self.assertIn("/technical-cofounder:contact", out)
 
     def test_size_budget(self):
         self.write("core_text/user.md", (TEMPLATE_DIR / "core_text" / "user.md").read_text(encoding="utf-8"))
@@ -329,7 +329,7 @@ class HyperspacePreloadTests(unittest.TestCase):
         fake = FakeHE(self.project, entries=1)
         before = fake.config()
         out = self.preload()
-        self.assertIn("/base-novacaelum:quick-start", out)
+        self.assertIn("/technical-cofounder:quick-start", out)
         self.assertEqual(fake.config(), before)
         self.assertEqual(fake.calls(), [])
 

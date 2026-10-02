@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MCP_DIR = REPO_ROOT / "plugins" / "base-novacaelum" / "mcp"
+MCP_DIR = REPO_ROOT / "plugins" / "technical-cofounder" / "mcp"
 SERVER_PATH = MCP_DIR / "server.py"
 sys.path.insert(0, str(MCP_DIR))
 

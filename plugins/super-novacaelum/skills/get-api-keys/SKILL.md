@@ -5,7 +5,7 @@ description: Use when the user asks how to get or add a Context7, Exa, or Browse
 
 # Get API Keys
 
-First time with an API key? Use `base-novacaelum`'s `super-setup` skill instead: it walks you through a safe way to keep keys, each account and entering them. This page is the per-service reference.
+First time with an API key? Use `technical-cofounder`'s `super-setup` skill instead: it walks you through a safe way to keep keys, each account and entering them. This page is the per-service reference.
 
 `super-novacaelum` runs three hosted MCP servers — Context7, Exa, and Browserbase — on your own keys. None of the keys ship in this plugin; each is entered through Claude Code's own secure storage, never as a file in this repo.
 

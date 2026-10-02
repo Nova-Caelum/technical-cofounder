@@ -1,5 +1,5 @@
 """Unit tests for the setup installer's branch behavior:
-plugins/base-novacaelum/bin/init_workspace.py's --obsidian/--no-obsidian
+plugins/technical-cofounder/bin/init_workspace.py's --obsidian/--no-obsidian
 and --super/--no-super flags, and its no-overwrite guarantee across every
 combination.
 
@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_ROOT = REPO_ROOT / "plugins" / "base-novacaelum"
+PLUGIN_ROOT = REPO_ROOT / "plugins" / "technical-cofounder"
 BIN_DIR = PLUGIN_ROOT / "bin"
 SCRIPT = BIN_DIR / "init_workspace.py"
 

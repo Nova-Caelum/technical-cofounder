@@ -24,7 +24,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN = REPO_ROOT / "plugins" / "base-novacaelum"
+PLUGIN = REPO_ROOT / "plugins" / "technical-cofounder"
 BIN = PLUGIN / "bin"
 LOOP_STATE = BIN / "loop_state.py"
 VERIFIER = PLUGIN / "mcp" / "verifier.py"

@@ -23,15 +23,15 @@ Every gate in the run was first shown a broken artifact and refused it: tests wi
 From the repository root:
 
 ```
-python3 plugins/base-novacaelum/bin/loop_state.py read examples/toy-run/loop.state.json
+python3 plugins/technical-cofounder/bin/loop_state.py read examples/toy-run/loop.state.json
 ```
 
 Re-verify a task with verifier-lite (this writes a new verdict into the example, so try it on a copy):
 
 ```
 cp -R examples/toy-run /tmp/toy-run
-python3 plugins/base-novacaelum/mcp/verifier.py /tmp/toy-run/03_draft/criteria/greet-command.json --root /tmp/toy-run
-python3 plugins/base-novacaelum/bin/loop_state.py check /tmp/toy-run/loop.state.json
+python3 plugins/technical-cofounder/mcp/verifier.py /tmp/toy-run/03_draft/criteria/greet-command.json --root /tmp/toy-run
+python3 plugins/technical-cofounder/bin/loop_state.py check /tmp/toy-run/loop.state.json
 ```
 
 `check` re-hashes every file a gate froze. Edit one of them and run it again: `doubled_back_rounds` goes up by one, once per edit. That count is the run's evidence of fixing versus changing its mind.

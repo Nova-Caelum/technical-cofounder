@@ -18,8 +18,8 @@ from types import SimpleNamespace
 from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-BIN_DIR = REPO_ROOT / "plugins" / "base-novacaelum" / "bin"
-MCP_DIR = REPO_ROOT / "plugins" / "base-novacaelum" / "mcp"
+BIN_DIR = REPO_ROOT / "plugins" / "technical-cofounder" / "bin"
+MCP_DIR = REPO_ROOT / "plugins" / "technical-cofounder" / "mcp"
 sys.path.insert(0, str(BIN_DIR))
 sys.path.insert(1, str(MCP_DIR))
 

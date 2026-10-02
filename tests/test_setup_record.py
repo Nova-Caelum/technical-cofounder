@@ -1,4 +1,4 @@
-"""Unit tests for plugins/base-novacaelum/bin/setup_record.py: the setup record
+"""Unit tests for plugins/technical-cofounder/bin/setup_record.py: the setup record
 (<project>/core_text/setup.json) and the rendered guide
 (<project>/core_text/setup-guide.html for part 1, setup-extras.html for part 2),
 both driven by setup/steps.json.
@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_ROOT = REPO_ROOT / "plugins" / "base-novacaelum"
+PLUGIN_ROOT = REPO_ROOT / "plugins" / "technical-cofounder"
 SCRIPT = PLUGIN_ROOT / "bin" / "setup_record.py"
 STEPS = json.loads((PLUGIN_ROOT / "setup" / "steps.json").read_text(encoding="utf-8"))["steps"]
 STEP_IDS = [s["id"] for s in STEPS]

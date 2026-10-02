@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "about": "Who does what on the Technical Cofounder team. One entry per agent: its role, when to use it, the skills it reaches for, the team plugin's MCP tools it uses, and what it gains when super-novacaelum is installed. check_registry.py confirms this file matches the agent and skill files. Add an entry whenever you add an agent.",
+  "roles": {
+    "orchestrator": "Runs the session: frames the goal, chooses the approach, routes work, and decides when something is done. Never grades its own work.",
+    "executor-builder": "Builds to a spec, test-first, and reports back with proof. Never self-certifies.",
+    "executor-auditor": "Checks claims against evidence and returns pass or fail. Does not build.",
+    "executor-setup": "Gets people set up and unstuck, and teaches as it goes."
+  },
+  "agents": [
+    {
+      "name": "technical-cofounder",
+      "role": "orchestrator",
+      "use_when": "The default, and where every session starts. Framing a goal, choosing between approaches, planning, deciding what to build next, routing work to the team, and deciding when something is really done.",
+      "skills": [
+        "hyperspace",
+        "hs-understand",
+        "hs-decide",
+        "hs-draft",
+        "hs-build",
+        "hs-live",
+        "option-conception",
+        "engineering-architecture",
+        "overbloat-review",
+        "assumption-check",
+        "stress-test",
+        "verification-before-completion",
+        "new-agent",
+        "pressure-scenario-skill-authoring",
+        "secrets-setup",
+        "contact-nova-caelum"
+      ],
+      "mcp_tools": ["worklog_recent", "worklog_search", "worklog_append"],
+      "with_super": {
+        "skills": ["find-docs", "web-research"],
+        "mcp_servers": ["context7", "exa", "browserbase"]
+      }
+    },
+    {
+      "name": "engineer",
+      "role": "executor-builder",
+      "use_when": "Code needs writing, a bug fixing, a feature adding, a script or migration making, failing tests making pass, or a plan turning into working software.",
+      "skills": [
+        "hs-build",
+        "verification-before-completion",
+        "assumption-check",
+        "engineering-code-review",
+        "secrets-setup"
+      ],
+      "mcp_tools": ["verify", "worklog_append", "worklog_recent"],
+      "with_super": {
+        "skills": ["find-docs", "web-research"],
+        "mcp_servers": ["context7", "exa"]
+      }
+    },
+    {
+      "name": "devops-lead",
+      "role": "executor-auditor",
+      "use_when": "Something is claimed done, fixed or passing and needs checking; a diff or PR needs review before merge; a security or secrets check; or the leak and quality gates need running.",
+      "skills": [
+        "engineering-code-review",
+        "verification-before-completion",
+        "assumption-check",
+        "overbloat-review"
+      ],
+      "mcp_tools": ["verify", "worklog_recent", "worklog_search", "worklog_append"],
+      "with_super": {
+        "skills": ["find-docs", "web-research"],
+        "mcp_servers": ["context7", "exa", "browserbase"]
+      }
+    },
+    {
+      "name": "lead-fde",
+      "role": "executor-setup",
+      "use_when": "Setting up a project or the plugins (including a first-timer's API keys for super), onboarding, first-run troubleshooting, explaining how something works in plain words, or building your own agents and skills.",
+      "skills": [
+        "setup",
+        "super-setup",
+        "secrets-setup",
+        "new-agent",
+        "pressure-scenario-skill-authoring",
+        "option-conception",
+        "assumption-check",
+        "verification-before-completion",
+        "contact-nova-caelum"
+      ],
+      "mcp_tools": ["worklog_recent", "worklog_append"],
+      "with_super": {
+        "skills": ["get-api-keys", "find-docs", "web-research"],
+        "mcp_servers": ["context7", "exa"]
+      }
+    }
+  ]
+}

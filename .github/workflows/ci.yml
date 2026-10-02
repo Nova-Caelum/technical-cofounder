@@ -36,7 +36,7 @@ jobs:
       - name: Validate marketplace and plugins
         run: |
           claude plugin validate --strict .
-          claude plugin validate --strict plugins/base-novacaelum
+          claude plugin validate --strict plugins/technical-cofounder
           claude plugin validate --strict plugins/super-novacaelum
 
       - name: Run tests
@@ -54,7 +54,7 @@ jobs:
 
       - name: Shellcheck hooks
         if: runner.os == 'Linux'
-        run: shellcheck plugins/base-novacaelum/hooks/*.sh plugins/base-novacaelum/hooks/lib/*.sh
+        run: shellcheck plugins/technical-cofounder/hooks/*.sh plugins/technical-cofounder/hooks/lib/*.sh
 
       - name: Leak scan (full history)
         if: runner.os == 'Linux'
@@ -62,4 +62,4 @@ jobs:
 
       - name: Registry check
         if: runner.os == 'Linux'
-        run: python3 plugins/base-novacaelum/registry/check_registry.py
+        run: python3 plugins/technical-cofounder/registry/check_registry.py
