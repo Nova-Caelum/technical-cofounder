@@ -5,7 +5,12 @@
 
 # Technical Cofounder
 
-For solo builders and the build-curious: **your new AI senior dev team - give them your idea, build it together.**
+<h6></h6>
+
+For solo builders and the build-curious: 
+**your new AI senior dev team - give them your idea, build it together.**
+
+<h6></h6>
 
 <p align="center">
   <a href="#get-started">Get started</a> · 
@@ -15,6 +20,8 @@ For solo builders and the build-curious: **your new AI senior dev team - give th
   <a href="#roadmap">Roadmap</a>
 </p>
 
+<h6></h6>
+
 <p align="center">
   <a href="https://claude.com/claude-code"><img src="https://img.shields.io/badge/agents-Claude%20Code-D97757" alt="Agents: Claude Code"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
@@ -22,6 +29,8 @@ For solo builders and the build-curious: **your new AI senior dev team - give th
   <img src="https://img.shields.io/badge/tested%20on-macOS%20%7C%20Linux%20%7C%20Windows-informational" alt="Tested on macOS, Linux and Windows">
   <a href="https://novacaelum.substack.com/"><img src="https://img.shields.io/badge/Substack-Deploy%20the%20Deck-FF6719?logo=substack&logoColor=white" alt="Substack: Deploy the Deck"></a>
 </p>
+
+<h6></h6>
 
 
 > "The original version of Technical Cofounder was the first thing I built with agents. The tool has evolved alongside myself and my capabilities with each new build. It has put new things within reach, which is the core mission of Nova Caelum."
@@ -32,6 +41,7 @@ For solo builders and the build-curious: **your new AI senior dev team - give th
 
 ## Get started
 
+<h6></h6>
 
 ### Already know your way around?
 
@@ -53,6 +63,7 @@ Want the research extras too? `super-novacaelum` adds current documentation look
 ```bash
 claude plugin install super-novacaelum@nova-caelum --scope project
 ```
+<h6></h6>
 
 ### New to building with agents?
 
@@ -93,6 +104,9 @@ Stuck at any point? Run `/technical-cofounder:contact`, or email hello@novacaelu
 
 Work through an idea, turn it into a plan, and build with specialists who bring different skills to the work.
 
+<h6></h6>
+
+
 ### Technical Cofounder
 
 *The one who brings it together.*
@@ -101,6 +115,8 @@ Think through what you want to build, compare approaches, and decide what matter
 
 **Equipped for:** Architecture decisions · Comparing approaches · Planning and delegation · Challenging assumptions
 
+<h6></h6>
+
 ### Engineer
 
 *The one who builds.*
@@ -108,6 +124,8 @@ Think through what you want to build, compare approaches, and decide what matter
 Turn a clear brief into working software. Your engineer writes tests, implements features, investigates bugs, and works through review findings. Each handoff includes the changes, the evidence, and anything still unresolved.
 
 **Equipped for:** Implementation · Test-first development · Debugging · Fixing review findings
+<h6></h6>
+
 
 ### DevOps Lead
 
@@ -116,6 +134,9 @@ Turn a clear brief into working software. Your engineer writes tests, implements
 Get a separate set of eyes on the work before moving on. Your DevOps Lead reviews code and pull requests, checks security and secrets, and tests completion claims against the original brief. Findings go back to the engineer for fixes and another review.
 
 **Equipped for:** Code and PR review · Quality checks · Security and secrets checks · Evidence-based verification
+
+<h6></h6>
+
 
 ### Forward-Deployed Engineer
 
@@ -129,6 +150,7 @@ Set up your project, work through unfamiliar tools, and get unstuck when somethi
 
 
 ## What’s inside
+<h6></h6>
 
 ### A way forward. Powered by Hyperspace Engine.
 
@@ -137,6 +159,7 @@ Turn a goal into a plan, then carry it through with agents equipped to act. Foll
 ![The Hyperspace workflow: Understand, Decide, Draft and Build each pass through a numbered check before Use it live, under a Verification machinery band that combines Deterministic checks and Intelligent judgment](docs/images/hyperspace-workflow.png)
 
 [Explore the interactive workflow →](https://novacaelum.com/technical-cofounder/#hyperspace)
+<h6></h6>
 
 ### What equips the team
 
@@ -148,6 +171,7 @@ Turn a goal into a plan, then carry it through with agents equipped to act. Foll
 
 
 ## Built together
+<h6></h6>
 
 ### Automated drafting for all flavors of professional emails
 
@@ -160,6 +184,7 @@ Together with Technical Cofounder, I solved that problem. **Digital Twin** is a 
 I set three priorities: capture my voice and nuance, limit access to my email, and let me review drafts before sending.
 
 Technical Cofounder shaped a build plan around those priorities, streamlining research, design, and all the coding. We built it together, and I came away with the solution, I understood what we had built, and I leveled up through the process.
+<h6></h6>
 
 ### A task system built for both of us
 
@@ -174,6 +199,7 @@ The task graph (now an integral part of our Caelos system) was exactly what I ne
 <br>
 
 ## Roadmap
+<h6></h6>
 
 What we are working on next, in no fixed order:
 
@@ -191,6 +217,7 @@ Follow [Nova Caelum on GitHub](https://github.com/Nova-Caelum) for updates, and 
 
 
 ## About Nova Caelum
+<h6></h6>
 
 **Individual Empowerment Systems**
 
@@ -202,6 +229,7 @@ We build systems that give people time back, bring new capabilities within reach
 
 
 ## License and acknowledgments
+<h6></h6>
 
 Technical Cofounder is free and open source under the Apache-2.0 license. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
