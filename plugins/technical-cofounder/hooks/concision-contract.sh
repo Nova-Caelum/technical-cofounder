@@ -29,8 +29,8 @@ if ! source "$SCRIPT_DIR/lib/loud-fail.sh"; then
 fi
 # shellcheck source=lib/resolve-tools.sh disable=SC1091
 if ! source "$SCRIPT_DIR/lib/resolve-tools.sh"; then
-    log_visible "cannot source lib/resolve-tools.sh — python and jq will not be found"
-    export NC_PYTHON="" NC_JQ=""
+    log_visible "cannot source lib/resolve-tools.sh — jq will not be found"
+    export NC_JQ=""
 fi
 
 if [ "${TC_CONCISION:-}" = "off" ]; then

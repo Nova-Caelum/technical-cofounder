@@ -559,11 +559,12 @@ FAKE_PYTHON = "#!/bin/bash\nexit 0\n"
 # The two places a project's own interpreter can be (Mac and Linux, then Windows).
 PROJECT_PYTHONS = (".hyperspace/env/bin/python", ".hyperspace/env/Scripts/python.exe")
 NO_PYTHON = ("python3", "python", "py")
+GUARDRAIL_HOOKS = ("circuit-breaker.sh", "concision-budget.sh", "concision-contract.sh", "concision-stop.sh")
 
 
-def recording_tool(path, log):
+def recording_tool(path, log, label="started"):
     """A stand-in that appends one line to `log` every time it is started."""
-    return write_tool(path, f'#!/bin/bash\necho "$0 $*" >> "{log.as_posix()}"\nexit 0\n')
+    return write_tool(path, f'#!/bin/bash\necho "{label}: $*" >> "{log.as_posix()}"\nexit 0\n')
 PLAIN_PROMPT = {"session_id": "sess-1", "hook_event_name": "UserPromptSubmit", "prompt": "add a retry to the upload function"}
 
 
@@ -590,11 +591,12 @@ class ToolResolverTests(unittest.TestCase):
         return self.path_without("jq")
 
     def resolve(self, **env_extra):
-        """Source the resolver the way a hook does and return (NC_PYTHON, NC_JQ)."""
+        """Source the resolver the way a hook does and return (the Python it
+        finds when asked, NC_JQ). Sourcing alone must not look for Python."""
         env = {k: v for k, v in os.environ.items() if k not in ("NC_TOOLS_DIR", "NC_PYTHON", "NC_JQ")}
         env.update(self.env, RESOLVER=(HOOKS_DIR / "lib" / "resolve-tools.sh").as_posix(), **env_extra)
         r = subprocess.run(
-            [BASH, "-c", 'set -euo pipefail; source "$RESOLVER"; printf "%s\\n%s\\n" "$NC_PYTHON" "$NC_JQ"'],
+            [BASH, "-c", 'set -euo pipefail; source "$RESOLVER"; printf "%s\\n%s\\n" "$(nc_resolve_python)" "$NC_JQ"'],
             capture_output=True, text=True, encoding="utf-8", env=env,
         )
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -670,6 +672,53 @@ class ToolResolverTests(unittest.TestCase):
         write_tool(self.project / PROJECT_PYTHONS[0], FAKE_PYTHON)
         path = os.pathsep.join([str(launcher), self.path_without(*NO_PYTHON)])
         self.assertEqual(self.resolve(PATH=path)[0], "C:/Fake/python.exe")
+
+    def test_only_the_briefing_starts_python(self):
+        # Every python a hook could reach records being started: three names on
+        # PATH and both project layouts. The guardrail hooks start none of them;
+        # the session briefing, the one hook that uses Python, does.
+        started = self.tmp / "python-started.log"
+        for name in NO_PYTHON:
+            recording_tool(self.tmp / "on-path" / name, started)
+        for rel in PROJECT_PYTHONS:
+            recording_tool(self.project / rel, started, label="project")
+        env = {**self.env, "PATH": os.pathsep.join([str(self.tmp / "on-path"), os.environ["PATH"]])}
+        for name in GUARDRAIL_HOOKS:
+            with self.subTest(hook=name):
+                r = run_hook(name, HookSampleAndMalformedInputTests.SAMPLES[name], env_extra=env)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertFalse(started.exists(), f"{name} started: {started.read_text() if started.exists() else ''}")
+        r = run_hook("session-preload.sh", HookSampleAndMalformedInputTests.SAMPLES["session-preload.sh"], env_extra=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(started.exists(), "the recorder never ran, so the lines above proved nothing")
+        lines = started.read_text(encoding="utf-8").splitlines()
+        self.assertFalse([ln for ln in lines if ln.startswith("project:")], "PATH had a python; the project's was started")
+
+    def test_guardrail_hooks_behave_the_same_with_no_python_anywhere(self):
+        def drive(path, state):
+            env = {**self.env, "PATH": path, "TMPDIR": str(state)}
+            session = "no-python-check"
+            seen = []
+            for _ in range(5):
+                seen.append(run_hook("circuit-breaker.sh", {"session_id": session, "hook_event_name": "PostToolUseFailure",
+                                                            "tool_name": "Bash", "error": "command not found: frobnicate"}, env_extra=env))
+            seen.append(run_hook("circuit-breaker.sh", {"session_id": session, "hook_event_name": "PreToolUse", "tool_name": "Bash"}, env_extra=env))
+            for name in ("concision-budget.sh", "concision-contract.sh", "concision-stop.sh"):
+                seen.append(run_hook(name, {**HookSampleAndMalformedInputTests.SAMPLES[name], "session_id": session}, env_extra=env))
+            return [(r.returncode, r.stdout, r.stderr) for r in seen]
+
+        states = [self.tmp / "state-a", self.tmp / "state-b"]
+        for state in states:
+            state.mkdir()
+        bare = self.path_without(*NO_PYTHON)
+        r = subprocess.run([BASH, "-c", "command -v python3 || command -v python || command -v py"],
+                           capture_output=True, text=True, env={**os.environ, "PATH": bare})
+        self.assertNotEqual(r.returncode, 0, f"a python is still reachable at {r.stdout!r}; this test would prove nothing")
+        with_python, without = drive(os.environ["PATH"], states[0]), drive(bare, states[1])
+        self.assertEqual(without, with_python)
+        self.assertEqual(without[5][0], 2, "the breaker did not block after five failures")
+        self.assertIn("BLOCKED", without[5][2])
+        self.assertIn("RESPONSE BUDGET", without[6][1])
 
     def test_py_launcher_is_stored_as_the_one_interpreter_it_starts(self):
         # With no python3 or python on PATH, `py -3` is the last resort. It is two
