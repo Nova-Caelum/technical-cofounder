@@ -1,5 +1,5 @@
 """Unit tests for the contact-nova-caelum skill's helpers:
-plugins/base-novacaelum/bin/contact.py (POST to the contact Worker, with
+plugins/technical-cofounder/bin/contact.py (POST to the contact Worker, with
 retries and a fallback address) and bin/redact.py (the redaction patterns
 shared with setup_record.py), plus the shipped wiring (contact.json, the
 command, the skill, the agents)."""
@@ -20,7 +20,7 @@ from pathlib import Path
 from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_ROOT = REPO_ROOT / "plugins" / "base-novacaelum"
+PLUGIN_ROOT = REPO_ROOT / "plugins" / "technical-cofounder"
 BIN_DIR = PLUGIN_ROOT / "bin"
 CONTACT_BIN = BIN_DIR / "contact.py"
 FALLBACK = "Email us at hello@novacaelum.com"
@@ -145,9 +145,14 @@ class RedactionKindTests(unittest.TestCase):
         self.assertNotIn(key, out)
         self.assertEqual(counts, {"keyshaped": 1})
 
-    def test_setup_record_uses_the_shared_module(self):
-        text = (BIN_DIR / "setup_record.py").read_text(encoding="utf-8")
+    def test_setup_record_uses_the_same_patterns(self):
+        # setup_record.py lives in the setup plugin, which is installed on its
+        # own and cannot import from this one. It carries its own copy of
+        # redact.py, and the two copies must stay the same file.
+        setup_bin = REPO_ROOT / "plugins" / "technical-cofounder-setup" / "bin"
+        text = (setup_bin / "setup_record.py").read_text(encoding="utf-8")
         self.assertIn("from redact import redact_text", text)
+        self.assertEqual((setup_bin / "redact.py").read_bytes(), (BIN_DIR / "redact.py").read_bytes())
 
 
 # ----------------------------------------------------------- contact.py send
@@ -362,7 +367,7 @@ class ShippedWiringTests(unittest.TestCase):
         self.assertNotIn("tests.test_ask", ci)
 
     def test_no_stale_references_remain(self):
-        stale = ("ask" + "-nova-caelum", "base-novacaelum" + ":ask", "ask" + "_issue", "whats" + "app",
+        stale = ("ask" + "-nova-caelum", "technical-cofounder" + ":ask", "ask" + "_issue", "whats" + "app",
                  "agents" + "@novacaelum.com")
         skip = {".git", "__pycache__"}
         for path in REPO_ROOT.rglob("*"):

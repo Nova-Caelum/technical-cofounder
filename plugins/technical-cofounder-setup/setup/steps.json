@@ -1,0 +1,188 @@
+{
+  "about": "The one source of 'why' and 'how long' for setup. install: one entry per item the install script can plan; the script prints the why and the minutes with every plan row. steps: the guide's steps, in order; part is 1 (the guide) or 2 (the extras page), a null minutes shows no time, and choices lists the only keys a step may record in core_text/setup.json. installer/nc_setup.py, bin/setup_record.py and the setup skill all read this file, so adding an item or a step is an edit here.",
+  "install": [
+    {
+      "id": "claude-cli",
+      "title": "Claude Code's command line",
+      "why": "Installing Claude Code's command line so your team can be installed and updated reliably.",
+      "minutes": 1
+    },
+    {
+      "id": "git",
+      "title": "Git",
+      "why": "Installing Git so your team can tell exactly what changed in your project.",
+      "why_windows": "Installing Git because you're on Windows: it gives your team the command line its safety checks run in.",
+      "minutes": 2
+    },
+    {
+      "id": "uv",
+      "title": "uv",
+      "why": "Installing uv, a small tool that fetches the right Python for your team without touching the one your computer came with.",
+      "minutes": 1
+    },
+    {
+      "id": "python",
+      "title": "Python",
+      "why": "Installing Python so your team's memory and safety checks can run.",
+      "minutes": 1
+    },
+    {
+      "id": "jq",
+      "title": "jq",
+      "why": "Installing jq so your team's guardrails can read what's happening in a session.",
+      "minutes": 1
+    },
+    {
+      "id": "network",
+      "title": "Internet check",
+      "why": "Checking that this computer can reach GitHub, where your team is downloaded from.",
+      "minutes": 1
+    },
+    {
+      "id": "project-folder",
+      "title": "Your project folder",
+      "why": "Creating a folder just for this project, so your team's files stay in one place and your other folders stay as they are.",
+      "minutes": 1
+    },
+    {
+      "id": "existing-config",
+      "title": "Instructions already here",
+      "why": "Checking for instructions you already wrote for Claude here, so nothing of yours gets replaced.",
+      "minutes": 1
+    },
+    {
+      "id": "marketplace",
+      "title": "Nova Caelum's plugin catalog",
+      "why": "Adding Nova Caelum's plugin catalog so Claude Code knows where your team comes from.",
+      "minutes": 1
+    },
+    {
+      "id": "team-plugin",
+      "title": "Your team",
+      "why": "Installing your team, and Hyperspace Engine with it.",
+      "minutes": 1
+    },
+    {
+      "id": "engine-env",
+      "title": "Hyperspace Engine's workspace",
+      "why": "Building Hyperspace Engine's private workspace, where your task graph and its checks run.",
+      "minutes": 2
+    },
+    {
+      "id": "obsidian",
+      "title": "Obsidian check",
+      "why": "Checking whether Obsidian is installed, so setup can offer it without asking you to look.",
+      "minutes": 1
+    }
+  ],
+  "steps": [
+    {
+      "id": "prerequisites",
+      "title": "Quick questions and the basics",
+      "does": "Asks what to call your project and where it should live, then checks this computer, installs only what's missing, and creates your project folder with your team in it.",
+      "why": "Your team needs a folder of its own and a few free tools before it can start.",
+      "skippable": false,
+      "if_skipped": "Not skippable: without these your team can't start.",
+      "cost": "Free",
+      "minutes": 5,
+      "part": 1,
+      "choices": ["os"]
+    },
+    {
+      "id": "guide",
+      "title": "This guide",
+      "does": "Every step, how long it takes, and what can wait.",
+      "why": "See the whole path, then do what fits today.",
+      "skippable": false,
+      "if_skipped": "Not skippable: it's this page.",
+      "cost": "Free",
+      "minutes": 1,
+      "part": 1,
+      "choices": []
+    },
+    {
+      "id": "editor",
+      "title": "Where you read and edit Markdown",
+      "does": "Picks the app you'll open Markdown (.md) files in: we recommend Obsidian, and VS Code, Typora or Zed work too.",
+      "why": "Almost every file your agents read and write is Markdown, from your profile and plans to the worklog, rules and skills: it's the core file type here, not “notes”.",
+      "skippable": false,
+      "if_skipped": "Choosing TextEdit (Mac) or Notepad (Windows) counts as done: they open Markdown as raw text, with no formatting, links or search.",
+      "cost": "Free (Typora is paid)",
+      "minutes": 5,
+      "part": 1,
+      "choices": ["editor"]
+    },
+    {
+      "id": "obsidian",
+      "title": "Obsidian (recommended)",
+      "does": "Opens this project as an Obsidian vault, with a ready-made worklog table and a short how-to (OBSIDIAN.md).",
+      "why": "Your whole project, every file and link, in one searchable place instead of a folder of files.",
+      "skippable": true,
+      "if_skipped": "Everything still works in your editor, without the vault view or the worklog table.",
+      "cost": "Free",
+      "minutes": null,
+      "part": 1,
+      "choices": ["obsidian"]
+    },
+    {
+      "id": "github",
+      "title": "GitHub (optional, strongly recommended)",
+      "does": "Connects this computer to a free GitHub account with GitHub's command-line tool. It takes about 5 minutes with an account, longer without.",
+      "why": "Every change is backed up off this computer and can be undone; it solves backup and lost-file problems for good, and it's free.",
+      "skippable": true,
+      "if_skipped": "Your project lives only on this computer, one lost laptop or bad edit away from gone; add it any time.",
+      "cost": "Free",
+      "minutes": 5,
+      "part": 1,
+      "choices": ["github"]
+    },
+    {
+      "id": "workspace",
+      "title": "Your starter workspace",
+      "does": "Adds your profile, worklog, rules and templates to this project.",
+      "why": "It's how every agent remembers you and what happened last session.",
+      "skippable": false,
+      "if_skipped": "Not skippable: the rest of setup writes into these files.",
+      "cost": "Free",
+      "minutes": 2,
+      "part": 1,
+      "choices": ["worklog_view"]
+    },
+    {
+      "id": "first-steps",
+      "title": "What to try first",
+      "does": "Three things to try with your new team.",
+      "why": "A small first win shows how the team works.",
+      "skippable": true,
+      "if_skipped": "Nothing breaks.",
+      "cost": "Free",
+      "minutes": 2,
+      "part": 1,
+      "choices": []
+    },
+    {
+      "id": "profile",
+      "title": "About you",
+      "does": "A short interview that fills in your profile.",
+      "why": "Agents read it every session, so they work your way from the first message.",
+      "skippable": true,
+      "if_skipped": "Agents use general defaults and won't know your goals or style.",
+      "cost": "Free",
+      "minutes": 2,
+      "part": 1,
+      "choices": []
+    },
+    {
+      "id": "super",
+      "title": "Research extras (optional)",
+      "does": "Live documentation, web research and a cloud browser for your agents.",
+      "why": "Agents check today's docs and the web instead of guessing from memory.",
+      "skippable": true,
+      "if_skipped": "Agents use built-in web search; anything that needs a real browser comes back to you.",
+      "cost": "Free tiers; you create the accounts",
+      "minutes": 15,
+      "part": 2,
+      "choices": ["super"]
+    }
+  ]
+}

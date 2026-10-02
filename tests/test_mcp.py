@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MCP_DIR = REPO_ROOT / "plugins" / "base-novacaelum" / "mcp"
+MCP_DIR = REPO_ROOT / "plugins" / "technical-cofounder" / "mcp"
 SERVER_PATH = MCP_DIR / "server.py"
 sys.path.insert(0, str(MCP_DIR))
 
@@ -145,11 +145,11 @@ class ServerProtocolTests(unittest.TestCase):
         resp = self.session.recv()
         self.assertEqual(resp["id"], 2)
 
-    def test_tools_list_names_all_four_tools(self):
+    def test_tools_list_names_the_three_worklog_tools(self):
         self.session.send({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
         resp = self.session.recv()
         names = {t["name"] for t in resp["result"]["tools"]}
-        self.assertEqual(names, {"worklog_append", "worklog_recent", "worklog_search", "verify"})
+        self.assertEqual(names, {"worklog_append", "worklog_recent", "worklog_search"})
 
     def test_unknown_method_returns_method_not_found(self):
         self.session.send({"jsonrpc": "2.0", "id": 1, "method": "not/a/method"})
@@ -216,35 +216,6 @@ class ServerProtocolTests(unittest.TestCase):
         resp = self.session.recv()
         self.assertTrue(resp["result"]["isError"])
 
-    def test_tools_call_verify_round_trip(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
-            (tmp_path / "a.txt").write_text("x", encoding="utf-8")
-            criteria_path = tmp_path / "criteria.json"
-            criteria_path.write_text(
-                json.dumps(
-                    {
-                        "id": "rt",
-                        "criteria": [
-                            {"statement": "exists", "verification": {"kind": "file_state", "path": "a.txt", "assertion": "exists"}}
-                        ],
-                    }
-                ),
-                encoding="utf-8",
-            )
-            self.session.send(
-                {
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "tools/call",
-                    "params": {"name": "verify", "arguments": {"criteria_file": str(criteria_path), "root": tmp}},
-                }
-            )
-            resp = self.session.recv()
-            self.assertFalse(resp["result"]["isError"])
-            verdict = json.loads(resp["result"]["content"][0]["text"])
-            self.assertEqual(verdict["overall"], "pass")
-
 
 sys.path.insert(0, str(REPO_ROOT))
 from tests.test_he_bridge import APPEND_OK, NO_STORE, RECENT_OK, FakeHE  # noqa: E402
@@ -303,7 +274,8 @@ class HyperspaceAdapterTests(unittest.TestCase):
             with self.subTest(tool=name):
                 is_error, text = self.call(name, arguments)
                 self.assertTrue(is_error)
-                self.assertIn("hyperspace-setup", text)
+                self.assertIn('Fix: run /technical-cofounder-setup:start (or say "set up hyperspace")', text)
+                self.assertNotIn("hyperspace-setup", text)
         self.assertEqual(self.markdown(), [])
 
     def test_cli_error_is_isError_and_no_markdown(self):
@@ -320,32 +292,6 @@ class HyperspaceAdapterTests(unittest.TestCase):
         self.assertFalse(is_error, text)
         self.assertTrue(Path(json.loads(text)["file"]).is_file())
         self.assertEqual(fake.calls(), [])
-
-    def criteria(self, **extra):
-        (self.root / "a.txt").write_text("x", encoding="utf-8")
-        path = self.root / "criteria.json"
-        path.write_text(json.dumps({"id": "rt", **extra, "criteria": [
-            {"statement": "exists", "verification": {"kind": "file_state", "path": "a.txt", "assertion": "exists"}}]}))
-        return str(path)
-
-    def test_verify_names_complete_workitem_for_an_he_work_item(self):
-        FakeHE(self.root, owner="technical-cofounder")
-        is_error, text = self.call("verify", {"criteria_file": self.criteria(work_item="demo:goal")})
-        verdict = json.loads(text)
-        self.assertFalse(is_error)
-        self.assertEqual(verdict["overall"], "pass")
-        self.assertIn("complete_workitem", verdict["next_step"])
-        self.assertIn("demo:goal", verdict["next_step"])
-        written = json.loads(next((self.root / "verdicts").glob("*.json")).read_text())
-        self.assertEqual(written["next_step"], verdict["next_step"])
-
-    def test_verify_free_standing_or_without_he_has_no_line(self):
-        FakeHE(self.root, owner="technical-cofounder")
-        _, text = self.call("verify", {"criteria_file": self.criteria()})
-        self.assertNotIn("next_step", json.loads(text))
-        (self.root / ".hyperspace" / "graph.db").unlink()
-        _, text = self.call("verify", {"criteria_file": self.criteria(work_item="demo:goal")})
-        self.assertNotIn("next_step", json.loads(text))
 
 
 if __name__ == "__main__":

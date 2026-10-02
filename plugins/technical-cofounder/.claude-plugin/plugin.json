@@ -1,0 +1,22 @@
+{
+  "name": "technical-cofounder",
+  "version": "0.2.0",
+  "description": "A technical team of four agents with guardrails and a worklog, working with Hyperspace Engine, which runs the loop and checks each task.",
+  "author": {
+    "name": "Nova Caelum",
+    "url": "https://novacaelum.com"
+  },
+  "homepage": "https://github.com/Nova-Caelum/technical-cofounder",
+  "repository": "https://github.com/Nova-Caelum/technical-cofounder",
+  "license": "Apache-2.0",
+  "keywords": [
+    "agents",
+    "engineering",
+    "verification",
+    "guardrails",
+    "workflow"
+  ],
+  "dependencies": [
+    "hyperspace-engine"
+  ]
+}

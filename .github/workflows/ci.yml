@@ -36,25 +36,40 @@ jobs:
       - name: Validate marketplace and plugins
         run: |
           claude plugin validate --strict .
-          claude plugin validate --strict plugins/base-novacaelum
+          claude plugin validate --strict plugins/technical-cofounder
+          claude plugin validate --strict plugins/technical-cofounder-setup
           claude plugin validate --strict plugins/super-novacaelum
 
       - name: Run tests
         run: |
           python3 -m unittest \
             tests.test_mcp \
-            tests.test_verifier \
             tests.test_template_hooks \
             tests.test_plugin_hooks \
+            tests.test_health_briefing \
             tests.test_installer \
-            tests.test_loop \
             tests.test_contact \
             tests.test_setup_record \
-            tests.test_he_bridge
+            tests.test_he_bridge \
+            tests.test_nc_setup \
+            tests.test_bootstrap \
+            tests.test_reasons \
+            tests.test_registry \
+            tests.test_setup_plugin \
+            tests.test_ci_install_walk
 
-      - name: Shellcheck hooks
+      # The real install, end to end: the pasted message's own commands, the
+      # first-step script, the install script, then the team plugin as it was
+      # installed. On Windows it runs with Git taken off PATH.
+      - name: Install walk
+        timeout-minutes: 60
+        run: python scripts/ci_install_walk.py
+
+      - name: Shellcheck hooks and the first-step script
         if: runner.os == 'Linux'
-        run: shellcheck plugins/base-novacaelum/hooks/*.sh plugins/base-novacaelum/hooks/lib/*.sh
+        run: |
+          shellcheck plugins/technical-cofounder/hooks/*.sh plugins/technical-cofounder/hooks/lib/*.sh
+          shellcheck plugins/technical-cofounder-setup/installer/bootstrap.sh
 
       - name: Leak scan (full history)
         if: runner.os == 'Linux'
@@ -62,4 +77,63 @@ jobs:
 
       - name: Registry check
         if: runner.os == 'Linux'
-        run: python3 plugins/base-novacaelum/registry/check_registry.py
+        run: python3 plugins/technical-cofounder/registry/check_registry.py
+
+  # The closest thing there is to a computer that never had Git: the runner's
+  # Git for Windows is really uninstalled, the first-step script has to install
+  # it and ask for a restart, and a new session then walks the whole install.
+  windows-no-git:
+    runs-on: windows-latest
+    defaults:
+      run:
+        # Windows PowerShell 5.1. The runner's `bash` is Git Bash, which this
+        # job removes.
+        shell: powershell
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Uninstall Git for Windows
+        run: |
+          $root = 'C:\Program Files\Git'
+          $uninstaller = Join-Path $root 'unins000.exe'
+          Write-Output "git before: $((Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Path)"
+          if (-not (Test-Path -LiteralPath $uninstaller)) {
+            Write-Output "GIT_UNINSTALL=FAILED there is no uninstaller at $uninstaller"
+            Get-ChildItem -LiteralPath $root -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+            exit 1
+          }
+          $process = Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT', '/NORESTART', '/SUPPRESSMSGBOXES' -Wait -PassThru
+          Write-Output "the uninstaller exited $($process.ExitCode)"
+          # The uninstaller hands the work to a copy of itself: wait for git.exe to go.
+          $deadline = (Get-Date).AddMinutes(5)
+          while ((Test-Path -LiteralPath (Join-Path $root 'cmd\git.exe')) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Seconds 2 }
+          $left = @('cmd\git.exe', 'bin\bash.exe', 'bin\git.exe') | Where-Object { Test-Path -LiteralPath (Join-Path $root $_) }
+          $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+          $bash = Get-Command bash -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+          Write-Output "git after: $($git.Path)"
+          Write-Output "bash after: $($bash.Path)"
+          if ($left -or $git) {
+            Write-Output "GIT_UNINSTALL=FAILED still there: $($left -join ', ') $($git.Path)"
+            exit 1
+          }
+          Write-Output 'GIT_UNINSTALL=DONE'
+
+      - name: Install walk on a computer with no Git
+        timeout-minutes: 75
+        run: python scripts/ci_install_walk.py --fresh-pc

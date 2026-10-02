@@ -1,4 +1,4 @@
-"""Unit tests for plugins/base-novacaelum/bin/setup_record.py: the setup record
+"""Unit tests for plugins/technical-cofounder-setup/bin/setup_record.py: the setup record
 (<project>/core_text/setup.json) and the rendered guide
 (<project>/core_text/setup-guide.html for part 1, setup-extras.html for part 2),
 both driven by setup/steps.json.
@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_ROOT = REPO_ROOT / "plugins" / "base-novacaelum"
+PLUGIN_ROOT = REPO_ROOT / "plugins" / "technical-cofounder-setup"
 SCRIPT = PLUGIN_ROOT / "bin" / "setup_record.py"
 STEPS = json.loads((PLUGIN_ROOT / "setup" / "steps.json").read_text(encoding="utf-8"))["steps"]
 STEP_IDS = [s["id"] for s in STEPS]
@@ -65,8 +65,8 @@ class AutoCreateTests(Project):
         self.assertEqual(rec["schema_version"], 1)
         self.assertEqual(rec["plugin_version"], PLUGIN_VERSION)
         self.assertEqual(list(rec["steps"]), STEP_IDS)
-        for sid in STEP_IDS:
-            self.assertEqual(rec["steps"][sid], {"status": "pending", "at": None})
+        for step in STEPS:
+            self.assertEqual(rec["steps"][step["id"]], {"status": "pending", "at": None, "part": step["part"]})
         self.assertEqual(rec["choices"], {})
         self.assertTrue(rec["created"].endswith("Z"))
         self.assertEqual(rec["created"], rec["updated"])
@@ -127,8 +127,56 @@ class SetTests(Project):
     def test_pending_clears_at(self):
         cli("set", self.project, "editor", "done", "--choice", "editor=vscode")
         cli("set", self.project, "editor", "pending")
-        self.assertEqual(record(self.project)["steps"]["editor"], {"status": "pending", "at": None})
+        editor = next(s for s in STEPS if s["id"] == "editor")
+        self.assertEqual(record(self.project)["steps"]["editor"], {"status": "pending", "at": None, "part": 1, "title": editor["title"]})
         self.assertEqual(record(self.project)["choices"], {"editor": "vscode"})
+
+    def test_every_recorded_step_says_which_part_it_belongs_to(self):
+        # The team plugin's session briefing reads only this record: it must
+        # be able to tell part 1 from part 2 without this plugin's files.
+        cli("set", self.project, "github", "done", "--choice", "github=yes")
+        cli("set", self.project, "super", "skipped", "--choice", "super=no")
+        rec = record(self.project)
+        self.assertEqual({sid: entry["part"] for sid, entry in rec["steps"].items()}, {s["id"]: s["part"] for s in STEPS})
+
+    def test_a_skipped_step_carries_what_skipping_costs(self):
+        github = next(s for s in STEPS if s["id"] == "github")
+        cli("set", self.project, "github", "skipped", "--choice", "github=no")
+        entry = record(self.project)["steps"]["github"]
+        self.assertEqual(entry["status"], "skipped")
+        self.assertEqual(entry["if_skipped"], github["if_skipped"])
+        self.assertTrue(entry["at"].endswith("Z"))
+
+    def test_a_step_that_is_set_carries_its_title(self):
+        # The team plugin's session briefing names a skipped step by its title,
+        # and reads only this record. One rule: whatever the status, the entry
+        # `set` writes carries the title steps.json gives the step.
+        github = next(s for s in STEPS if s["id"] == "github")
+        for status in ("skipped", "done", "pending"):
+            with self.subTest(status=status):
+                r = cli("set", self.project, "github", status)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(record(self.project)["steps"]["github"]["title"], github["title"])
+
+    def test_only_a_skipped_step_carries_that_text(self):
+        cli("set", self.project, "github", "skipped", "--choice", "github=no")
+        for status in ("done", "pending"):
+            with self.subTest(status=status):
+                cli("set", self.project, "github", "skipped")
+                cli("set", self.project, "github", status)
+                self.assertNotIn("if_skipped", record(self.project)["steps"]["github"])
+        self.assertFalse([sid for sid, entry in record(self.project)["steps"].items() if "if_skipped" in entry])
+
+    def test_an_older_record_gains_the_part_when_a_step_is_set(self):
+        (self.project / "core_text").mkdir()
+        older = {"schema_version": 1, "plugin_version": "0.0.1", "created": "c", "updated": "u",
+                 "steps": {"guide": {"status": "done", "at": "t"}, "super": {"status": "pending", "at": None}}, "choices": {}}
+        (self.project / "core_text" / "setup.json").write_text(json.dumps(older), encoding="utf-8")
+        cli("set", self.project, "editor", "done", "--choice", "editor=vscode")
+        rec = record(self.project)
+        self.assertEqual(rec["steps"]["guide"], {"status": "done", "at": "t", "part": 1})
+        self.assertEqual(rec["steps"]["super"]["part"], 2)
+        self.assertEqual({sid: entry["part"] for sid, entry in rec["steps"].items()}, {s["id"]: s["part"] for s in STEPS})
 
     def _refused(self, *args):
         cli("status", self.project)
@@ -248,6 +296,13 @@ class RenderTests(Project):
         self.assertEqual(len(re.findall(r'<li class="card\b', page)), len(PART1))
         self.assertEqual(re.findall(r'data-step="([^"]+)"', page), [s["id"] for s in PART1])
         self.assertEqual(re.findall(r'data-step="([^"]+)"', self.html("setup-extras.html")), [s["id"] for s in PART2])
+
+    def test_the_footer_names_the_plugin_that_rendered_the_page(self):
+        cli("render", self.project)
+        for name in ("setup-guide.html", "setup-extras.html"):
+            with self.subTest(page=name):
+                footer = self.html(name).split("<footer>", 1)[1]
+                self.assertIn(f"technical-cofounder-setup {PLUGIN_VERSION}", footer)
 
     def test_steps_are_cards_not_a_table(self):
         cli("render", self.project)

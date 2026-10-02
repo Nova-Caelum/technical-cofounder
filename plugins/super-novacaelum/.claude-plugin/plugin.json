@@ -1,7 +1,7 @@
 {
   "name": "super-novacaelum",
   "version": "0.1.0",
-  "description": "Opt-in extras for the base team — documentation lookup, web research and a cloud browser, using your own keys.",
+  "description": "Opt-in extras for Technical Cofounder — documentation lookup, web research and a cloud browser, using your own keys.",
   "author": {
     "name": "Nova Caelum",
     "url": "https://novacaelum.com"
@@ -16,7 +16,7 @@
     "documentation"
   ],
   "dependencies": [
-    "base-novacaelum"
+    "technical-cofounder"
   ],
   "userConfig": {
     "context7_api_key": {

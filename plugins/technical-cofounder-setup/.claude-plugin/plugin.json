@@ -1,0 +1,17 @@
+{
+  "name": "technical-cofounder-setup",
+  "version": "0.1.0",
+  "description": "Sets up Technical Cofounder on this computer: checks what is here, installs only what is missing, creates your project folder with your team in it, and repairs a setup that stopped working.",
+  "author": {
+    "name": "Nova Caelum",
+    "url": "https://novacaelum.com"
+  },
+  "homepage": "https://github.com/Nova-Caelum/technical-cofounder",
+  "repository": "https://github.com/Nova-Caelum/technical-cofounder",
+  "license": "Apache-2.0",
+  "keywords": [
+    "setup",
+    "install",
+    "onboarding"
+  ]
+}

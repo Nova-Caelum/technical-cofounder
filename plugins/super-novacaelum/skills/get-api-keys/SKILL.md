@@ -5,7 +5,7 @@ description: Use when the user asks how to get or add a Context7, Exa, or Browse
 
 # Get API Keys
 
-First time with an API key? Use `base-novacaelum`'s `super-setup` skill instead: it walks you through a safe way to keep keys, each account and entering them. This page is the per-service reference.
+First time with an API key? Use `technical-cofounder`'s `super-setup` skill instead: it walks you through a safe way to keep keys, each account and entering them. This page is the per-service reference.
 
 `super-novacaelum` runs three hosted MCP servers — Context7, Exa, and Browserbase — on your own keys. None of the keys ship in this plugin; each is entered through Claude Code's own secure storage, never as a file in this repo.
 
@@ -33,7 +33,7 @@ First time with an API key? Use `base-novacaelum`'s `super-setup` skill instead:
 
 ## How to enter a key
 
-Inside Claude Code, opened in the project, run `/plugin configure super-novacaelum@technical-cofounder` (or open `/plugin`, pick super-novacaelum, choose configure) and paste each key into its hidden field. Every field is optional. The value goes to Claude Code's secure credential storage (on a Mac, the login Keychain), never this repo or plain settings.
+Inside Claude Code, opened in the project, run `/plugin configure super-novacaelum@nova-caelum` (or open `/plugin`, pick super-novacaelum, choose configure) and paste each key into its hidden field. Every field is optional. The value goes to Claude Code's secure credential storage (on a Mac, the login Keychain), never this repo or plain settings.
 
 Don't put a key on the install command line: the terminal keeps it in its history file. Never paste one into chat or a project file either.
 
