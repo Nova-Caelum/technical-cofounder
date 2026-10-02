@@ -33,6 +33,11 @@ if ! source "$SCRIPT_DIR/lib/loud-fail.sh"; then
     printf '⚠️ concision-budget: cannot source lib/loud-fail.sh\n' >&2
     exit 0
 fi
+# shellcheck source=lib/resolve-tools.sh disable=SC1091
+if ! source "$SCRIPT_DIR/lib/resolve-tools.sh"; then
+    log_visible "cannot source lib/resolve-tools.sh — python and jq will not be found"
+    export NC_PYTHON="" NC_JQ=""
+fi
 
 if [ "${TC_CONCISION:-}" = "off" ]; then
     exit 0
@@ -56,8 +61,8 @@ fi
 
 require_json_or_exit "$INPUT"
 
-PROMPT=$(printf '%s' "$INPUT" | jq -r '.prompt // empty' 2>/dev/null) || PROMPT=""
-SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null) || SESSION_ID=""
+PROMPT=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.prompt // empty' 2>/dev/null) || PROMPT=""
+SESSION_ID=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.session_id // empty' 2>/dev/null) || SESSION_ID=""
 
 if [ -z "$SESSION_ID" ]; then
     log_visible "session_id absent — emitting default budget, skipping state write"

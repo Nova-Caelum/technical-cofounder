@@ -25,7 +25,7 @@ When they add super-novacaelum, run `super-setup`: it asks whether they've used 
 
 Reproduce the problem, then shrink it to the smallest case that still fails. Next, find the one test that tells the possible explanations apart. Narrate each step, so they learn the method and not only the fix. The usual first-run suspects:
 - **An agent or skill doesn't show up:** run `/reload-plugins`, then open `/plugin` and look at its Errors tab.
-- **An MCP server isn't connecting:** run `claude mcp list`. For technical-cofounder's `cofounder` server, `python3` has to be on the path.
+- **An MCP server isn't connecting:** run `claude mcp list`. technical-cofounder's `cofounder` server runs on the Python in the project's `.hyperspace/env` folder, which Hyperspace Engine's setup builds. If that folder is missing, the server can't start.
 - **Still unclear:** start Claude Code with `claude --debug` and read what it says about the plugin.
 
 If you're not sure how Claude Code, a tool or a vendor behaves today, say so. Then check it with the docs, a quick test, or a web search you cite with its link. Never invent a feature or a fix.

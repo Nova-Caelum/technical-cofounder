@@ -48,6 +48,11 @@ if ! source "$SCRIPT_DIR/lib/loud-fail.sh"; then
     printf '⚠️ circuit-breaker: cannot source lib/loud-fail.sh\n' >&2
     exit 0
 fi
+# shellcheck source=lib/resolve-tools.sh disable=SC1091
+if ! source "$SCRIPT_DIR/lib/resolve-tools.sh"; then
+    log_visible "cannot source lib/resolve-tools.sh — python and jq will not be found"
+    export NC_PYTHON="" NC_JQ=""
+fi
 # shellcheck source=lib/rule-disclosure.sh disable=SC1091
 if ! source "$SCRIPT_DIR/lib/rule-disclosure.sh"; then
     log_visible "cannot source lib/rule-disclosure.sh — warnings become a silent no-op"
@@ -190,19 +195,19 @@ if [ -z "$INPUT" ]; then
     exit 0
 fi
 
-if ! command -v jq >/dev/null 2>&1; then
-    log_visible "jq not found on PATH — skipping this invocation (fail-open)"
+if [ -z "$NC_JQ" ]; then
+    log_visible "jq not found on PATH or in the tools folder — skipping this invocation (fail-open)"
     exit 0
 fi
 
-if ! printf '%s' "$INPUT" | jq -e . >/dev/null 2>&1; then
+if ! printf '%s' "$INPUT" | "$NC_JQ" -e . >/dev/null 2>&1; then
     log_visible "malformed JSON on stdin — skipping this invocation (fail-open)"
     exit 0
 fi
 
-HOOK_EVENT=$(printf '%s' "$INPUT" | jq -r '.hook_event_name // empty' 2>/dev/null) || HOOK_EVENT=""
-TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null) || TOOL_NAME=""
-SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null) || SESSION_ID=""
+HOOK_EVENT=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.hook_event_name // empty' 2>/dev/null) || HOOK_EVENT=""
+TOOL_NAME=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.tool_name // empty' 2>/dev/null) || TOOL_NAME=""
+SESSION_ID=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.session_id // empty' 2>/dev/null) || SESSION_ID=""
 
 if [ -z "$TOOL_NAME" ]; then
     log_visible "tool_name absent on $HOOK_EVENT — nothing to key on"
@@ -217,7 +222,7 @@ case "$HOOK_EVENT" in
         handle_posttooluse "$SESSION_ID" "$TOOL_NAME"
         ;;
     PostToolUseFailure)
-        ERROR_TEXT=$(printf '%s' "$INPUT" | jq -r '.error // empty' 2>/dev/null) || ERROR_TEXT=""
+        ERROR_TEXT=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.error // empty' 2>/dev/null) || ERROR_TEXT=""
         handle_posttoolusefailure "$SESSION_ID" "$TOOL_NAME" "$ERROR_TEXT"
         ;;
     *)

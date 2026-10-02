@@ -28,6 +28,11 @@ if ! source "$SCRIPT_DIR/lib/loud-fail.sh"; then
     printf '⚠️ concision-stop: cannot source lib/loud-fail.sh\n' >&2
     exit 0
 fi
+# shellcheck source=lib/resolve-tools.sh disable=SC1091
+if ! source "$SCRIPT_DIR/lib/resolve-tools.sh"; then
+    log_visible "cannot source lib/resolve-tools.sh — python and jq will not be found"
+    export NC_PYTHON="" NC_JQ=""
+fi
 
 if [ "${TC_CONCISION:-}" = "off" ]; then
     exit 0
@@ -49,13 +54,13 @@ fi
 require_json_or_exit "$INPUT"
 
 HAS_MSG="no"
-if printf '%s' "$INPUT" | jq -e 'has("last_assistant_message")' >/dev/null 2>&1; then
+if printf '%s' "$INPUT" | "$NC_JQ" -e 'has("last_assistant_message")' >/dev/null 2>&1; then
     HAS_MSG="yes"
 fi
 
 RESPONSE_WORDS=-1
 if [ "$HAS_MSG" = "yes" ]; then
-    LAST_MSG=$(printf '%s' "$INPUT" | jq -r '.last_assistant_message' 2>/dev/null) || LAST_MSG=""
+    LAST_MSG=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.last_assistant_message' 2>/dev/null) || LAST_MSG=""
     RW=$(printf '%s' "$LAST_MSG" | wc -w | tr -d ' ')
     case "$RW" in
         ''|*[!0-9]*) RESPONSE_WORDS=-1 ;;
@@ -65,7 +70,7 @@ else
     log_visible "last_assistant_message field absent — telemetry will show response_words=-1"
 fi
 
-SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null) || SESSION_ID=""
+SESSION_ID=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.session_id // empty' 2>/dev/null) || SESSION_ID=""
 if [ -z "$SESSION_ID" ]; then
     log_visible "session_id absent — using 'unknown'"
     SESSION_ID="unknown"
@@ -73,7 +78,7 @@ fi
 SESSION_KEY="$(sanitize_key "$SESSION_ID" "unknown")"
 
 STOP_HOOK_ACTIVE="false"
-if printf '%s' "$INPUT" | jq -e '.stop_hook_active == true' >/dev/null 2>&1; then
+if printf '%s' "$INPUT" | "$NC_JQ" -e '.stop_hook_active == true' >/dev/null 2>&1; then
     STOP_HOOK_ACTIVE="true"
 fi
 
@@ -113,8 +118,9 @@ LOG_DIR="${CLAUDE_PLUGIN_DATA:-${TMPDIR:-/tmp}/technical-cofounder}/telemetry"
 if mkdir -p "$LOG_DIR" 2>/dev/null; then
     LOG_FILE="$LOG_DIR/$(date -u +%F).jsonl"
     TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-    if command -v jq >/dev/null 2>&1; then
-        TELEMETRY_LINE=$(jq -nc \
+    if [ -n "$NC_JQ" ]; then
+        # shellcheck disable=SC2016  # $ts and the rest are jq variables, not shell ones
+        TELEMETRY_LINE=$("$NC_JQ" -nc \
             --arg ts "$TS" --arg session "$SESSION_KEY" \
             --argjson prompt_words "$PROMPT_WORDS" --argjson band "$BAND" \
             --argjson response_words "$RESPONSE_WORDS" --arg override "$OVERRIDE" \

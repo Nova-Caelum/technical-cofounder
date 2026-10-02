@@ -14,7 +14,8 @@
 # CLAUDE.md, which Claude Code loads on its own.
 #
 # The primer reads JSON (settings enabledPlugins, core_text/setup.json) with
-# python3, the plugin's own prerequisite. It prints only the three fixed
+# the Python lib/resolve-tools.sh finds: the project's Hyperspace environment
+# first, then one on PATH. It prints only the three fixed
 # plugin names and states, never a settings value, and never writes a file.
 #
 # With Hyperspace Engine present (.hyperspace/graph.db), bin/he_bridge.py
@@ -36,6 +37,8 @@ set -euo pipefail
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
 [ -n "$PLUGIN_ROOT" ] || PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)" || PLUGIN_ROOT=""
+# shellcheck source=lib/resolve-tools.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-tools.sh" 2>/dev/null || NC_PYTHON=""
 ASK_LINE="Stuck, found a bug, or have an idea? /technical-cofounder:contact reaches Nova Caelum."
 
 USER_MD="$PROJECT_DIR/core_text/user.md"
@@ -52,7 +55,7 @@ cat >/dev/null 2>&1 || true
 tech_primer() {
     echo "## Tech primer (live)"
     echo
-    python3 - "$PROJECT_DIR" "${HOME:-}" "$PLUGIN_ROOT" <<'PY' 2>/dev/null || echo "(plugin stack unavailable: python3 could not run)"
+    "$NC_PYTHON" - "$PROJECT_DIR" "${HOME:-}" "$PLUGIN_ROOT" <<'PY' 2>/dev/null || echo "(plugin stack unavailable: python3 could not run)"
 import json
 import sys
 from pathlib import Path
@@ -135,7 +138,7 @@ echo
 
 ENTRIES_DIR="$PROJECT_DIR/worklog/entries"
 if [ -f "$PROJECT_DIR/.hyperspace/graph.db" ]; then
-    python3 "$PLUGIN_ROOT/bin/he_bridge.py" preload "$PROJECT_DIR" 2>/dev/null \
+    "$NC_PYTHON" "$PLUGIN_ROOT/bin/he_bridge.py" preload "$PROJECT_DIR" 2>/dev/null \
         || echo "(worklog unavailable: python3 could not run the Hyperspace bridge)"
 else
     echo "## Recent worklog — last 3"

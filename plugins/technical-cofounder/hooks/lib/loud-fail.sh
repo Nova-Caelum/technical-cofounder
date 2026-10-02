@@ -18,7 +18,8 @@
 #                           1). Reserved for setup errors the hook cannot
 #                           recover from at all (e.g. a required lib file
 #                           failed to source).
-#   require_jq_or_exit    — fail-open exit 0 if `jq` isn't on PATH.
+#   require_jq_or_exit    — fail-open exit 0 if lib/resolve-tools.sh found
+#                           no jq (NC_JQ is empty).
 #   require_json_or_exit  — fail-open exit 0 if $1 doesn't parse as JSON.
 #   sanitize_key          — turn a session_id/tool_name into a safe
 #                           filesystem path component; reject-whole-value
@@ -27,7 +28,9 @@
 #                           back to the caller-supplied default instead of
 #                           being partially stripped).
 #
-# Caller sets HOOK_NAME before sourcing this file.
+# Caller sets HOOK_NAME before sourcing this file, and sources
+# lib/resolve-tools.sh (which sets NC_JQ) before calling the two require_*
+# helpers.
 #
 # Hook secret handling: these helpers only ever echo caller-supplied
 # strings that are not credential material (hook stdin here is prompt
@@ -46,14 +49,14 @@ fail_loud_stderr() {
 }
 
 require_jq_or_exit() {
-    if ! command -v jq >/dev/null 2>&1; then
-        log_visible "jq not found on PATH — skipping this invocation (fail-open)"
+    if [ -z "${NC_JQ:-}" ]; then
+        log_visible "jq not found on PATH or in the tools folder — skipping this invocation (fail-open)"
         exit 0
     fi
 }
 
 require_json_or_exit() {
-    if ! printf '%s' "$1" | jq -e . >/dev/null 2>&1; then
+    if ! printf '%s' "$1" | "${NC_JQ:-jq}" -e . >/dev/null 2>&1; then
         log_visible "malformed JSON on stdin — skipping this invocation (fail-open)"
         exit 0
     fi

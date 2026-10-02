@@ -510,5 +510,126 @@ class CircuitBreakerTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
 
 
+# A stand-in jq: it answers the calls concision-budget.sh makes, and says the
+# prompt is "quick check" whatever the real prompt was. A 120-word budget on a
+# prompt that earns 300 is therefore proof that this file is the jq that ran.
+FAKE_JQ = """#!/bin/bash
+case "$*" in
+    --version) echo "jq-stand-in" ;;
+    "-e .") cat >/dev/null ;;
+    "-r .prompt // empty") cat >/dev/null; echo "quick check" ;;
+    "-r .session_id // empty") cat >/dev/null; echo "resolver-test" ;;
+    *) cat >/dev/null; exit 3 ;;
+esac
+"""
+# A stand-in interpreter: enough for the resolver's "does it run" probe.
+FAKE_PYTHON = "#!/bin/bash\nexit 0\n"
+PLAIN_PROMPT = {"session_id": "sess-1", "hook_event_name": "UserPromptSubmit", "prompt": "add a retry to the upload function"}
+
+
+def write_tool(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode("utf-8"))  # bytes: a CRLF shebang does not start
+    path.chmod(0o755)
+    return path
+
+
+class ToolResolverTests(unittest.TestCase):
+    """hooks/lib/resolve-tools.sh: the hooks find Python and jq without trusting
+    PATH alone. HOME and TMPDIR are pinned to a temp dir so this machine's own
+    ~/.local/bin and hook state never decide a result."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.project = self.tmp / "project"
+        self.project.mkdir()
+        self.env = {"HOME": str(self.tmp / "home"), "TMPDIR": str(self.tmp), "CLAUDE_PROJECT_DIR": str(self.project)}
+
+    def path_without_jq(self):
+        """PATH with jq taken out of it. A directory that holds jq beside the
+        shell's own tools (/usr/bin on macOS) is replaced by a folder of links
+        to everything in it but jq; on Windows jq has a folder of its own, and
+        that folder is dropped."""
+        if hasattr(self, "_stripped"):
+            return self._stripped
+        kept = []
+        for i, entry in enumerate(os.environ["PATH"].split(os.pathsep)):
+            folder = Path(entry)
+            if not entry or not folder.is_dir():
+                continue
+            if not any((folder / name).exists() for name in ("jq", "jq.exe")):
+                kept.append(entry)
+            elif os.name != "nt":
+                shadow = self.tmp / f"path-{i}"
+                shadow.mkdir()
+                for tool in folder.iterdir():
+                    if tool.name != "jq":
+                        (shadow / tool.name).symlink_to(tool)
+                kept.append(str(shadow))
+        self._stripped = os.pathsep.join(kept)
+        return self._stripped
+
+    def resolve(self, **env_extra):
+        """Source the resolver the way a hook does and return (NC_PYTHON, NC_JQ)."""
+        env = {k: v for k, v in os.environ.items() if k not in ("NC_TOOLS_DIR", "NC_PYTHON", "NC_JQ")}
+        env.update(self.env, RESOLVER=(HOOKS_DIR / "lib" / "resolve-tools.sh").as_posix(), **env_extra)
+        r = subprocess.run(
+            [BASH, "-c", 'set -euo pipefail; source "$RESOLVER"; printf "%s\\n%s\\n" "$NC_PYTHON" "$NC_JQ"'],
+            capture_output=True, text=True, encoding="utf-8", env=env,
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        python, jq = r.stdout.split("\n")[:2]
+        return python, jq
+
+    def test_path_without_jq_really_has_no_jq(self):
+        r = subprocess.run([BASH, "-c", "command -v jq"], capture_output=True, text=True, env={**os.environ, "PATH": self.path_without_jq()})
+        self.assertNotEqual(r.returncode, 0, f"jq is still reachable at {r.stdout!r}; the tests below would prove nothing")
+
+    def test_a_hook_acts_with_jq_only_in_the_tools_dir(self):
+        tools = self.tmp / "tools"
+        write_tool(tools / "jq", FAKE_JQ)
+        r = run_hook("concision-budget.sh", PLAIN_PROMPT, env_extra={**self.env, "PATH": self.path_without_jq(), "NC_TOOLS_DIR": str(tools)})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("RESPONSE BUDGET: <=120 words", r.stdout, f"the hook did not act; stderr: {r.stderr}")
+
+    def test_a_hook_still_skips_visibly_when_no_jq_exists_anywhere(self):
+        empty = self.tmp / "no-tools"
+        empty.mkdir()
+        for name in ("concision-budget.sh", "circuit-breaker.sh"):
+            with self.subTest(hook=name):
+                r = run_hook(name, HookSampleAndMalformedInputTests.SAMPLES[name],
+                             env_extra={**self.env, "PATH": self.path_without_jq(), "NC_TOOLS_DIR": str(empty)})
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(r.stdout.strip(), "")
+                self.assertIn("skipping this invocation", r.stderr)
+
+    def test_jq_on_path_wins_over_the_tools_dir(self):
+        on_path, tools = self.tmp / "on-path", self.tmp / "tools"
+        write_tool(on_path / "jq", FAKE_JQ)
+        write_tool(tools / "jq", FAKE_JQ)
+        path = os.pathsep.join([str(on_path), self.path_without_jq()])
+        self.assertEqual(self.resolve(PATH=path, NC_TOOLS_DIR=str(tools))[1], "jq")
+
+    def test_jq_falls_back_to_the_tools_dir_then_to_nothing(self):
+        tools = write_tool(self.tmp / "tools" / "jq", FAKE_JQ).parent
+        path = self.path_without_jq()
+        self.assertEqual(self.resolve(PATH=path, NC_TOOLS_DIR=str(tools))[1], f"{tools}/jq")
+        self.assertEqual(self.resolve(PATH=path, NC_TOOLS_DIR=str(self.tmp / "nowhere"))[1], "")
+
+    def test_the_project_environment_python_wins(self):
+        for rel in (".hyperspace/env/Scripts/python.exe", ".hyperspace/env/bin/python"):
+            with self.subTest(interpreter=rel):
+                write_tool(self.project / rel, FAKE_PYTHON)
+                self.assertEqual(self.resolve()[0], f"{self.project}/{rel}")
+
+    def test_python_falls_back_to_one_on_path_that_runs(self):
+        broken = write_tool(self.project / ".hyperspace/env/bin/python", "#!/bin/bash\nexit 1\n")
+        python = self.resolve()[0]
+        self.assertNotIn(python, ("", str(broken)))
+        r = subprocess.run([BASH, "-c", '"$0" -c "print(40 + 2)"', python], capture_output=True, text=True)
+        self.assertEqual(r.stdout.strip(), "42", r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

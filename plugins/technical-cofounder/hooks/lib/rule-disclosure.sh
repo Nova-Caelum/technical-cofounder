@@ -20,9 +20,10 @@ rule_disclosure_emit() {
     local hook_event_name="${1:?rule_disclosure_emit: hook_event_name required}"
     local context_text="${2:?rule_disclosure_emit: context_text required}"
 
-    if command -v jq >/dev/null 2>&1; then
+    if [ -n "${NC_JQ:-}" ]; then
         local payload
-        if payload=$(jq -nc \
+        # shellcheck disable=SC2016  # $event and $ctx are jq variables, not shell ones
+        if payload=$("$NC_JQ" -nc \
             --arg event "$hook_event_name" \
             --arg ctx "$context_text" \
             '{hookSpecificOutput: {hookEventName: $event, additionalContext: $ctx}}' 2>/dev/null); then

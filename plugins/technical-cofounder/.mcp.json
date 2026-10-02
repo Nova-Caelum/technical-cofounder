@@ -1,1 +1,1 @@
-{"mcpServers": {"cofounder": {"command": "python3", "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"]}}}
+{"mcpServers": {"cofounder": {"command": "${CLAUDE_PROJECT_DIR}/.hyperspace/env/bin/python", "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"]}}}
