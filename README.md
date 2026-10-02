@@ -63,17 +63,25 @@ claude plugin install technical-cofounder@nova-caelum --scope project
 Start a new session in that folder and say "set up hyperspace" to build the task graph and open its console in your browser.
 <h6></h6>
 
-<p align="center">
-  <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Claude%20Code%20CLI-D97757" alt="Claude Code CLI"></a>
-  <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Git-F05032?logo=git&logoColor=white" alt="Git"></a>
-  <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11 or newer"></a>
-  <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/uv-DE5FE9?logo=uv&logoColor=white" alt="uv"></a>
-  <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/jq-555555" alt="jq"></a>
-</p>
+<table align="center">
+  <tr>
+    <td>
+      <!-- Top Row Badges -->
+      <p align="center">
+        <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Claude%20Code%20CLI-D97757" alt="Claude Code CLI"></a>
+        <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Git-F05032?logo=git&logoColor=white" alt="Git"></a>
+        <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11 or newer"></a>
+        <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/uv-DE5FE9?logo=uv&logoColor=white" alt="uv"></a>
+        <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/jq-555555" alt="jq"></a>
+      </p>
+      <!-- Bottom Row Info Text -->
+      <p align="center">
+        You need Claude Code and Git. Hyperspace Engine needs Python 3.11 or newer, or <a href="https://docs.astral.sh/uv/"><code>uv</code></a>; the message below installs one for you. What each tool is for is written down in <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><code>dependencies.md</code></a>.
+      </p>
+    </td>
+  </tr>
+</table>
 
-<p align="center">
-  You need Claude Code and Git. Hyperspace Engine needs Python 3.11 or newer, or <a href="https://docs.astral.sh/uv/"><code>uv</code></a>; the message below installs one for you. What each tool is for is written down in <a href="plugins/technical-cofounder-setup/reference/dependencies.md">dependencies.md</a>.
-</p>
 <h6></h6>
 
 Want the research extras too? `super-novacaelum` adds current documentation lookup, web research and a cloud browser, each on your own account:
@@ -136,7 +144,7 @@ Work through an idea, turn it into a plan, and build with specialists who bring 
 
 ### I. Technical Cofounder
 
-*The one who brings it together.*
+*The leader and one who brings it together.*
 
 Think through what you want to build, compare approaches, and decide what matters now–and what can wait. Your cofounder turns those decisions into a clear plan, coordinates the team, and keeps the work tied to your goals.
 
@@ -202,7 +210,7 @@ Turn a goal into a plan, then carry it through with agents equipped to act. Foll
 ## Built together
 <h6></h6>
 
-### Automated drafting for all flavors of professional emails
+### 1) Automated drafting for all flavors of professional emails
 
 While going through first year recruiting, I struggled to keep up with the volume of networking, follow-ups, and thank you emails while ensuring each one was thoughtful and personal.
 
@@ -215,7 +223,7 @@ I set three priorities: capture my voice and nuance, limit access to my email, a
 Technical Cofounder shaped a build plan around those priorities, streamlining research, design, and all the coding. We built it together, and I came away with the solution, I understood what we had built, and I leveled up through the process.
 <h6></h6>
 
-### A task system built for both of us
+### 2) A task system built for both of us
 
 Keeping my To-Dos organized has always been a personal struggle. I have tried every tool and strategy you could imagine. Each task-management tool would help for a time, but became more effort than they were worth to maintain, and the systems fell apart when projects grew complex and requirements changed midway.
 
