@@ -545,30 +545,35 @@ class ToolResolverTests(unittest.TestCase):
         self.project = self.tmp / "project"
         self.project.mkdir()
         self.env = {"HOME": str(self.tmp / "home"), "TMPDIR": str(self.tmp), "CLAUDE_PROJECT_DIR": str(self.project)}
+        self.stripped = {}
 
-    def path_without_jq(self):
-        """PATH with jq taken out of it. A directory that holds jq beside the
-        shell's own tools (/usr/bin on macOS) is replaced by a folder of links
-        to everything in it but jq; on Windows jq has a folder of its own, and
-        that folder is dropped."""
-        if hasattr(self, "_stripped"):
-            return self._stripped
+    def path_without(self, *tools):
+        """PATH with the named tools taken out of it. A directory that holds one
+        beside the shell's own tools (/usr/bin on macOS) is replaced by a folder
+        of links to everything else in it; on Windows such a tool has a folder
+        of its own, and that folder is dropped."""
+        if tools in self.stripped:
+            return self.stripped[tools]
+        names = {*tools, *(f"{tool}.exe" for tool in tools)}
         kept = []
         for i, entry in enumerate(os.environ["PATH"].split(os.pathsep)):
             folder = Path(entry)
             if not entry or not folder.is_dir():
                 continue
-            if not any((folder / name).exists() for name in ("jq", "jq.exe")):
+            if not any((folder / name).exists() for name in names):
                 kept.append(entry)
             elif os.name != "nt":
-                shadow = self.tmp / f"path-{i}"
+                shadow = self.tmp / f"path-{len(self.stripped)}-{i}"
                 shadow.mkdir()
                 for tool in folder.iterdir():
-                    if tool.name != "jq":
+                    if tool.name not in names:
                         (shadow / tool.name).symlink_to(tool)
                 kept.append(str(shadow))
-        self._stripped = os.pathsep.join(kept)
-        return self._stripped
+        self.stripped[tools] = os.pathsep.join(kept)
+        return self.stripped[tools]
+
+    def path_without_jq(self):
+        return self.path_without("jq")
 
     def resolve(self, **env_extra):
         """Source the resolver the way a hook does and return (NC_PYTHON, NC_JQ)."""
@@ -629,6 +634,15 @@ class ToolResolverTests(unittest.TestCase):
         self.assertNotIn(python, ("", str(broken)))
         r = subprocess.run([BASH, "-c", '"$0" -c "print(40 + 2)"', python], capture_output=True, text=True)
         self.assertEqual(r.stdout.strip(), "42", r.stderr)
+
+    def test_py_launcher_is_stored_as_the_one_interpreter_it_starts(self):
+        # With no python3 or python on PATH, `py -3` is the last resort. It is two
+        # words, so what is kept is the interpreter it reports, in a form bash
+        # runs as one word: no trailing CR, forward slashes.
+        launcher = self.tmp / "launcher"
+        write_tool(launcher / "py", "#!/bin/bash\nprintf '%s\\r\\n' 'C:\\Fake\\python.exe'\n")
+        path = os.pathsep.join([str(launcher), self.path_without("python3", "python")])
+        self.assertEqual(self.resolve(PATH=path)[0], "C:/Fake/python.exe")
 
 
 if __name__ == "__main__":

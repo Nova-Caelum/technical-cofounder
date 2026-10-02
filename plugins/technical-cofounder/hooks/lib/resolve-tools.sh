@@ -44,8 +44,11 @@ nc_resolve_python() {
             return 0
         fi
     done
+    # The launcher reports a Windows path ending in a carriage return. Kept
+    # with forward slashes, bash runs it as a path, not as a command name.
     found="$(py -3 -c 'import sys; print(sys.executable)' </dev/null 2>/dev/null)" || found=""
-    printf '%s' "${found%$'\r'}"
+    found="${found%$'\r'}"
+    printf '%s' "${found//\\//}"
     return 0
 }
 
