@@ -303,6 +303,11 @@ class TheMessage(unittest.TestCase):
         source = re.search(r'(?m)^MARKETPLACE_SOURCE = "([^"]+)"', (SETUP / "installer" / "nc_setup.py").read_text(encoding="utf-8"))
         self.assertIn("   claude plugin marketplace add %s\n" % source.group(1), self.blocks[0])
 
+    def test_the_readme_carries_the_same_message_byte_for_byte(self):
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        blocks = re.findall(r"(?ms)^```text\n(.*?)^```$", readme)
+        self.assertEqual(blocks, self.blocks)
+
     def test_the_file_it_points_at_exists_at_that_path_in_the_plugin(self):
         self.assertTrue((SETUP / "skills" / "setup" / "SKILL.md").is_file())
 
