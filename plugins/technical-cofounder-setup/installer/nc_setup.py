@@ -70,7 +70,8 @@ REGISTRY_MACHINE_ENV = r"SYSTEM\CurrentControlSet\Control\Session Manager\Enviro
 REGISTRY_USER_ENV = "Environment"
 
 MARKETPLACE = "nova-caelum"
-MARKETPLACE_SOURCE = "Nova-Caelum/plugins"          # NC_MARKETPLACE_SOURCE overrides it
+# The full address, so no machine decides for itself between HTTPS and SSH.
+MARKETPLACE_SOURCE = "https://github.com/Nova-Caelum/plugins.git"   # NC_MARKETPLACE_SOURCE overrides it
 TEAM_PLUGIN = "technical-cofounder@nova-caelum"
 ENGINE_PLUGIN = "hyperspace-engine@nova-caelum"
 

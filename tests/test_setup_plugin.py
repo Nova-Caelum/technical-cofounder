@@ -210,15 +210,54 @@ class TheMessage(unittest.TestCase):
             "curl -fsSL https://claude.ai/install.sh | bash",
             "irm https://claude.ai/install.ps1 | iex",
             "   winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements",
-            "   claude plugin marketplace add Nova-Caelum/plugins",
+            "   claude plugin marketplace add https://github.com/Nova-Caelum/plugins.git",
             "   claude plugin install technical-cofounder-setup@nova-caelum",
             "close Claude Code completely, open it again and paste this same message",
             "Run `claude plugin list --json`, find the installPath of technical-cofounder-setup, read skills/setup/SKILL.md "
             "inside it, and follow it from the top.",
             "Tell me what each step is for before you run it, and go one step at a time.",
+            # A command line installed a moment ago is not on this session's PATH.
+            "~/.local/bin/claude on macOS or Linux",
+            r"%USERPROFILE%\.local\bin\claude.exe on Windows",
+            # Git has to be here before the plugin that checks for it can be downloaded.
+            "xcode-select --install",
+            r"C:\Program Files\Git\cmd\git.exe",
+            r"%LOCALAPPDATA%\Programs\Git\cmd\git.exe",
+            "https://git-scm.com/downloads/win",
+            "close that window too",
         ):
             with self.subTest(needle=needle[:40]):
                 self.assertIn(needle, self.blocks[0])
+
+    def test_every_line_of_the_message_starts_where_it_was_agreed(self):
+        # Numbered steps at the margin; commands three spaces in, alone on
+        # their line, so they can be copied whole; what belongs under the
+        # Windows bullet five spaces in.
+        starts = [
+            "Set up Technical Cofounder for me, ",
+            "",
+            "1. If `claude --version` does not work here, ",
+            "2. Git has to be on this computer before anything can be downloaded. ",
+            "   - On a Mac, if `xcode-select -p` fails: ",
+            "   - On Windows, if `git --version` does not work: ",
+            "   winget install ",
+            "     If winget is not found, ",
+            "     Then, or if one of those two files was already there, ",
+            "3. Run these two commands:",
+            "   claude plugin marketplace add ",
+            "   claude plugin install ",
+            "4. Run `claude plugin list --json`, ",
+        ]
+        lines = self.blocks[0].splitlines()
+        self.assertEqual(len(lines), len(starts))
+        for line, start in zip(lines, starts):
+            with self.subTest(start=start):
+                self.assertTrue(line.startswith(start) if start else line == "", line[:60])
+                self.assertEqual(line, line.rstrip())
+
+    def test_the_installer_adds_the_catalog_from_the_address_the_message_gives(self):
+        source = re.search(r'(?m)^MARKETPLACE_SOURCE = "([^"]+)"', (SETUP / "installer" / "nc_setup.py").read_text(encoding="utf-8"))
+        self.assertIn("   claude plugin marketplace add %s\n" % source.group(1), self.blocks[0])
 
     def test_the_file_it_points_at_exists_at_that_path_in_the_plugin(self):
         self.assertTrue((SETUP / "skills" / "setup" / "SKILL.md").is_file())

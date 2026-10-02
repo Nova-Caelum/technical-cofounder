@@ -928,6 +928,28 @@ class Marketplace(Case):
         self.world.marketplaces = ["nova-caelum-extras"]
         self.assertEqual(self.verdict("marketplace"), "install")
 
+    def listing(self, entries):
+        real = self.world.run
+
+        def run(argv, **kw):
+            if list(argv)[1:4] == ["plugin", "marketplace", "list"]:
+                return nc.Result(0, json.dumps(entries), "")
+            return real(argv, **kw)
+
+        self.world.have("claude")
+        self.world.run = run
+
+    def test_the_catalog_is_known_by_its_name_whatever_address_it_was_added_from(self):
+        # What `claude plugin marketplace list --json` prints for a catalog
+        # added by its full address.
+        self.listing([{"name": "nova-caelum", "source": "git",
+                       "url": "https://github.com/Nova-Caelum/plugins.git", "installLocation": "/somewhere"}])
+        self.assertEqual(self.verdict("marketplace"), "ready")
+
+    def test_the_same_address_under_another_name_is_not_the_catalog(self):
+        self.listing([{"name": "plugins", "source": "git", "url": "https://github.com/Nova-Caelum/plugins.git"}])
+        self.assertEqual(self.verdict("marketplace"), "install")
+
     def test_an_unreadable_answer_needs_you(self):
         self.world.have("claude")
         real = self.world.run
@@ -1171,9 +1193,14 @@ class ApplyItem(Case):
         self.assertEqual(snapshot(self.world.root), before)
 
     def test_the_catalog_comes_from_the_default_source_or_the_override(self):
+        # The full address: the owner/name shorthand leaves the choice of
+        # HTTPS or SSH to the machine, and a first-time user has no SSH key.
         self.world.have("claude")
         self.apply("marketplace")
-        self.assertIn(["/fake/bin/claude", "plugin", "marketplace", "add", "Nova-Caelum/plugins"], self.world.calls)
+        self.assertIn(
+            ["/fake/bin/claude", "plugin", "marketplace", "add", "https://github.com/Nova-Caelum/plugins.git"],
+            self.world.calls,
+        )
         other = World(Path(tempfile.mkdtemp(dir=self.world.root)))
         other.have("claude")
         other.env["NC_MARKETPLACE_SOURCE"] = "/some/local/catalog"
