@@ -335,9 +335,16 @@ def _within(inner, outer):
     return inner[:len(outer)] == outer
 
 
+def _named(ctx, name):
+    """What the environment holds under a Windows name. Windows ignores the
+    letter case of a name, and Python hands a real Windows environment over
+    with every name in capitals: PROGRAMFILES, never ProgramFiles."""
+    return ctx.env.get(name) or ctx.env.get(name.upper())
+
+
 def _system_dirs(ctx):
     if ctx.system == "windows":
-        named = [ctx.env.get(var) for var in WINDOWS_SYSTEM_VARS]
+        named = [_named(ctx, var) for var in WINDOWS_SYSTEM_VARS]
         return [d for d in list(WINDOWS_SYSTEM_DIRS) + named if d]
     return list(POSIX_SYSTEM_DIRS)
 
@@ -523,13 +530,6 @@ def git_bash(ctx, git):
             return str(folder / "bin" / "bash.exe")
     bash = ctx.which("bash")
     return str(bash) if bash and not _windows_stand_in(bash) else None
-
-
-def _named(ctx, name):
-    """What the environment holds under a Windows name. Windows ignores the
-    letter case of a name, and Python hands a real Windows environment over
-    with every name in capitals: PROGRAMFILES, never ProgramFiles."""
-    return ctx.env.get(name) or ctx.env.get(name.upper())
 
 
 def _git_installs(ctx):
