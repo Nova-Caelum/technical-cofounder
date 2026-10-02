@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "about": "Who does what on the Technical Cofounder team. One entry per agent: its role, when to use it, the skills it reaches for, the team plugin's MCP tools it uses, and what it gains when super-novacaelum is installed. check_registry.py confirms this file matches the agent and skill files. Add an entry whenever you add an agent.",
+  "about": "Who does what on the Technical Cofounder team. One entry per agent: its role, when to use it, the skills it reaches for, the team plugin's MCP tools it uses, what it uses from Hyperspace Engine (the plugin's dependency), and what it gains when super-novacaelum is installed. check_registry.py confirms this file matches the agent and skill files. Add an entry whenever you add an agent.",
   "roles": {
     "orchestrator": "Runs the session: frames the goal, chooses the approach, routes work, and decides when something is done. Never grades its own work.",
     "executor-builder": "Builds to a spec, test-first, and reports back with proof. Never self-certifies.",
@@ -13,12 +13,6 @@
       "role": "orchestrator",
       "use_when": "The default, and where every session starts. Framing a goal, choosing between approaches, planning, deciding what to build next, routing work to the team, and deciding when something is really done.",
       "skills": [
-        "hyperspace",
-        "hs-understand",
-        "hs-decide",
-        "hs-draft",
-        "hs-build",
-        "hs-live",
         "option-conception",
         "engineering-architecture",
         "overbloat-review",
@@ -31,6 +25,10 @@
         "contact-nova-caelum"
       ],
       "mcp_tools": ["worklog_recent", "worklog_search", "worklog_append"],
+      "with_engine": {
+        "skills": ["acing-hyperspace", "gear2-understand", "gear3-decide", "gear4-draft", "gear5-build", "gear6-live"],
+        "mcp_servers": ["hyperspace"]
+      },
       "with_super": {
         "skills": ["find-docs", "web-research"],
         "mcp_servers": ["context7", "exa", "browserbase"]
@@ -41,13 +39,16 @@
       "role": "executor-builder",
       "use_when": "Code needs writing, a bug fixing, a feature adding, a script or migration making, failing tests making pass, or a plan turning into working software.",
       "skills": [
-        "hs-build",
         "verification-before-completion",
         "assumption-check",
         "engineering-code-review",
         "secrets-setup"
       ],
-      "mcp_tools": ["verify", "worklog_append", "worklog_recent"],
+      "mcp_tools": ["worklog_append", "worklog_recent"],
+      "with_engine": {
+        "skills": ["gear5-build"],
+        "mcp_servers": ["hyperspace"]
+      },
       "with_super": {
         "skills": ["find-docs", "web-research"],
         "mcp_servers": ["context7", "exa"]
@@ -63,7 +64,11 @@
         "assumption-check",
         "overbloat-review"
       ],
-      "mcp_tools": ["verify", "worklog_recent", "worklog_search", "worklog_append"],
+      "mcp_tools": ["worklog_recent", "worklog_search", "worklog_append"],
+      "with_engine": {
+        "skills": [],
+        "mcp_servers": ["hyperspace"]
+      },
       "with_super": {
         "skills": ["find-docs", "web-research"],
         "mcp_servers": ["context7", "exa", "browserbase"]
@@ -85,6 +90,10 @@
         "contact-nova-caelum"
       ],
       "mcp_tools": ["worklog_recent", "worklog_append"],
+      "with_engine": {
+        "skills": [],
+        "mcp_servers": []
+      },
       "with_super": {
         "skills": ["get-api-keys", "find-docs", "web-research"],
         "mcp_servers": ["context7", "exa"]

@@ -49,9 +49,9 @@ Your proof is evidence, not a verdict. When you're a subagent, return this repor
 - `engineering-code-review` to review your own diff before you hand it back. The independent audit comes from `devops-lead`.
 - `secrets-setup` when code needs a key or secret: `.env` ignored before the first key, nothing in client-side code.
 - For debugging, think it through; say `ultrathink` for a hard call. For a trade-off that isn't obvious, run `option-conception`.
-- The working loop:
-  - `hs-build` works through a plan one task at a time. Usually `technical-cofounder` runs it and hands you one task's brief; run it yourself only when you're the main session.
-  - `verify` on the `cofounder` MCP server checks a task's `acceptance-criteria.json` against the working tree and writes the verdict.
+- The working loop, which is Hyperspace Engine's:
+  - `gear5-build` works through the filed tasks one at a time. Usually `technical-cofounder` runs it and hands you one task's brief; run it yourself only when you're the main session.
+  - A task on the engine's task graph is closed by `complete_workitem` on the `hyperspace` server. It checks the claim against the files on disk and returns `done`, `refused`, `unverifiable` or `already_done`. That verdict is the evidence.
 - `worklog_recent` when you start, and `worklog_append` after meaningful work, so each session starts where the last one ended.
 - With super-novacaelum installed: `find-docs` for current library docs before you build on an API, and `web-research` for current behavior.
 

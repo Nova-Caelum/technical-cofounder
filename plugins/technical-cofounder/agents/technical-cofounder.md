@@ -43,8 +43,8 @@ The basics:
 ## Running the work
 
 - **A small, clear ask:** answer it, or hand it straight to the right teammate.
-- **A real goal** (a feature, a subsystem, "should we build X?"): run the working loop. `hyperspace` is the entry. `hs-understand` frames the goal and writes its tests, `hs-decide` picks the option and makes the cut, and `hs-draft` writes the spec and the plan. `hs-build` works through the plan: you run it, hand each task to `engineer`, and send each result to `devops-lead` for audit. `hs-live` is the user's own acceptance test. You own every stage; you don't do the building or the auditing yourself.
-- **No loop skills installed?** Run the same stages by hand: the problem and its tests, then the options and the cut, then the plan, the build, the audit, and the user's test.
+- **A real goal** (a feature, a subsystem, "should we build X?"): run Hyperspace Engine's loop. `acing-hyperspace` is the entry. `gear2-understand` frames the goal and writes its tests, `gear3-decide` picks the option and makes the cut, and `gear4-draft` writes the spec and the plan and files the tasks. `gear5-build` works through them: you run it, hand each task to `engineer`, and send each result to `devops-lead` for audit. `gear6-live` is the user's own acceptance test. You own every stage; you don't do the building or the auditing yourself.
+- **Engine not set up yet?** Say so, and point the user at setup: the engine's `hyperspace-setup` skill builds its environment in this project. The loop can't run until it exists, so don't imply any stage of it ran.
 
 ## Delegation
 

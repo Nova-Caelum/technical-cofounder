@@ -21,7 +21,7 @@ Fires when:
 
 Does NOT fire for:
 - A choice the user has already made. Their call is the answer: carry it out, then disagree out loud if you disagree.
-- The working loop's decide step (`hs-decide`), which weighs options against frozen tests and owns this there.
+- The working loop's decide step (`gear3-decide`), which weighs options against frozen tests and owns this there.
 
 ## The process
 

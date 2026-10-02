@@ -1,9 +1,0 @@
-{
-  "principles": [
-    {
-      "id": "stdlib-only",
-      "statement": "Ship with the Python standard library and nothing else.",
-      "state": "active"
-    }
-  ]
-}

@@ -5,8 +5,8 @@ Version 2.0 (see `LICENSE`). The components listed below are adapted from
 MIT-licensed sources and remain under their original MIT terms; Apache-2.0
 covers the rest of this repository.
 
-Parts of this plugin's skills — the working-loop skills, option generation,
-and verification discipline — are adapted by Nova Caelum from obra/superpowers
+Parts of this plugin's skills — option generation, skill authoring and
+verification discipline — are adapted by Nova Caelum from obra/superpowers
 (https://github.com/obra/superpowers), used under the MIT License:
 
     MIT License
@@ -114,10 +114,6 @@ Paths are relative to `plugins/`. Nova Caelum's own adaptations are
 Apache-2.0; the upstream material they carry stays under its MIT terms above.
 
 From obra/superpowers (MIT, Copyright (c) 2025 Jesse Vincent):
-- `technical-cofounder/skills/hyperspace/`: adapted from `using-superpowers`.
-- `technical-cofounder/skills/hs-understand/` and `hs-decide/` (except `references/descoping.md`): adapted from `brainstorming`.
-- `technical-cofounder/skills/hs-draft/`: adapted from `writing-plans`.
-- `technical-cofounder/skills/hs-build/` (`SKILL.md`, `references/dispatch.md`): adapted from `subagent-driven-development`; `references/tdd.md` from `test-driven-development`.
 - `technical-cofounder/skills/option-conception/`: derived from `brainstorming`.
 - `technical-cofounder/skills/pressure-scenario-skill-authoring/`: adapted from `writing-skills`, including its iron law and form-to-failure matching.
 
@@ -131,9 +127,7 @@ From mattpocock/skills (MIT, Copyright (c) 2026 Matt Pocock):
 From DietrichGebert/ponytail (MIT, Copyright (c) 2026 DietrichGebert):
 - `technical-cofounder/skills/overbloat-review/`: tag taxonomy, structured output and advise-only stance adapted from `ponytail-review`.
 
-Nova Caelum's own (Apache-2.0): the four agents, the registry, the loop scripts
-(adapted from Nova Caelum's public hyperspace-engine), `hs-live`,
-`hs-decide/references/descoping.md`, `hs-build/references/review.md`,
+Nova Caelum's own (Apache-2.0): the four agents, the registry,
 `engineering-architecture`, `engineering-code-review`, `new-agent`, `setup`,
 the rules, the hooks, the local MCP server, and the super plugin's
 `find-docs`, `web-research` and `get-api-keys`.

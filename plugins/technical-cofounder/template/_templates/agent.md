@@ -57,6 +57,7 @@ color: <red | blue | green | yellow | purple | orange | pink | cyan>
   "use_when": "<one sentence: the requests that should be routed here>",
   "skills": ["<each skill it reaches for, by name>"],
   "mcp_tools": ["<team plugin MCP tools it uses, e.g. worklog_append>"],
+  "with_engine": {"skills": ["<Hyperspace Engine skills it uses, e.g. gear5-build>"], "mcp_servers": ["<hyperspace, if it uses the engine's server>"]},
   "with_super": {"skills": ["<skills it gains with super-novacaelum>"], "mcp_servers": ["<servers>"]}
 }
 ```

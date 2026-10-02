@@ -2,9 +2,8 @@
 """cofounder MCP server: JSON-RPC 2.0, newline-delimited, over stdio.
 
 Standard library only, no network, no credentials. Exposes the worklog
-(worklog_append / worklog_recent / worklog_search) and verifier-lite
-(verify) tools. Declared in ../.mcp.json as:
-    python3 ${CLAUDE_PLUGIN_ROOT}/mcp/server.py
+tools (worklog_append / worklog_recent / worklog_search). Declared in
+../.mcp.json, which starts this file as ${CLAUDE_PLUGIN_ROOT}/mcp/server.py.
 
 When Hyperspace Engine holds the project's worklog (see ../bin/he_bridge.py),
 the worklog tools go through its CLI instead of worklog.py and fail loud if it
@@ -24,7 +23,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(1, str(Path(__file__).resolve().parent.parent / "bin"))
 
 import he_bridge  # noqa: E402
-import verifier  # noqa: E402
 import worklog  # noqa: E402
 
 SERVER_NAME = "cofounder"
@@ -70,23 +68,6 @@ TOOLS = [
             "required": ["query"],
         },
     },
-    {
-        "name": "verify",
-        "description": "Evaluate a typed acceptance-criteria file against the project root (verifier-lite). Fails closed and closes nothing; when the file names a Hyperspace Engine work item (\"work_item\": its external_id), the verdict says to close it through complete_workitem.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "criteria_file": {"type": "string", "description": "Path to the criteria JSON file."},
-                "root": {"type": "string", "description": "Project root. Defaults to CLAUDE_PROJECT_DIR, else cwd."},
-                "attestations": {
-                    "type": "array",
-                    "items": {"type": "object"},
-                    "description": "Optional list of {statement, attested_by} for manual criteria.",
-                },
-            },
-            "required": ["criteria_file"],
-        },
-    },
 ]
 
 
@@ -122,12 +103,6 @@ def _call_tool(name, args):
     if name == "worklog_search":
         root = _resolve_root(args)
         return _worklog_for(root).search(root, args["query"])
-    if name == "verify":
-        return verifier.run_verification(
-            args["criteria_file"],
-            root=_resolve_root(args),
-            attestations=args.get("attestations"),
-        )
     raise ValueError(f"unknown tool {name!r}")
 
 

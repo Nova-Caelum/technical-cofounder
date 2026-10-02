@@ -10,18 +10,22 @@ new-agent skill registers the agents a project adds.
 
 Every check runs and every failure is listed:
   - registry/agents.json parses and each entry has name, role, use_when,
-    skills, mcp_tools and with_super
+    skills, mcp_tools, with_engine and with_super
   - every role is one declared under "roles"
   - every registry agent has agents/<name>.md whose frontmatter name matches,
     and every agents/*.md is in the registry
   - every skill resolves to skills/<name>/SKILL.md in ROOT or in this plugin
   - every mcp_tool is served by one of this plugin's MCP servers, asked live
-    over stdio with tools/list
-  - each agent's file names every skill, MCP tool and super skill its entry
-    lists, so the registry can't claim a tool the agent is never told to use
+    over stdio with tools/list. Each server is started with the interpreter
+    running this check, not the command in .mcp.json: that command is a path
+    inside a set-up project, which a bare checkout does not have
+  - each agent's file names every skill, MCP tool, engine skill and super
+    skill its entry lists, so the registry can't claim a tool the agent is
+    never told to use
   - an orchestrator's file names every other agent in the registry
-  - with_super names need no files, but when super-novacaelum sits beside this
-    plugin they must exist there
+  - with_engine and with_super names need no files here, but when
+    hyperspace-engine or super-novacaelum sits beside this plugin they must
+    exist there
 
 Exit 0 when clean, 1 with one reason per line otherwise. Standard library only.
 """
@@ -33,7 +37,10 @@ import sys
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parent.parent
-FIELDS = {"name": str, "role": str, "use_when": str, "skills": list, "mcp_tools": list, "with_super": dict}
+FIELDS = {"name": str, "role": str, "use_when": str, "skills": list, "mcp_tools": list,
+          "with_engine": dict, "with_super": dict}
+# Registry field -> (label in messages, the plugin that ships the names it lists).
+COMPANIONS = {"with_engine": ("engine", "hyperspace-engine"), "with_super": ("super", "super-novacaelum")}
 
 
 def frontmatter_name(text):
@@ -64,7 +71,7 @@ def served_mcp_tools(failures):
     for server, cfg in json.loads(mcp_json.read_text(encoding="utf-8")).get("mcpServers", {}).items():
         if "command" not in cfg:
             continue  # not a local stdio server
-        argv = [str(a).replace("${CLAUDE_PLUGIN_ROOT}", str(PLUGIN)) for a in [cfg["command"], *cfg.get("args", [])]]
+        argv = [sys.executable, *(str(a).replace("${CLAUDE_PLUGIN_ROOT}", str(PLUGIN)) for a in cfg.get("args", []))]
         try:
             env = {**os.environ, "CLAUDE_PLUGIN_ROOT": str(PLUGIN), "PYTHONDONTWRITEBYTECODE": "1"}
             out = subprocess.run(argv, input=requests, capture_output=True, text=True, timeout=15, env=env).stdout
@@ -75,16 +82,16 @@ def served_mcp_tools(failures):
     return served
 
 
-def super_names(failures):
-    """Skill and server names super-novacaelum ships, or None where it isn't beside us."""
-    sup = PLUGIN.parent / "super-novacaelum"
-    skills = {p.parent.name for p in (sup / "skills").glob("*/SKILL.md")} if (sup / "skills").is_dir() else None
+def companion_names(plugin, failures):
+    """Skill and server names a companion plugin ships, or None where it isn't beside us."""
+    root = PLUGIN.parent / plugin
+    skills = {p.parent.name for p in (root / "skills").glob("*/SKILL.md")} if (root / "skills").is_dir() else None
     servers = None
-    if (sup / ".mcp.json").is_file():
+    if (root / ".mcp.json").is_file():
         try:
-            servers = set(json.loads((sup / ".mcp.json").read_text(encoding="utf-8")).get("mcpServers", {}))
+            servers = set(json.loads((root / ".mcp.json").read_text(encoding="utf-8")).get("mcpServers", {}))
         except ValueError as exc:
-            failures.append(f"super-novacaelum/.mcp.json is not valid JSON ({exc})")
+            failures.append(f"{plugin}/.mcp.json is not valid JSON ({exc})")
     return skills, servers
 
 
@@ -107,7 +114,7 @@ def check(root):
 
     wanted_tools = {t for a in agents if isinstance(a, dict) for t in a.get("mcp_tools", [])}
     served = served_mcp_tools(failures) if wanted_tools else set()
-    sup_skills, sup_servers = super_names(failures)
+    shipped = {field: companion_names(plugin, failures) for field, (_, plugin) in COMPANIONS.items()}
 
     for a in agents:
         if not isinstance(a, dict):
@@ -121,7 +128,7 @@ def check(root):
         if a.get("role") not in roles:
             failures.append(f"{name}: role {a.get('role')!r} is not declared under \"roles\"")
 
-        ws = a.get("with_super", {}) if isinstance(a.get("with_super"), dict) else {}
+        gains = {field: a[field] if isinstance(a.get(field), dict) else {} for field in COMPANIONS}
         f = root / "agents" / f"{name}.md"
         if not f.is_file():
             failures.append(f"{name}: no agents/{name}.md")
@@ -130,7 +137,7 @@ def check(root):
             fm = frontmatter_name(body)
             if fm != name:
                 failures.append(f"{name}: agents/{name}.md frontmatter name is {fm!r}")
-            for listed in [*a.get("skills", []), *a.get("mcp_tools", []), *ws.get("skills", [])]:
+            for listed in [*a.get("skills", []), *a.get("mcp_tools", []), *(s for g in gains.values() for s in g.get("skills", []))]:
                 if f"`{listed}`" not in body:
                     failures.append(f"{name}: registry lists {listed!r} but agents/{name}.md never names it")
             if a.get("role") == "orchestrator":
@@ -145,16 +152,20 @@ def check(root):
             if tool not in served:
                 failures.append(f"{name}: MCP tool {tool!r} is not served by this plugin")
 
-        for skill in ws.get("skills", []):
-            if sup_skills is not None and skill not in sup_skills:
-                failures.append(f"{name}: super skill {skill!r} not shipped by super-novacaelum")
-        for server in ws.get("mcp_servers", []):
-            if sup_servers is not None and server not in sup_servers:
-                failures.append(f"{name}: super server {server!r} not declared by super-novacaelum")
+        for field, (label, plugin) in COMPANIONS.items():
+            skills, servers = shipped[field]
+            for skill in gains[field].get("skills", []):
+                if skills is not None and skill not in skills:
+                    failures.append(f"{name}: {label} skill {skill!r} not shipped by {plugin}")
+            for server in gains[field].get("mcp_servers", []):
+                if servers is not None and server not in servers:
+                    failures.append(f"{name}: {label} server {server!r} not declared by {plugin}")
 
         lines.append(
             f"  {name:<22} {str(a.get('role')):<18} {len(a.get('skills', [])):>2} skills  "
-            f"{len(a.get('mcp_tools', [])):>2} MCP tools  +super: {len(ws.get('skills', []))} skills, {len(ws.get('mcp_servers', []))} servers"
+            f"{len(a.get('mcp_tools', [])):>2} MCP tools"
+            + "".join(f"  +{label}: {len(gains[field].get('skills', []))} skills, {len(gains[field].get('mcp_servers', []))} servers"
+                      for field, (label, _) in COMPANIONS.items())
         )
 
     for f in sorted((root / "agents").glob("*.md")):

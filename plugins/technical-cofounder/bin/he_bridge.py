@@ -49,7 +49,7 @@ SUMMARY_MAX = 280  # HE's append refuses more; TC's worklog.MAX_SUMMARY_LEN matc
 CLI_TIMEOUT = 60
 PRELOAD_N = 3
 BODY_CAP = 400
-GEAR_LINE = "Hyperspace Engine is installed: use its gear* skills for the working loop, not the hs-* skills."
+GEAR_LINE = "Hyperspace Engine is installed: use its gear* skills for the working loop."
 
 FIXES = {
     2: "the hyperspace CLI refused the request as invalid; correct it and retry",
