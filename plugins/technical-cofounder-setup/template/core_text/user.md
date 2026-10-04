@@ -9,29 +9,29 @@
 
 ## Identity
 
-- <what you're building, and your role on it>
+- <what you're building, and your role on it, or "not decided yet: starting with a test drive">
 - <primary machine / OS — e.g. "Mac, primary daily driver">
+- Where you run your agents: <desktop app, command line (CLI), or both>
 - <anything else that shapes how an agent should work with you>
 
 ---
 
-## Energy state framework
+## Energy state
 
-Declare your state in natural language — not detected, not assumed.
-Agents should honor it immediately and hold it until you signal a change.
+`steady` is the default. Say another state in plain words at any time; agents
+switch at once and hold it until you change it.
 
-| State | Signal example | Agent shape |
+| State | How you might say it | How agents work |
 |---|---|---|
-| `sharp` | <e.g. "I'm locked in"> | <e.g. long context ok, surface trade-offs, recommend with rationale> |
-| `steady` *(default)* | <no explicit signal> | <balanced: key options, recommend, ship> |
-| `tired` | <e.g. "one thing at a time"> | <action over explanation, no "want me to..." offers> |
+| `sharp` | "I'm locked in" | Longer context is fine; surface the trade-offs; recommend with the reasoning. |
+| `steady` *(default)* | nothing needed | The key options, a recommendation with a short why, then do it. |
+| `tired` | "one thing at a time" | Action over explanation, one step at a time, no "want me to..." offers. |
 
 ---
 
-## Decision-style preferences
+## How agents answer you (default)
 
-- <lead with a recommendation, or want 2-3 options first?>
-- <how should uncertainty be flagged — say plainly, or hedge?>
+- Give options with a recommendation and a short why, and say plainly when uncertain.
 - <reversibility bar: at what point should an agent stop and ask before acting?>
 
 ---

@@ -386,5 +386,279 @@ class TheInstallGuards(unittest.TestCase):
         self.assertIn("without an error", flat(veteran))
 
 
+# ── The guide, as a first-time user meets it (round-1 fixes from the first
+# live test). Each class below is one finding; the text they pin is the
+# setup skill, its steps.json, the profile template and the guide renderer.
+
+import html  # noqa: E402
+import subprocess  # noqa: E402
+import sys  # noqa: E402
+import tempfile  # noqa: E402
+
+EXPLAIN_LABEL = "Explain the difference"
+EXPLAIN_RULE = (
+    "Every choice you ask them to make ends with one more option, **Explain the difference**: "
+    "what they gain or lose with each."
+)
+# Choice keys nobody is asked for: the install script detects the computer,
+# and the worklog view follows the Obsidian answer.
+NOT_ASKED = {"os", "worklog_view"}
+# Steps that ask a choice no key records: where the project goes, and the
+# profile's test drive and desktop-or-CLI questions.
+ASKS_UNRECORDED = {"prerequisites", "profile"}
+PROFILE_TEMPLATE = SETUP / "template" / "core_text" / "user.md"
+DEFAULT_ANSWERING = "Give options with a recommendation and a short why, and say plainly when uncertain."
+KEPT_QUESTION = "Anything else that would change how an agent should work with you?"
+UNDERSTAND_FIRST = "the first step of any piece of work is Understand"
+EXTRAS = (("Exa", "web research"), ("Context7", "library docs"), ("Browserbase", "cloud browser"))
+GH_EXE = r"C:\Program Files\GitHub CLI\gh.exe"
+GH_PROMPTS = (
+    ('"Where do you use GitHub?"', "**GitHub.com**"),
+    ('"What is your preferred protocol for Git operations on this host?"', "**HTTPS**"),
+    ('"Authenticate Git with your GitHub credentials?"', "**Yes**"),
+    ('"How would you like to authenticate GitHub CLI?"', "**Login with a web browser**"),
+)
+
+
+def one_line(value):
+    return isinstance(value, str) and bool(value.strip()) and "\n" not in value
+
+
+def heading_body(text, needle):
+    """The text under the first heading that contains `needle`, up to the
+    next heading of the same or a higher level, unflattened."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        mark = re.match(r"(#+) ", line)
+        if mark and needle in line:
+            body = []
+            for nxt in lines[i + 1:]:
+                other = re.match(r"(#+) ", nxt)
+                if other and len(other.group(1)) <= len(mark.group(1)):
+                    break
+                body.append(nxt)
+            return "\n".join(body)
+    raise AssertionError(f"no heading containing {needle!r}")
+
+
+def step_section(step_id):
+    """The skill's section for a step: its heading carries (`id`), except
+    the project-folder choice, which is asked under Where the project goes."""
+    needle = "Where the project goes" if step_id == "prerequisites" else f"(`{step_id}`)"
+    return flat(heading_body(SKILL.read_text(encoding="utf-8"), needle))
+
+
+def asked_steps():
+    return [s for s in STEPS["steps"] if set(s["choices"]) - NOT_ASKED or s["id"] in ASKS_UNRECORDED]
+
+
+class GuideChoices(unittest.TestCase):
+    """Every choice the setup asks for offers to explain the difference, and
+    what it says then comes from steps.json, like every other reason."""
+
+    def test_how_to_talk_gives_every_choice_an_explain_option(self):
+        how = flat(heading_body(SKILL.read_text(encoding="utf-8"), "How to talk"))
+        self.assertIn(EXPLAIN_RULE, how)
+        self.assertIn("`explain`", how)
+
+    def test_the_steps_that_ask_are_the_ones_expected(self):
+        self.assertEqual({s["id"] for s in asked_steps()},
+                         {"prerequisites", "editor", "obsidian", "github", "profile", "super"})
+
+    def test_every_step_that_asks_carries_an_explain_line_per_option(self):
+        for step in asked_steps():
+            with self.subTest(step=step["id"]):
+                lines = step.get("explain")
+                self.assertIsInstance(lines, list)
+                self.assertGreaterEqual(len(lines), 2)
+                for line in lines:
+                    self.assertTrue(one_line(line), line)
+
+    def test_each_step_that_asks_offers_the_option_where_it_asks(self):
+        for step in asked_steps():
+            with self.subTest(step=step["id"]):
+                self.assertIn(EXPLAIN_LABEL, step_section(step["id"]))
+
+    def test_the_worklog_choice_says_what_the_worklog_is(self):
+        obsidian = step_section("obsidian")
+        self.assertIn("worklog", obsidian)
+        self.assertIn("Hyperspace Engine's console", obsidian)
+        explain = next(s for s in STEPS["steps"] if s["id"] == "obsidian").get("explain") or []
+        self.assertIn("worklog", " ".join(explain))
+
+    def test_nothing_promises_a_csv_file(self):
+        steps = json.dumps(STEPS["steps"]).lower()
+        for name, text in (("SKILL.md", SKILL.read_text(encoding="utf-8").lower()), ("steps.json", steps)):
+            with self.subTest(file=name):
+                self.assertNotIn("csv", text)
+
+    def test_continue_setup_moves_a_later_obsidian_user_over(self):
+        cont = flat(SKILL.read_text(encoding="utf-8").split("**Continue setup.**", 1)[1].split("\n## ", 1)[0])
+        for needle in ("init_workspace.py", "--obsidian", "obsidian=yes", "worklog_view=obsidian"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, cont)
+
+
+class ProfileInterview(unittest.TestCase):
+    """The profile asks only what an agent cannot work out: the energy and
+    answer-style questions became defaults, a test drive replaced 'what are
+    you building', and it asks desktop app or command line."""
+
+    @classmethod
+    def setUpClass(cls):
+        body = heading_body(SKILL.read_text(encoding="utf-8"), "(`profile`)")
+        cls.flat = flat(body)
+        cls.questions = [flat(q) for q in re.split(r"(?m)^\d+\. ", body)[1:]]
+        cls.template = PROFILE_TEMPLATE.read_text(encoding="utf-8")
+
+    def test_the_energy_and_answer_style_questions_are_gone(self):
+        self.assertTrue(self.questions)
+        for question in self.questions:
+            with self.subTest(question=question[:40]):
+                self.assertNotRegex(question.lower(), r"sharp|tired|options presented|recommendation|uncertain")
+
+    def test_it_opens_with_a_test_drive_not_what_are_you_building(self):
+        self.assertIn("test drive", self.questions[0].lower())
+        self.assertNotIn("What are you building", self.flat)
+
+    def test_it_asks_desktop_app_or_command_line(self):
+        self.assertTrue([q for q in self.questions if "desktop app" in q and "command line (CLI)" in q])
+
+    def test_the_open_question_is_kept(self):
+        self.assertTrue([q for q in self.questions if KEPT_QUESTION in q])
+
+    def test_the_template_carries_the_two_defaults(self):
+        self.assertRegex(self.template, r"`steady`[^\n]*default")
+        self.assertIn(DEFAULT_ANSWERING, self.template)
+        for stale in ("<lead with a recommendation", "<how should uncertainty be flagged", '<e.g. "I\'m locked in">'):
+            with self.subTest(stale=stale):
+                self.assertNotIn(stale, self.template)
+
+    def test_the_template_has_a_line_for_the_app_they_use(self):
+        self.assertIn("Where you run your agents: <desktop app, command line (CLI), or both>", self.template)
+        self.assertIn("test drive", self.template)
+
+
+class ClosingText(unittest.TestCase):
+    """The closing tells a first-time user how to open their project, what
+    the trust prompt is, what the extras buy, and where work starts."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.closing = flat(heading_body(SKILL.read_text(encoding="utf-8"), "Closing"))
+
+    def test_it_says_how_to_open_a_session_in_the_project_folder(self):
+        for needle in ("Code tab", "new session", "choose the project folder", "`cd`", "`claude`"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, self.closing)
+
+    def test_it_says_what_the_trust_prompt_means_and_to_accept_it(self):
+        self.assertIn("trust this folder", self.closing)
+        self.assertIn("their own project", self.closing)
+
+    def test_it_names_the_three_research_extras_and_what_each_buys(self):
+        for name, buys in EXTRAS:
+            with self.subTest(extra=name):
+                self.assertIn(name, self.closing)
+                self.assertIn(buys, self.closing.lower())
+
+    def test_it_points_to_understand(self):
+        self.assertIn(UNDERSTAND_FIRST, self.closing)
+
+
+class GitHubOnWindows(unittest.TestCase):
+    """A gh installed a moment ago is not on this session's PATH on Windows,
+    and gh auth login asks four questions a first-time user cannot guess."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.github = step_section("github")
+
+    def test_a_new_gh_is_used_by_its_full_path(self):
+        self.assertIn(GH_EXE, self.github)
+        self.assertIn("full path", self.github)
+        self.assertIn("PATH", self.github)
+
+    def test_each_login_prompt_comes_with_its_answer_in_order(self):
+        at = -1
+        for prompt, answer in GH_PROMPTS:
+            with self.subTest(prompt=prompt):
+                self.assertIn(prompt, self.github)
+                self.assertIn(answer, self.github)
+                self.assertGreater(self.github.index(prompt), at)
+                at = self.github.index(prompt)
+        self.assertIn("one-time code", self.github)
+        self.assertIn("github.com/login/device", self.github)
+
+    def test_they_log_in_from_their_own_terminal_window(self):
+        self.assertIn("terminal window", self.github)
+
+
+class ResearchExtras(unittest.TestCase):
+    """The extras are three services, each named with what it buys, where
+    they are offered and in the reference page the agent reads."""
+
+    def test_part_2_names_each_and_what_it_buys(self):
+        part2 = step_section("super")
+        for name, buys in EXTRAS:
+            with self.subTest(extra=name):
+                self.assertIn(name, part2)
+                self.assertIn(buys, part2.lower())
+
+    def test_the_extras_step_names_each(self):
+        does = next(s for s in STEPS["steps"] if s["id"] == "super")["does"]
+        for name, buys in EXTRAS:
+            with self.subTest(extra=name):
+                self.assertIn(name, does)
+                self.assertIn(buys, does.lower())
+
+    def test_the_reference_page_covers_them(self):
+        page = flat(heading_body((SETUP / "reference" / "dependencies.md").read_text(encoding="utf-8"),
+                                 "Research extras"))
+        for name, buys in EXTRAS:
+            with self.subTest(extra=name):
+                self.assertIn(name, page)
+                self.assertIn(buys, page.lower())
+        self.assertIn("super-novacaelum", page)
+
+
+class VerifyPointers(unittest.TestCase):
+    """Every step names one place the user can check the claim themselves,
+    the skill says it, and the guide shows it on the step's card."""
+
+    def test_every_step_has_one_verify_line(self):
+        for step in STEPS["steps"]:
+            with self.subTest(step=step["id"]):
+                self.assertTrue(one_line(step.get("verify")))
+                self.assertNotIn("http", step["verify"].lower())  # the guide pages are offline
+
+    def test_the_skill_says_each_steps_verify_line(self):
+        text = SKILL.read_text(encoding="utf-8")
+        for title in ("Scan, plan, apply, re-scan", "The guide and the questions"):
+            with self.subTest(section=title):
+                self.assertIn("`verify`", flat(heading_body(text, title)))
+
+    def test_every_card_shows_its_verify_line(self):
+        with tempfile.TemporaryDirectory() as project:
+            subprocess.run([sys.executable, str(SETUP / "bin" / "setup_record.py"), "render", project],
+                           check=True, capture_output=True)
+            pages = "".join((Path(project) / "core_text" / name).read_text(encoding="utf-8")
+                            for name in ("setup-guide.html", "setup-extras.html"))
+        self.assertEqual(pages.count("<dt>Check it yourself</dt>"), len(STEPS["steps"]))
+        for step in STEPS["steps"]:
+            with self.subTest(step=step["id"]):
+                self.assertIn(html.escape(step.get("verify") or "<missing>"), pages)
+
+
+class UnderstandFirst(unittest.TestCase):
+    """'What to try first' says no run is open yet and that work starts at
+    Understand."""
+
+    def test_what_to_try_first_says_no_run_is_open_and_where_work_starts(self):
+        first = step_section("first-steps")
+        self.assertIn("no run is open yet", first)
+        self.assertIn(UNDERSTAND_FIRST, first)
+
+
 if __name__ == "__main__":
     unittest.main()

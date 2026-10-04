@@ -29,8 +29,9 @@ is longer than 40 characters, is not a plain word, or looks like a key, path
 or email. A refusal never echoes the value and never touches the record.
 
 Each page is one card per step (status, minutes when it has any, OK to skip or
-required, why, what skipping costs you, and the price) on graph paper, light or
-dark to match the reader's system, with no script, font file or other asset.
+required, why, what skipping costs you, the price, and where to check it
+yourself) on graph paper, light or dark to match the reader's system, with no
+script, font file or other asset.
 Part 1 ends with a thank-you and the absolute path of part 2. `render` prints
 GUIDE: and EXTRAS: lines carrying both absolute paths.
 
@@ -332,6 +333,7 @@ CARD = """<li class="card is-{cls}" data-step="{id}">
 <div><dt>Why</dt><dd>{why}</dd></div>
 <div><dt>If you skip</dt><dd>{if_skipped}</dd></div>
 <div><dt>Cost</dt><dd>{cost}</dd></div>
+<div><dt>Check it yourself</dt><dd>{verify}</dd></div>
 </dl>
 </li>"""
 
@@ -382,7 +384,7 @@ def render_part(part, steps, rec, project, extras_path):
             cls=cls, mark=mark, id=e(s["id"]), title=e(s["title"]), does=e(s["does"]),
             pill="" if minutes is None else f'<span class="pill">{minutes} min</span>',
             badge=BADGES[bool(s["skippable"])], why=e(s["why"]), extra=extra,
-            if_skipped=e(s["if_skipped"]), cost=e(str(s.get("cost", ""))),
+            if_skipped=e(s["if_skipped"]), cost=e(str(s.get("cost", ""))), verify=e(s["verify"]),
         ))
     total = (sum(s["minutes"] or 0 for s in steps) + 2) // 5 * 5  # nearest 5
     ends = {1: THANKS, 2: SAVED}[part].format(uri=e(extras_path.as_uri()), path=e(str(extras_path)), ask=e(ASK))
