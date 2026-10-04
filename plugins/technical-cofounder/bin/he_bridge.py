@@ -12,14 +12,19 @@ Modes, read from .hyperspace/config.toml's top-level `worklog_owner`:
     he-preload  any other owner: HE's store, HE's preload
 
 The handshake (SessionStart, a set-up TC project, mode pending): import
-worklog/entries into the store once, then append `worklog_owner` and, when
-core_text/setup.json chose worklog_view "obsidian", `worklog_mirror_dir`, then
-run `mirror --rebuild` once so HE rows written before the key existed get their
-files (imported rows never do). A failed import writes no key and retries next
-session. The import never runs again after the keys land: HE's import keys on
-filename only, so it would take HE's own mirror files for new entries. A
-failed rebuild is therefore one note naming the command, not a retry.
-Keys are appended as scalar strings before any table, never rewriting a line.
+worklog/entries into the store once, then append `worklog_owner` and
+`worklog_mirror_dir`, then run `mirror --rebuild` once so HE rows written before
+the key existed get their files (imported rows never do: their file is already
+there). The mirror is on for every user, Obsidian or not: each entry is one
+Markdown file in worklog/entries/, which the task console's Worklog tab shows as
+a table (Obsidian users also get worklog.base). A project past the handshake
+before the mirror was on for everyone (mode tc-preload, no mirror key) gets the
+key and one rebuild at its next session start, and no import. A failed import
+writes no key and retries next session. The import never runs again after the
+keys land: HE's import keys on filename only, so it would take HE's own mirror
+files for new entries. A failed rebuild is therefore one note naming the
+command, not a retry. Keys are appended as scalar strings before any table,
+never rewriting a line.
 
 Reads and writes go through HE's CLI contract (v0.1.2):
     <project>/.hyperspace/env/bin/python -m hyperspace.cli worklog <verb> ... --json
@@ -122,13 +127,14 @@ def uses_store(root):
 
 def _add_keys(root, keys):
     """Insert `key = "value"` lines for keys not already defined, before the
-    first table header; every existing line stays byte-identical."""
+    first table header; every existing line stays byte-identical. True when a
+    line was written."""
     path = _config_path(root)
     text = path.read_text(encoding="utf-8")
     present = _top_level(text)
     new = [f"{key} = {json.dumps(value)}\n" for key, value in keys.items() if key not in present]
     if not new:
-        return
+        return False
     lines = text.splitlines(keepends=True)
     at = next((i for i, line in enumerate(lines) if line.lstrip().startswith("[")), len(lines))
     head = lines[:at]
@@ -137,33 +143,30 @@ def _add_keys(root, keys):
     tmp = path.with_name(path.name + ".tc-tmp")
     tmp.write_text("".join(head + new + lines[at:]), encoding="utf-8")
     tmp.replace(path)
-
-
-def _worklog_view(root):
-    try:
-        record = json.loads((Path(root) / "core_text" / "setup.json").read_text(encoding="utf-8"))
-        return record["choices"]["worklog_view"]
-    except (OSError, ValueError, KeyError, TypeError):
-        return None
+    return True
 
 
 def handshake(root):
-    """Claim the preload for TC once. None when done or nothing to do; a
-    one-line note when it failed (it retries next session). Never raises."""
+    """Claim the preload for TC and switch the file mirror on, once. None when
+    done or nothing to do; a one-line note when it failed (the import retries
+    next session, the rebuild does not). Never raises."""
     root = Path(root)
     try:
-        if mode(root) != "pending":
+        current = mode(root)
+        if current == "pending":
+            if (root / ENTRIES).is_dir():
+                run_cli(root, "import", f"--from={ENTRIES}")
+            _add_keys(root, {OWNER_KEY: TC_OWNER, MIRROR_KEY: ENTRIES})
+        elif current == "tc-preload":
+            if not _add_keys(root, {MIRROR_KEY: ENTRIES}):  # set up before the mirror was on for everyone
+                return None
+        else:
             return None
-        if (root / ENTRIES).is_dir():
-            run_cli(root, "import", f"--from={ENTRIES}")
-        obsidian = _worklog_view(root) == "obsidian"
-        _add_keys(root, {OWNER_KEY: TC_OWNER, **({MIRROR_KEY: ENTRIES} if obsidian else {})})
-        if obsidian:
-            try:
-                run_cli(root, "mirror", "--rebuild")
-            except BridgeError as exc:
-                return ("technical-cofounder: older Hyperspace rows have no Obsidian file yet; run "
-                        f"`hyperspace worklog mirror --rebuild` once ({' '.join(str(exc).split())})")
+        try:
+            run_cli(root, "mirror", "--rebuild")
+        except BridgeError as exc:
+            return ("technical-cofounder: older Hyperspace rows have no file in worklog/entries yet; run "
+                    f"`hyperspace worklog mirror --rebuild` once ({' '.join(str(exc).split())})")
         return None
     except Exception as exc:  # the session must never break over this
         detail = " ".join(str(exc).split())
@@ -246,7 +249,7 @@ def append(root, summary, detail="", author="agent", tags=None):
     if tags:
         args.append("--tags=" + ",".join(tags))
     entry = run_cli(root, "append", *args)["entry"]
-    return {"file": None, "csv_error": None, "row_id": entry["id"]}
+    return {"file": None, "row_id": entry["id"]}
 
 
 def recent(root, n=5):

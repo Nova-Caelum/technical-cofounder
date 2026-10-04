@@ -31,7 +31,7 @@ SERVER_VERSION = "0.1.0"
 TOOLS = [
     {
         "name": "worklog_append",
-        "description": "Append an entry to the project worklog (canonical markdown, derived CSV index; Hyperspace Engine's store when it holds this project's worklog).",
+        "description": "Append an entry to the project worklog (one markdown file in worklog/entries/; Hyperspace Engine's store, mirrored to the same folder, when it holds this project's worklog).",
         "inputSchema": {
             "type": "object",
             "properties": {
