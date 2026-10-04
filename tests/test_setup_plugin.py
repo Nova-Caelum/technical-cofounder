@@ -50,6 +50,12 @@ ONEDRIVE = (
     "and offer the `Projects` default again; their choice stands."
 )
 ASK = "If anything is unclear, just ask me."
+# The oldest Claude Code on which `claude plugin install technical-cofounder@nova-caelum` brings its
+# dependency, Hyperspace Engine, with it. Found by running the install on 2.1.92, 2.1.109 and 2.1.110:
+# the first two say "Successfully installed" and leave the engine out, 2.1.110 adds "(+ 1 dependency:
+# hyperspace-engine)". The changelog entry for 2.1.110 says the same: "Fixed plugin install not honoring
+# dependencies declared in plugin.json when the marketplace entry omits them".
+CLAUDE_CODE_FLOOR = "2.1.110"
 GUIDE_STEPS = ("editor", "obsidian", "github", "workspace", "first-steps", "profile")
 
 
@@ -274,13 +280,17 @@ class TheMessage(unittest.TestCase):
                 self.assertIn(needle, self.blocks[0])
 
     def test_every_line_of_the_message_starts_where_it_was_agreed(self):
-        # Numbered steps at the margin; commands three spaces in, alone on
-        # their line, so they can be copied whole; what belongs under the
-        # Windows bullet five spaces in.
+        # The Chat-tab line straight under the ask, so a paste into Chat meets
+        # it first. Numbered steps at the margin; commands three spaces in,
+        # alone on their line, so they can be copied whole (so is the version
+        # check under step 1); what belongs under the Windows bullet five
+        # spaces in.
         starts = [
             "Set up Technical Cofounder for me, ",
+            "This message is for Claude Code. ",
             "",
             "1. If `claude --version` does not work here, ",
+            "   Once `claude --version` works, ",
             "2. Git has to be on this computer before anything can be downloaded. ",
             "   - On a Mac, if `xcode-select -p` fails: ",
             "   - On Windows, if `git --version` does not work: ",
@@ -310,6 +320,70 @@ class TheMessage(unittest.TestCase):
 
     def test_the_file_it_points_at_exists_at_that_path_in_the_plugin(self):
         self.assertTrue((SETUP / "skills" / "setup" / "SKILL.md").is_file())
+
+
+class TheInstallGuards(unittest.TestCase):
+    """Two guards in the pasted message. A paste into the desktop app's Chat tab,
+    which cannot run commands, is sent to the Code tab. A Claude Code too old to
+    install the team's dependency, in the command line or in the desktop app, is
+    caught and told how to update, because the old install says it worked."""
+
+    @classmethod
+    def setUpClass(cls):
+        text = MESSAGE.read_text(encoding="utf-8")
+        cls.lines = re.findall(r"(?ms)^```text\n(.*?)^```$", text)[0].splitlines()
+        cls.readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        cls.step1 = next(i for i, line in enumerate(cls.lines) if line.startswith("1. "))
+        cls.step2 = next(i for i, line in enumerate(cls.lines) if line.startswith("2. "))
+        cls.chat = [line for line in cls.lines[:cls.step1] if "Chat tab" in line]
+        cls.version = [line for line in cls.lines[cls.step1 + 1:cls.step2] if CLAUDE_CODE_FLOOR in line]
+
+    def one(self, found, what):
+        self.assertEqual(len(found), 1, "exactly one line %s, found %d" % (what, len(found)))
+        return found[0]
+
+    def test_a_chat_tab_paste_is_told_to_switch_to_the_code_tab(self):
+        line = self.one(self.chat, "before step 1 speaks to the Chat tab")
+        for needle in ("If you cannot run commands on this computer", "Code tab", "New session", "Local",
+                       "leave the folder empty", "paste this same message there"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, line)
+
+    def test_the_chat_tab_line_comes_before_anything_an_agent_would_run(self):
+        line = self.one(self.chat, "before step 1 speaks to the Chat tab")
+        self.assertTrue(self.lines[0].startswith("Set up Technical Cofounder for me, "))
+        self.assertLess(self.lines.index(line), self.step1)
+
+    def test_the_version_floor_sits_under_step_1_as_one_line(self):
+        line = self.one(self.version, "between step 1 and step 2 names the floor")
+        self.assertTrue(line.startswith("   Once `claude --version` works, "), line[:60])
+
+    def test_it_checks_the_command_line_and_the_desktop_app(self):
+        line = self.one(self.version, "between step 1 and step 2 names the floor")
+        for needle in ("`claude --version`", "Claude desktop app", "CLAUDE_CODE_EXECPATH", "with `--version`"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, line)
+
+    def test_it_names_the_update_route_for_each(self):
+        line = self.one(self.version, "between step 1 and step 2 names the floor")
+        for needle in ("`claude update`", "run the install command above again and use its full path",
+                       "Claude > Check for Updates on a Mac", "Help > Check for Updates on Windows",
+                       "paste this same message"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, line)
+
+    def test_the_floor_is_there_because_the_team_plugin_depends_on_the_engine(self):
+        # If this dependency goes, the floor was found for a different install and has to be found again.
+        self.assertIn("hyperspace-engine", manifest(TEAM)["dependencies"])
+
+    def test_the_readme_sends_a_chat_tab_paste_to_the_code_tab(self):
+        step = next(line for line in self.readme.splitlines() if line.startswith("**1. Give this to your agent.**"))
+        self.assertIn("**Code** tab, not Chat", step)
+
+    def test_the_readme_gives_the_command_line_user_the_same_floor(self):
+        veteran = self.readme.split("### Already know your way around?", 1)[1].split("### New to building", 1)[0]
+        self.assertIn("Claude Code has to be %s or newer (`claude update`)" % CLAUDE_CODE_FLOOR, flat(veteran))
+        self.assertIn("without an error", flat(veteran))
 
 
 if __name__ == "__main__":
