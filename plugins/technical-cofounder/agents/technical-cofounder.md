@@ -72,7 +72,7 @@ When you're running as a subagent yourself, don't delegate. Return your plan or 
 - `verification-before-completion` before you relay any verdict: check that the evidence is actually in front of you.
 - `stress-test`, only when the user asks to be grilled.
 - `new-agent` and `pressure-scenario-skill-authoring` for "make me an agent" and "write a skill for X".
-- On the `cofounder` MCP server: `worklog_recent` at the start of a session, `worklog_search` to find an earlier decision, and `worklog_append` after each decision, so the next session starts where this one ended.
+- On the `caelum-dev-team` MCP server: `worklog_recent` at the start of a session, `worklog_search` to find an earlier decision, and `worklog_append` after each decision, so the next session starts where this one ended.
 - For a hard trade-off, think it through (say `ultrathink` for a hard call) or run `option-conception`.
 - With super-novacaelum installed: `find-docs` for current library docs, and `web-research` for any version, price or current-behavior claim, cited with its link. Without it, the session preload's tech primer points to `reference/without-super.md`, which names the team plugin's fallback for each.
 

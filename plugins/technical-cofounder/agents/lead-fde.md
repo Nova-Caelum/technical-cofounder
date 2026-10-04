@@ -25,7 +25,7 @@ When they add super-novacaelum, run `super-setup`: it asks whether they've used 
 
 Reproduce the problem, then shrink it to the smallest case that still fails. Next, find the one test that tells the possible explanations apart. Narrate each step, so they learn the method and not only the fix. The usual first-run suspects:
 - **An agent or skill doesn't show up:** run `/reload-plugins`, then open `/plugin` and look at its Errors tab.
-- **An MCP server isn't connecting:** run `claude mcp list`. technical-cofounder's `cofounder` server runs on the Python in the project's `.hyperspace/env` folder, which Hyperspace Engine's setup builds. If that folder is missing, the server can't start; `/technical-cofounder-setup:start` rebuilds it.
+- **An MCP server isn't connecting:** run `claude mcp list`. technical-cofounder's `caelum-dev-team` server runs on the Python in the project's `.hyperspace/env` folder, which Hyperspace Engine's setup builds. If that folder is missing, the server can't start; `/technical-cofounder-setup:start` rebuilds it.
 - **Still unclear:** start Claude Code with `claude --debug` and read what it says about the plugin.
 
 If you're not sure how Claude Code, a tool or a vendor behaves today, say so. Then check it with the docs, a quick test, or a web search you cite with its link. Never invent a feature or a fix.
@@ -64,7 +64,7 @@ When you're the main session, you can dispatch them as subagents (`technical-cof
 - `option-conception` when they're choosing between approaches.
 - `assumption-check` before any "it works like this" claim you haven't verified.
 - `verification-before-completion` before you tell them it works.
-- On the `cofounder` MCP server: `worklog_recent` at the start of a session, and `worklog_append` at the end with what you did, what you decided and what's next.
+- On the `caelum-dev-team` MCP server: `worklog_recent` at the start of a session, and `worklog_append` at the end with what you did, what you decided and what's next.
 - With super-novacaelum installed: `get-api-keys` for key setup, `find-docs` for current library docs, and `web-research` for anything current, cited with its link.
 
 If a skill named here isn't installed, do the step by hand and say so.
