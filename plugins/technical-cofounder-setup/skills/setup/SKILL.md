@@ -32,6 +32,11 @@ continue or repair? Read **Repair and another project** first.
 - One question at a time, and wait for the answer. Ask a multiple-choice
   question with the `AskUserQuestion` tool when it is available (it shows a
   pop-up), otherwise in chat.
+- Every choice you ask them to make ends with one more option, **Explain the
+  difference**: what they gain or lose with each. When they pick it, say the
+  step's `explain` lines from `steps.json` for the options in front of them,
+  then ask the same question again. A step with no `explain` lines is
+  explained from its `does`, `why` and `if_skipped`.
 - Plain words. Define a term the first time you use it: "a plugin (an add-on
   for Claude Code)".
 - Never ask for a key, token or password in chat.
@@ -48,7 +53,8 @@ continue or repair? Read **Repair and another project** first.
    thousands of files does badly under sync. A folder they already have is
    fine too. If the folder they choose has `OneDrive` in its path, say once
    that synced folders slow the workspace down and offer the `Projects`
-   default again; their choice stands.
+   default again; their choice stands. Offer **Explain the difference** too:
+   the `prerequisites` step's `explain` lines.
 3. Create nothing yet. The install script creates the folder. It refuses the
    home folder itself and system folders; when it does, say its sentence and
    ask for another folder.
@@ -132,7 +138,9 @@ with no JSON document was cut off, not failed: run the same command again.
      Code from a terminal window, they close that window too. Then stop.
 4. **Finish.** Run `scan` with `--record` and say what it shows: how many
    items are `ready`, anything that is not, and where the record is
-   (`recorded`). A row that is not `ready` goes back through step 3.
+   (`recorded`). A row that is not `ready` goes back through step 3. Then say
+   the `prerequisites` step's `verify` line from `steps.json`, so they can
+   check it themselves.
 
 What makes this trustworthy:
 
@@ -166,7 +174,9 @@ Every step below:
 
 - Before you start it, say its title, its `why` and its `minutes` from the
   `steps` list in `steps.json`.
-- End with one line: they can ask you anything about it, right in the chat.
+- End with its `verify` line from `steps.json`, the one place they can check
+  it themselves, then one line: they can ask you anything about it, right in
+  the chat.
 - Work on `<project>` by its absolute path.
 - Record it afterwards, which also refreshes the guide:
 
@@ -176,7 +186,7 @@ Every step below:
 
   `done` when it happened, `skipped` when they chose to skip, `pending` to
   reopen. A step takes only the choice keys `steps.json` declares for it, each
-  one plain word (`yes`, `no`, `vscode`, `csv`); the script refuses anything
+  one plain word (`yes`, `no`, `vscode`, `files`); the script refuses anything
   else. When a step is skipped, say its `if_skipped` line, so they know what
   they are leaving for later. `skipped` writes that line into
   `core_text/setup.json`, where the team's session briefing reads it.
@@ -197,10 +207,10 @@ Every step below:
    there is no desktop, say "You can view the setup guide here:" and the
    absolute `GUIDE:` path.
 4. **Quick questions**, as pop-ups: "Ready for the rest?" (Yes / Show me the
-   guide first: wait until they have read it) and "How much time do you
-   have?". Say: Part 1 takes about 20 minutes and the install is already
-   behind them. Part 2 (research extras) is optional and lives in
-   `setup-extras.html`, at the absolute `EXTRAS:` path. Steps they don't
+   guide first: wait until they have read it / Explain the difference) and
+   "How much time do you have?". Say: Part 1 takes about 20 minutes and the
+   install is already behind them. Part 2 (research extras) is optional and
+   lives in `setup-extras.html`, at the absolute `EXTRAS:` path. Steps they don't
    reach stay `pending` for "continue setup".
 5. `set … guide done`.
 
@@ -214,7 +224,8 @@ Look before asking. The plan's `obsidian` row already says whether Obsidian
 is installed. For the others: on a Mac,
 `ls /Applications | grep -iE "visual studio code|typora|zed|sublime"`; on
 Windows, look in `%LOCALAPPDATA%\Programs`. If something is there, say which
-and move on. If nothing is, recommend one:
+and move on. If nothing is, recommend one, with **Explain the difference** as
+the last option:
 
 - **Obsidian**: free, our recommendation, and the next step builds on it.
 - **VS Code** or **Zed**: free. **Typora**: paid, the cleanest view.
@@ -231,15 +242,22 @@ me." The path is `<project>/OBSIDIAN.md` if it exists, otherwise
 
 ### 2. Obsidian (`obsidian`)
 
+This is also the worklog choice, so say first, in one sentence, what the
+worklog is: the team's diary, one short Markdown file per piece of work in
+`worklog/`, so the next session knows what happened. Everyone gets those files
+and reads them in the worklog tab of Hyperspace Engine's console; with
+Obsidian they also show as one table.
+
 If they have Obsidian or just chose it, yes is the easy call: they get a
-minimal `.obsidian/` folder and `worklog/worklog.base`, a table over every
-worklog entry. If they don't use Obsidian, don't sell it.
+minimal `.obsidian/` folder and `worklog/worklog.base`, that table over every
+worklog entry. If they don't use Obsidian, don't sell it. Ask Yes / No /
+**Explain the difference**.
 `set … obsidian done --choice obsidian=yes`, or
 `skipped --choice obsidian=no`. Step 4 uses this answer.
 
 On a no, say one line: OBSIDIAN.md is at
 `${CLAUDE_PLUGIN_ROOT}/template/OBSIDIAN.md` (give the absolute path) if they
-change their mind.
+change their mind, and "continue setup" switches them over later.
 
 ### 3. GitHub (`github`)
 
@@ -249,7 +267,8 @@ this computer and can be undone, and it is free.
 Look first: `gh --version`, then `gh auth status`. If both succeed, they are
 connected: `set … github done --choice github=yes` and move on.
 
-Otherwise ask whether they want to connect GitHub now. On a no, ask once:
+Otherwise ask whether they want to connect GitHub now (Yes / Not now /
+**Explain the difference**). On a no, ask once:
 "Are you sure? It's free, and it's your project's backup off this computer."
 A second no is final: `set … github skipped --choice github=no`, and continue.
 
@@ -257,17 +276,39 @@ On a yes, walk them through it. They run every command:
 
 1. **An account:** a free one at github.com, if they don't have one.
 2. **The GitHub command line (`gh`):** `brew install gh` on a Mac,
-   `winget install --id GitHub.cli` on Windows (then a new terminal window),
-   or their Linux package manager (cli.github.com lists each).
-3. **Log in:** `gh auth login`, choose GitHub.com, then log in with a web
-   browser. No token is needed.
+   `winget install --id GitHub.cli` on Windows, or their Linux package manager
+   (cli.github.com lists each). A terminal window opened before the install
+   can't find it: they open a new one.
+3. **Log in:** in a terminal window (Terminal on a Mac, PowerShell on
+   Windows), `gh auth login`. It asks four questions; give them every answer
+   before they start. Arrow keys move, Enter picks.
+   1. "Where do you use GitHub?" **GitHub.com**
+   2. "What is your preferred protocol for Git operations on this host?"
+      **HTTPS**
+   3. "Authenticate Git with your GitHub credentials?" **Yes**
+   4. "How would you like to authenticate GitHub CLI?" **Login with a web
+      browser**
 
-Confirm with `gh auth status`, then `set … github done --choice github=yes`.
+   Then it prints a one-time code, like `ABCD-1234`: they copy it, press
+   Enter, paste it on the page that opens (github.com/login/device), and
+   authorize GitHub CLI. No token or password goes in the chat.
+
+**`gh` on Windows, just installed.** This session's PATH was fixed when Claude
+Code started, so a `gh` installed since is not found here even though it
+works. Don't ask for a restart: look for
+`C:\Program Files\GitHub CLI\gh.exe`, and if it is there, use that full path,
+in double quotes, for every `gh` command you run yourself (or put its folder
+first on PATH for your own commands). The terminal window they open for step 3
+finds `gh` by name.
+
+Confirm with `gh auth status` (by its full path on Windows, as above), then
+`set … github done --choice github=yes`.
 
 ### 4. The starter workspace (`workspace`)
 
-The worklog view is `obsidian` if they said yes in step 2, otherwise `csv`
-(the plain `worklog/worklog.csv` index). Run:
+The worklog view is `obsidian` if they said yes in step 2, otherwise `files`:
+the worklog's Markdown files in `worklog/`, read in the worklog tab of
+Hyperspace Engine's console. Nothing is asked here. Run:
 
 ```
 "<python>" "${CLAUDE_PLUGIN_ROOT}/bin/init_workspace.py" "<project>" --obsidian|--no-obsidian --no-super
@@ -277,43 +318,69 @@ The worklog view is `obsidian` if they said yes in step 2, otherwise `csv`
 starter file that is not already there and refreshes the guide. Report what
 it printed: every `COPIED:` and `SKIPPED:` line, and the `INIT_SUMMARY` line.
 
-`set … workspace done --choice worklog_view=obsidian|csv`.
+`set … workspace done --choice worklog_view=obsidian|files`.
 
 ### 5. What to try first (`first-steps`)
 
-Three lines for their first session in the project: one thing to ask the
-technical cofounder, one skill worth trying, and where the worklog lives (or
-`worklog.base`, if they chose Obsidian). `set … first-steps done`.
+Say plainly first: no run is open yet in a new project, and the first step of
+any piece of work is Understand. They say what they want; the team works out
+the real problem and what "done" means before anything is built. Then three
+lines for their first session in the project: one thing to ask the technical
+cofounder, one skill worth trying, and where the worklog lives (`worklog/`,
+and `worklog.base` if they chose Obsidian). `set … first-steps done`.
 
 ### 6. Their profile (`profile`)
 
 `<project>/core_text/user.md` is their profile, copied in at step 4 (an old
-`<project>/user.md` is the profile instead). Ask one question at a time, in
-this order:
+`<project>/user.md` is the profile instead). It already holds two defaults,
+so don't ask about them: `steady` is the working mode until they say
+otherwise, and agents give options with a recommendation and a short why, and
+say plainly when uncertain. Ask one question at a time, in this order, each
+choice with **Explain the difference** as its last option:
 
-1. What are you building, and what's your role on it?
+1. Offer a test drive: they don't need to know what they're building yet. In
+   their first session they pick something small, and the team takes it from
+   Understand to done, so they see how it works. If they already know what
+   they're building, ask what it is and their role on it instead.
 2. What machine(s) do you work from?
-3. How do you signal when you're `sharp`, `steady` or `tired`, and how should
-   the agent's shape change for each?
-4. Options presented, or a recommendation with reasoning? How should
-   uncertainty be flagged?
-5. Timezone, and any batching or checkpoint preferences?
-6. Anything else that would change how an agent should work with you?
+3. Do you use Claude Code's desktop app or the command line (CLI), or both?
+   Ask it: an agent can't tell from inside a session, and the steps it gives
+   depend on it.
+4. Timezone, and any batching or checkpoint preferences?
+5. Anything else that would change how an agent should work with you?
 
 After each answer, write it into the matching section, replacing the
-placeholder. They can change it later by editing the file.
+placeholder; a test drive goes in as "not decided yet: starting with a test
+drive". They can change it later by editing the file.
 `set … profile done`.
 
 ## Closing
 
 1. Thank them for setting up. Keep it short.
 2. Say where Part 2 lives, by absolute path: "Setup part 2 (extras) is here:
-   <the `EXTRAS:` path>".
+   <the `EXTRAS:` path>". Name what it adds, one line each: web research with
+   sources (Exa); live library docs, today's documentation for the tools
+   their project uses (Context7); and a cloud browser for pages that need
+   clicks or a login (Browserbase).
 3. Give the one next action: "Open Claude Code in `<absolute project path>`.
-   Your technical cofounder will be there."
-4. If a restart is required, say that this new session is that restart:
+   Your technical cofounder will be there." Then how, for the app their
+   profile names (both if it names neither):
+   - Desktop app: the Code tab, then new session, then choose the project
+     folder, `<absolute project path>`.
+   - Command line (CLI): `cd` into `<absolute project path>`, then run
+     `claude`.
+4. The first time Claude Code opens that folder it asks whether they trust it
+   (it may read "Is this a project you created or one you trust?"). Say what
+   that means: Claude Code is asking whether the settings saved in this
+   folder may take effect, and here they are the team's. It is their own
+   project, so they choose to trust this folder (the option reads something
+   like "Yes, I trust this folder").
+5. Say where work starts: no run is open yet, and the first step of any piece
+   of work is Understand. If they chose a test drive, that is where they
+   start.
+6. If a restart is required, say that this new session is that restart:
    nothing else needs closing or reopening.
-5. Say it once more: "If anything is unclear, just ask me."
+7. Say it once more: "If anything is unclear, just ask me."
 
 ## Repair and another project
 
@@ -339,6 +406,15 @@ and resume the guide at the first step that is `pending` or `skipped`, in
 `steps.json` order. Name it and its minutes. For a skipped step, give one line
 on what it gets them now.
 
+**Obsidian later.** Someone who said no at step 2 and uses Obsidian now moves
+over without moving anything: their worklog is already Markdown files in
+`worklog/`. Run
+`"<python>" "${CLAUDE_PLUGIN_ROOT}/bin/init_workspace.py" "<project>" --obsidian --no-super`
+(it adds `.obsidian/`, `worklog/worklog.base` and `OBSIDIAN.md`, and never
+overwrites a file), then `set … obsidian done --choice obsidian=yes` and
+`set … workspace done --choice worklog_view=obsidian`. In Obsidian they choose
+"Open folder as vault" and pick the project folder.
+
 ## Part 2: the extras (`super`)
 
 Part 2 runs from inside the project, in a later session: the skill that does
@@ -346,10 +422,19 @@ it, `super-setup`, belongs to the team, which is installed there. If this
 session is somewhere else, say so, and that "set up the extras" starts it
 once they are in the project.
 
-Explain super in one line: `super-novacaelum` (opt-in) adds Context7
-documentation lookup, Exa web search and the Browserbase cloud browser, on
-the user's own keys. Context7 and Exa have free tiers; Browserbase needs a
-key.
+Explain super in one line per service. `super-novacaelum` (opt-in) adds, on
+the user's own accounts:
+
+- **Web research** with sources (Exa): agents search the web and cite what
+  they found.
+- **Live library docs** (Context7): today's documentation for the libraries
+  and tools their project uses, instead of what a model remembers.
+- **A cloud browser** (Browserbase): for pages that need clicks, a login or
+  JavaScript.
+
+Context7 and Exa have free tiers, and a key only raises their limits;
+Browserbase needs a key, and its free plan includes one browser hour a month.
+Ask Yes / Not now / **Explain the difference**.
 
 If they want it, run the team's `super-setup` skill: it walks through each
 account, the project-scope install and entering keys through Claude Code's

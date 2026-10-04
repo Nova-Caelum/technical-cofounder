@@ -9,8 +9,11 @@
 # context. Otherwise print one line pointing at /technical-cofounder-setup:start.
 # Either way, print the live tech primer: which Nova Caelum plugins are
 # present, expected but missing, or not chosen; a pointer to the
-# without-super fallbacks when super isn't present; setup progress while
-# steps are pending; and each skipped setup step with what skipping costs.
+# without-super fallbacks when super isn't present; a line saying no run is
+# open yet and that work starts at Understand, when Hyperspace Engine has no
+# open run (its own briefing prints a block for each one it has); setup
+# progress while steps are pending; and each skipped setup step with what
+# skipping costs.
 # The static "what runs where" lives in the project's CLAUDE.md, which Claude
 # Code loads on its own.
 #
@@ -240,6 +243,16 @@ he_owned = " · worklog: hyperspace (owned by TC preload)" if he_mode == "tc-pre
 print(f"- hyperspace-engine: {he_state}{he_owned}")
 if not super_present:
     print(f"Without super: {plugin / 'reference' / 'without-super.md'} lists what to use instead of each super service.")
+
+# A run is open while its loop.state.json under hyperspace/runs has a status
+# other than done, descoped or killed: the rule Hyperspace Engine's own
+# briefing uses to print a block per open run. Only the status is read, and
+# nothing from the file is printed. An unreadable file is no open run.
+FINISHED = ("done", "descoped", "killed")
+states = (load(path) for path in (project / "hyperspace" / "runs").glob("*/loop.state.json"))
+if not any(state and state.get("status") not in FINISHED for state in states):
+    print("No run is open yet in this project: the first step of any piece of work is Understand"
+          " (say what you want, and the team frames it before anything is built).")
 
 if record:
     steps = record.get("steps") if isinstance(record.get("steps"), dict) else {}

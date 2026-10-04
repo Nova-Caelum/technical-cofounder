@@ -104,3 +104,17 @@ Setup never installs Obsidian. It only looks for it, so it can offer the worklog
 - **Without it:** nothing breaks. The worklog stays as plain files in `worklog/entries/`.
 - **Check:** setup looks in the usual install places.
 - **Install:** obsidian.md.
+
+## Research extras (optional, part 2)
+
+Part 2 of setup offers `super-novacaelum`, an opt-in plugin that gives your agents three services, each on your own account. Nothing in part 1 needs them.
+
+| Service | What it buys | Account and key |
+|---|---|---|
+| Exa | Web research with sources: agents search the web and cite what they found. | Free tier. A key is optional and raises your limit (dashboard.exa.ai). |
+| Context7 | Live library docs: today's documentation for the libraries and tools your project uses, instead of what a model remembers. | Free tier. A key is optional and raises your limit (context7.com/dashboard). |
+| Browserbase | A cloud browser for pages that need clicks, a login or JavaScript. | Needs a key. The free plan includes one browser hour a month ([pricing](https://www.browserbase.com/pricing)). |
+
+- **Install:** in a session inside your project, say "set up the extras". The team's `super-setup` skill walks through each account, installs the plugin for this project only, and has you enter each key in Claude Code's own hidden prompt, never in the chat.
+- **Check:** in a session in your project, type `/mcp`: context7, exa and browserbase are listed, marked as coming from a plugin.
+- **Without them:** agents use Claude Code's built-in web search and web fetch, and anything that needs a real browser comes back to you.

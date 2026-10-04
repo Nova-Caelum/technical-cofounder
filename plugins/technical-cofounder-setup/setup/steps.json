@@ -1,5 +1,5 @@
 {
-  "about": "The one source of 'why' and 'how long' for setup. install: one entry per item the install script can plan; the script prints the why and the minutes with every plan row. steps: the guide's steps, in order; part is 1 (the guide) or 2 (the extras page), a null minutes shows no time, and choices lists the only keys a step may record in core_text/setup.json. installer/nc_setup.py, bin/setup_record.py and the setup skill all read this file, so adding an item or a step is an edit here.",
+  "about": "The one source of 'why' and 'how long' for setup. install: one entry per item the install script can plan; the script prints the why and the minutes with every plan row. steps: the guide's steps, in order; part is 1 (the guide) or 2 (the extras page), a null minutes shows no time, choices lists the only keys a step may record in core_text/setup.json, explain gives one line per option for a step that asks the user to choose (what they gain or lose with each), and verify is the one place the user can check the step themselves. installer/nc_setup.py, bin/setup_record.py and the setup skill all read this file, so adding an item or a step is an edit here.",
   "install": [
     {
       "id": "claude-cli",
@@ -86,7 +86,12 @@
       "cost": "Free",
       "minutes": 5,
       "part": 1,
-      "choices": ["os"]
+      "choices": ["os"],
+      "explain": [
+        "The Projects folder in your home folder (our default): kept apart from anything that syncs, so a workspace with thousands of files stays fast.",
+        "A folder you already have: fine too, and your team's files go in beside yours. A folder that syncs, such as OneDrive, slows the workspace down."
+      ],
+      "verify": "Open your project folder to see it, and run “claude plugin list” in a terminal in that folder: your team, technical-cofounder, is on the list."
     },
     {
       "id": "guide",
@@ -98,7 +103,8 @@
       "cost": "Free",
       "minutes": 1,
       "part": 1,
-      "choices": []
+      "choices": [],
+      "verify": "This page is a file in your project: core_text/setup-guide.html. Open it again any time."
     },
     {
       "id": "editor",
@@ -110,7 +116,14 @@
       "cost": "Free (Typora is paid)",
       "minutes": 5,
       "part": 1,
-      "choices": ["editor"]
+      "choices": ["editor"],
+      "explain": [
+        "Obsidian: free and our pick. Links, search and a worklog table, and the next step builds on it. You learn one more app.",
+        "VS Code or Zed: free editors that show Markdown well. No vault view or worklog table.",
+        "Typora: paid, the cleanest reading view. No vault view or worklog table.",
+        "TextEdit or Notepad: already on your computer. Plain text only, with no formatting, links or search."
+      ],
+      "verify": "Open your profile, core_text/user.md, in the app you chose: if it opens and reads well, you're set."
     },
     {
       "id": "obsidian",
@@ -122,7 +135,12 @@
       "cost": "Free",
       "minutes": null,
       "part": 1,
-      "choices": ["obsidian"]
+      "choices": ["obsidian"],
+      "explain": [
+        "Yes: your project opens as one searchable vault, and your worklog (the team's diary: one short file per piece of work, so the next session knows what happened) also shows as one table. You learn one more app.",
+        "No: nothing breaks. The worklog files still land in worklog/ and Hyperspace Engine's console shows them in its worklog tab, without the vault view or the table. You can switch later."
+      ],
+      "verify": "In Obsidian, choose “Open folder as vault” and pick your project folder: worklog/worklog.base shows your worklog as a table."
     },
     {
       "id": "github",
@@ -134,7 +152,12 @@
       "cost": "Free",
       "minutes": 5,
       "part": 1,
-      "choices": ["github"]
+      "choices": ["github"],
+      "explain": [
+        "Yes: every change is backed up off this computer and can be undone. About 5 minutes with an account, and free.",
+        "Not now: your project lives only on this computer, one lost laptop or bad edit away from gone. You can add GitHub any time."
+      ],
+      "verify": "github.com/settings/applications lists GitHub CLI under Authorized OAuth Apps: that is this computer's login."
     },
     {
       "id": "workspace",
@@ -146,19 +169,21 @@
       "cost": "Free",
       "minutes": 2,
       "part": 1,
-      "choices": ["worklog_view"]
+      "choices": ["worklog_view"],
+      "verify": "Open your project folder: core_text/user.md, CLAUDE.md, worklog/ and _templates/ are there now."
     },
     {
       "id": "first-steps",
       "title": "What to try first",
-      "does": "Three things to try with your new team.",
+      "does": "Three things to try first. No run is open yet: every piece of work starts at Understand.",
       "why": "A small first win shows how the team works.",
       "skippable": true,
       "if_skipped": "Nothing breaks.",
       "cost": "Free",
       "minutes": 2,
       "part": 1,
-      "choices": []
+      "choices": [],
+      "verify": "Hyperspace Engine's console shows every task and run in your browser: ask your team to open it."
     },
     {
       "id": "profile",
@@ -170,19 +195,30 @@
       "cost": "Free",
       "minutes": 2,
       "part": 1,
-      "choices": []
+      "choices": [],
+      "explain": [
+        "A test drive: you try the team on something small first and see how it works. Nothing has to be decided yet.",
+        "I know what I'm building: the team starts on your real project straight away.",
+        "Desktop app or command line (CLI): your team can't see which one you use, so it gives you the steps for yours. Both work the same."
+      ],
+      "verify": "Your answers are in core_text/user.md: open it to read or change any of them."
     },
     {
       "id": "super",
       "title": "Research extras (optional)",
-      "does": "Live documentation, web research and a cloud browser for your agents.",
+      "does": "Three services for your agents: web research (Exa), live library docs (Context7) and a cloud browser (Browserbase).",
       "why": "Agents check today's docs and the web instead of guessing from memory.",
       "skippable": true,
       "if_skipped": "Agents use built-in web search; anything that needs a real browser comes back to you.",
       "cost": "Free tiers; you create the accounts",
       "minutes": 15,
       "part": 2,
-      "choices": ["super"]
+      "choices": ["super"],
+      "explain": [
+        "Yes: web research with sources (Exa), live library docs (Context7) and a cloud browser for pages that need clicks or a login (Browserbase). About 15 minutes, on free tiers, with your own accounts.",
+        "Not now: agents use Claude Code's built-in web search and fetch, and anything that needs a real browser comes back to you."
+      ],
+      "verify": "In a session in your project, type /mcp: context7, exa and browserbase are listed, marked as coming from a plugin."
     }
   ]
 }

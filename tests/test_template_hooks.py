@@ -364,6 +364,76 @@ class HyperspacePreloadTests(unittest.TestCase):
         self.assertEqual(fake.calls(), [])
 
 
+class NoRunOpenBriefingTests(unittest.TestCase):
+    """The briefing says plainly when no Hyperspace Engine run is open in the
+    project, and that the first step of any piece of work is Understand. An
+    open run is one under hyperspace/runs whose loop.state.json status is not
+    done, descoped or killed, which is how Hyperspace's own briefing decides
+    to print its run block. Only the status is read; nothing from the file is
+    printed."""
+
+    NO_RUN = "No run is open yet in this project: the first step of any piece of work is Understand"
+
+    def setUp(self):
+        self.project = Path(tempfile.mkdtemp())
+        self.home = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.project, ignore_errors=True)
+        self.addCleanup(shutil.rmtree, self.home, ignore_errors=True)
+
+    def preload(self):
+        env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PROJECT_DIR")}
+        env.update(CLAUDE_PROJECT_DIR=str(self.project), HOME=str(self.home))
+        r = subprocess.run([BASH, str(HOOKS_DIR / "session-preload.sh")], input="{}", capture_output=True,
+                           text=True, encoding="utf-8", env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def run_state(self, slug, status, goal="a-goal", raw=None):
+        path = self.project / "hyperspace" / "runs" / slug / "loop.state.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(raw if raw is not None else json.dumps(
+            {"goal_slug": goal, "status": status, "current_node": "understanding"}), encoding="utf-8")
+
+    def said(self, out):
+        return [line for line in out.splitlines() if self.NO_RUN in line]
+
+    def set_up(self):
+        (self.project / "core_text").mkdir(parents=True, exist_ok=True)
+        (self.project / "core_text" / "user.md").write_text("# p\n", encoding="utf-8")
+
+    def test_a_new_project_says_it_once(self):
+        self.set_up()
+        self.assertEqual(len(self.said(self.preload())), 1)
+
+    def test_a_project_not_set_up_yet_says_it_too(self):
+        self.assertEqual(len(self.said(self.preload())), 1)
+
+    def test_an_open_run_means_no_such_line(self):
+        self.set_up()
+        for status in ("active", "live"):
+            with self.subTest(status=status):
+                self.run_state("one", status)
+                self.assertEqual(self.said(self.preload()), [])
+
+    def test_only_finished_runs_still_means_none_is_open(self):
+        self.set_up()
+        for i, status in enumerate(("done", "descoped", "killed")):
+            self.run_state(f"run-{i}", status)
+        self.assertEqual(len(self.said(self.preload())), 1)
+
+    def test_an_unreadable_run_file_is_not_an_open_run(self):
+        self.set_up()
+        self.run_state("broken", None, raw="{not json")
+        self.assertEqual(len(self.said(self.preload())), 1)
+
+    def test_nothing_from_a_run_file_is_printed(self):
+        self.set_up()
+        marker = "planted" + uuid.uuid4().hex[:8]
+        self.run_state("open", "active", goal=marker)
+        self.run_state("closed", "done", goal=marker + "x")
+        self.assertNotIn(marker, self.preload())
+
+
 class StartCommandTests(unittest.TestCase):
     def test_one_start_command_in_the_setup_plugin_replaces_the_team_plugins_two(self):
         self.assertTrue((SETUP_ROOT / "commands" / "start.md").is_file())
