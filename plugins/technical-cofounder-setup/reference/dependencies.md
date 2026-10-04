@@ -64,7 +64,7 @@ Technical Cofounder itself needs no Node.js. A project of your own may need it; 
 Python is installed for you: setup's first step has uv fetch Python 3.12 into uv's own folder, with no admin rights, and proves it by running it. The Python that came with your computer isn't used and isn't changed.
 
 - **Used by:**
-  - the `cofounder` worklog server, which gives your team its memory across sessions
+  - the `caelum-dev-team` worklog server, which gives your team its memory across sessions
   - the session-start briefing (`hooks/session-preload.sh`)
   - the setup scripts
   - `/technical-cofounder:contact`
@@ -91,7 +91,7 @@ Python is installed for you: setup's first step has uv fetch Python 3.12 into uv
 
 Hyperspace Engine arrives with your team: it is the team plugin's dependency, so one install brings both. Its workspace is a private Python environment inside your project, at `.hyperspace/env`, built by the engine's own setup script.
 
-- **Used by:** Hyperspace Engine (the working loop, the task graph and the check that closes each task), and the team's `cofounder` worklog server, which runs on this environment's Python.
+- **Used by:** Hyperspace Engine (the working loop, the task graph and the check that closes each task), and the team's `caelum-dev-team` worklog server, which runs on this environment's Python.
 - **Without it:** the loop can't run and the worklog tools don't appear.
 - **Check:** the environment's Python runs and can load Hyperspace Engine.
 - **Install:** run `/technical-cofounder-setup:start` inside the project. It rebuilds the workspace.

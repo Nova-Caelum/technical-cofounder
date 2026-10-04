@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""cofounder MCP server: JSON-RPC 2.0, newline-delimited, over stdio.
+"""caelum-dev-team MCP server: JSON-RPC 2.0, newline-delimited, over stdio.
 
 Standard library only, no network, no credentials. Exposes the worklog
 tools (worklog_append / worklog_recent / worklog_search). Declared in
@@ -25,7 +25,7 @@ sys.path.insert(1, str(Path(__file__).resolve().parent.parent / "bin"))
 import he_bridge  # noqa: E402
 import worklog  # noqa: E402
 
-SERVER_NAME = "cofounder"
+SERVER_NAME = "caelum-dev-team"
 SERVER_VERSION = "0.1.0"
 
 TOOLS = [

@@ -25,7 +25,7 @@ Write two or three sentences that recreate the conditions where the skill should
 |---|---|
 | Session transcripts | `grep -rh "<phrase>" ~/.claude/projects/` shows what agents actually typed |
 | Git history and reviews | `git log -S "<text>"`, reverted commits, PR comments, "fix: undo…" |
-| The project worklog | `worklog_search` on the `cofounder` MCP server, or the `worklog/` notes |
+| The project worklog | `worklog_search` on the `caelum-dev-team` MCP server, or the `worklog/` notes |
 | Issues and postmortems | What broke, and the reasoning that led there |
 
 The test: can you quote it? A failure paraphrased to fit your idea is intuition wearing observation's clothes.

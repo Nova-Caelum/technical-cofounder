@@ -3,6 +3,7 @@ Standard library only.
 """
 import csv
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -119,6 +120,29 @@ class _StdioSession:
             self.proc.kill()
 
 
+class ServerNameTests(unittest.TestCase):
+    """The team's server is `caelum-dev-team`. Its old name, `cofounder`, repeated
+    the plugin's name on every worklog call, so no tracked file may still use it:
+    not the server key, not a full tool name, not a prose reference."""
+
+    OLD = 'cofounder'
+    # Built from OLD so this file does not itself contain the patterns it forbids.
+    OLD_NAME = re.compile("_{0}__|\"{0}\"|`{0}`".format(OLD))
+
+    def test_no_tracked_plugin_file_still_names_the_old_server(self):
+        listed = subprocess.run(["git", "ls-files", "-z", "plugins"], cwd=REPO_ROOT,
+                                capture_output=True, check=True).stdout.decode("utf-8")
+        hits = []
+        for relative in filter(None, listed.split("\0")):
+            path = REPO_ROOT / relative
+            if not path.is_file():
+                continue
+            for number, line in enumerate(path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
+                if self.OLD_NAME.search(line):
+                    hits.append("%s:%d" % (relative, number))
+        self.assertEqual(hits, [], "the old server name `cofounder` is still used at: %s" % ", ".join(hits))
+
+
 class ServerProtocolTests(unittest.TestCase):
     def setUp(self):
         self.session = _StdioSession()
@@ -135,7 +159,7 @@ class ServerProtocolTests(unittest.TestCase):
         result = resp["result"]
         self.assertEqual(result["protocolVersion"], "2026-06-18")
         self.assertEqual(result["capabilities"], {"tools": {}})
-        self.assertEqual(result["serverInfo"], {"name": "cofounder", "version": "0.1.0"})
+        self.assertEqual(result["serverInfo"], {"name": "caelum-dev-team", "version": "0.1.0"})
 
     def test_notifications_initialized_gets_no_reply(self):
         self.session.send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "x"}})

@@ -946,8 +946,8 @@ class Install:
         w = self.w
         project, root = self.project, team["installPath"]
         env = dict(self.env, CLAUDE_PROJECT_DIR=str(project), CLAUDE_PLUGIN_ROOT=str(root))
-        command = server_command(team, "cofounder", project=project, plugin_root=root)
-        if not w.expect(command is not None, "the team plugin declares its `cofounder` server: %s" % command):
+        command = server_command(team, "caelum-dev-team", project=project, plugin_root=root)
+        if not w.expect(command is not None, "the team plugin declares its `caelum-dev-team` server: %s" % command):
             return None
         summary = "install walk %s" % uuid.uuid4().hex
         code, out, _ = w.run(command, env, cwd=project, timeout=300, text_in=server_requests(summary, project))

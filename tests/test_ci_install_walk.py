@@ -329,12 +329,12 @@ class InstalledPlugins(unittest.TestCase):
 
 class TheTeamsServer(unittest.TestCase):
     def test_its_command_is_the_one_claude_code_would_start(self):
-        listed = entry("technical-cofounder@nova-caelum", mcpServers={"cofounder": {
+        listed = entry("technical-cofounder@nova-caelum", mcpServers={"caelum-dev-team": {
             "command": "${CLAUDE_PROJECT_DIR}/.hyperspace/env/bin/python",
             "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"]}})
-        self.assertEqual(walk.server_command(listed, "cofounder", project="/work/p", plugin_root="/cache/team"),
+        self.assertEqual(walk.server_command(listed, "caelum-dev-team", project="/work/p", plugin_root="/cache/team"),
                          ["/work/p/.hyperspace/env/bin/python", "/cache/team/mcp/server.py"])
-        self.assertIsNone(walk.server_command(entry("x@y"), "cofounder", project="/p", plugin_root="/r"))
+        self.assertIsNone(walk.server_command(entry("x@y"), "caelum-dev-team", project="/p", plugin_root="/r"))
 
     def answers(self, *documents):
         return "".join(json.dumps(doc) + "\n" for doc in documents)
@@ -345,7 +345,7 @@ class TheTeamsServer(unittest.TestCase):
                   "isError": False}
         return [
             {"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2025-06-18", "capabilities": {"tools": {}},
-                                                 "serverInfo": {"name": "cofounder", "version": "0.1.0"}}},
+                                                 "serverInfo": {"name": "caelum-dev-team", "version": "0.1.0"}}},
             {"jsonrpc": "2.0", "id": 2, "result": appended},
             {"jsonrpc": "2.0", "id": 3, "result": recent},
         ]
