@@ -16,7 +16,10 @@
     },
     "browserbase": {
       "type": "http",
-      "url": "https://mcp.browserbase.com/mcp?browserbaseApiKey=${user_config.browserbase_api_key}"
+      "url": "https://mcp.browserbase.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${user_config.browserbase_api_key}"
+      }
     }
   }
 }

@@ -56,6 +56,7 @@ jobs:
             tests.test_reasons \
             tests.test_registry \
             tests.test_setup_plugin \
+            tests.test_super_plugin \
             tests.test_ci_install_walk
 
       # The real install, end to end: the pasted message's own commands, the
