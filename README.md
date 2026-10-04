@@ -49,7 +49,7 @@ For solo builders and the build-curious.
 
 ### Already know your way around?
 
-Run these from a dedicated project folder. The team installs for that project only, and Hyperspace Engine installs with it.
+Run these from a dedicated project folder. The team installs for that project only, and Hyperspace Engine installs with it. Claude Code has to be 2.1.110 or newer (`claude update`); on an older one the team installs without Hyperspace Engine, without an error.
 
 <h6></h6>
 
@@ -101,14 +101,16 @@ You don't need to type a single command, create a folder or open a terminal. You
 
 **Before you start,** you need [Claude Code](https://claude.com/claude-code), installed and signed in. That is all. Setup finds what your computer is missing (Git, Python, a couple of small tools), tells you what each one is for, and installs only that.
 
-**1. Give this to your agent.** Copy the whole message and paste it into Claude Code:
+**1. Give this to your agent.** Copy the whole message and paste it into Claude Code (in the desktop app, the **Code** tab, not Chat):
 
 <h6></h6>
 
 ```text
 Set up Technical Cofounder for me, from https://github.com/Nova-Caelum/plugins
+This message is for Claude Code. If you cannot run commands on this computer, for example because this is the Chat tab of the Claude desktop app, stop here and tell me to open the Code tab, click New session, choose Local, leave the folder empty, and paste this same message there.
 
 1. If `claude --version` does not work here, install Claude Code's command line first (macOS or Linux: curl -fsSL https://claude.ai/install.sh | bash   Windows PowerShell: irm https://claude.ai/install.ps1 | iex). If `claude` is still not found after that, use its full path in the steps below: ~/.local/bin/claude on macOS or Linux, %USERPROFILE%\.local\bin\claude.exe on Windows.
+   Once `claude --version` works, make sure Claude Code is version 2.1.110 or newer, both the command line (`claude --version`) and, if this session is in the Claude desktop app, the app's own copy (run the program named in the `CLAUDE_CODE_EXECPATH` environment variable with `--version`). If the command line is older, run `claude update`; if it is still older, run the install command above again and use its full path. If the app's copy is older, tell me to open Claude > Check for Updates on a Mac or Help > Check for Updates on Windows, then close the app, open it again and paste this same message.
 2. Git has to be on this computer before anything can be downloaded. Check it first:
    - On a Mac, if `xcode-select -p` fails: run `xcode-select --install`, tell me to click Install in the window that opens and to tell you when it has finished, then carry on from step 3.
    - On Windows, if `git --version` does not work: look for C:\Program Files\Git\cmd\git.exe and %LOCALAPPDATA%\Programs\Git\cmd\git.exe. If neither is there, run this in PowerShell:
