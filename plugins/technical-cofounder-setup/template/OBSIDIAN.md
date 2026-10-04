@@ -57,8 +57,6 @@ Things worth knowing:
 
 - **The table is a view, not the data.** The files in `worklog/entries/` are the truth.
   Deleting a row is not a thing you can do from the table.
-- **`worklog.csv` is also a view** — regenerated from the entries on every append. If
-  the CSV and `entries/` ever disagree, `entries/` is right.
 - Add a frontmatter field to your entries and you can add it as a column. The `.base`
   file is plain YAML; it is readable and editable.
 
@@ -111,9 +109,8 @@ and neither announces itself.
 **Only Markdown notes sync unconditionally.** Everything else runs through *selective
 sync*, and by default that covers images, audio, video and PDFs — **and nothing else.**
 
-`worklog.base` is not a Markdown file. Neither is `worklog.csv`. So on a fresh Sync
-setup they do not travel, and on your second device the table is simply absent, with no
-error to tell you why.
+`worklog.base` is not a Markdown file. So on a fresh Sync setup it does not travel, and
+on your second device the table is simply absent, with no error to tell you why.
 
 **Fix:** Settings → Sync → **Selective sync** → turn on **Sync all other types.**
 

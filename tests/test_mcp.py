@@ -1,7 +1,6 @@
 """Unit tests for worklog.py and the JSON-RPC server (server.py).
 Standard library only.
 """
-import csv
 import json
 import re
 import subprocess
@@ -9,7 +8,6 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MCP_DIR = REPO_ROOT / "plugins" / "technical-cofounder" / "mcp"
@@ -27,30 +25,20 @@ class WorklogAppendTests(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
-    def test_append_writes_markdown_and_csv_row(self):
+    def test_append_writes_one_markdown_file_and_no_csv(self):
+        """Entries are files; there is no derived CSV, so nothing promises one."""
         result = worklog.append(self.root, "first entry", detail="body text", author="agent", tags=["a", "b"])
         entry_path = Path(result["file"])
         self.assertTrue(entry_path.is_file())
-        self.assertIsNone(result["csv_error"])
-        self.assertIn("body text", entry_path.read_text(encoding="utf-8"))
-
-        csv_path = self.root / "worklog" / "worklog.csv"
-        self.assertTrue(csv_path.is_file())
-        with csv_path.open(encoding="utf-8") as fh:
-            rows = list(csv.DictReader(fh))
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["summary"], "first entry")
-        self.assertEqual(rows[0]["tags"], "a;b")
+        self.assertEqual(set(result), {"file"})
+        text = entry_path.read_text(encoding="utf-8")
+        self.assertIn("body text", text)
+        self.assertIn('summary: "first entry"', text)
+        self.assertEqual(sorted(p.name for p in (self.root / "worklog").rglob("*") if p.is_file()), [entry_path.name])
 
     def test_append_rejects_summary_over_280_chars(self):
         with self.assertRaises(ValueError):
             worklog.append(self.root, "x" * 281)
-
-    def test_append_survives_csv_regeneration_failure(self):
-        with mock.patch("worklog._regenerate_csv", side_effect=RuntimeError("disk full")):
-            result = worklog.append(self.root, "still written")
-        self.assertTrue(Path(result["file"]).is_file())
-        self.assertEqual(result["csv_error"], "disk full")
 
     def test_recent_returns_newest_first(self):
         worklog.append(self.root, "one")
@@ -204,7 +192,7 @@ class ServerProtocolTests(unittest.TestCase):
             self.assertFalse(resp["result"]["isError"])
             entries = list((Path(tmp) / "worklog" / "entries").glob("*.md"))
             self.assertEqual(len(entries), 1)
-            self.assertTrue((Path(tmp) / "worklog" / "worklog.csv").is_file())
+            self.assertFalse((Path(tmp) / "worklog" / "worklog.csv").exists())
 
     def test_non_ascii_text_round_trips_over_stdio(self):
         # Windows pipes default to the ANSI code page (cp1252), which has no arrow,
@@ -242,7 +230,8 @@ class ServerProtocolTests(unittest.TestCase):
 
 
 sys.path.insert(0, str(REPO_ROOT))
-from tests.test_he_bridge import APPEND_OK, NO_STORE, RECENT_OK, FakeHE  # noqa: E402
+from tests.test_he_bridge import APPEND_OK, MIRROR_REBUILT, NO_STORE, RECENT_OK, FakeHE  # noqa: E402
+import he_bridge  # noqa: E402  (on sys.path once tests.test_he_bridge is imported)
 
 
 class HyperspaceAdapterTests(unittest.TestCase):
@@ -258,9 +247,9 @@ class HyperspaceAdapterTests(unittest.TestCase):
         self.session.close()
         self._tmp.cleanup()
 
-    def call(self, name, arguments):
+    def call(self, name, arguments, root=None):
         self.session.send({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-                           "params": {"name": name, "arguments": {**arguments, "root": str(self.root)}}})
+                           "params": {"name": name, "arguments": {**arguments, "root": str(root or self.root)}}})
         result = self.session.recv()["result"]
         return result["isError"], result["content"][0]["text"]
 
@@ -309,6 +298,25 @@ class HyperspaceAdapterTests(unittest.TestCase):
         self.assertTrue(is_error)
         self.assertIn("exit 3", text)
         self.assertEqual(self.markdown(), [])
+
+    def test_without_obsidian_an_entry_through_the_server_is_a_file_in_the_worklog_folder(self):
+        """The first-run bug, end to end: set up without Obsidian, the engine owns
+        the worklog, and the team's tool appends. The entry is readable as a file."""
+        for view in ("csv", None):
+            with self.subTest(view=view):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    fake = FakeHE(root, view=view)
+                    fake.respond("mirror", MIRROR_REBUILT)
+                    fake.respond("append", APPEND_OK)
+                    self.assertIsNone(he_bridge.handshake(root))  # the SessionStart hook's first act
+                    is_error, text = self.call("worklog_append", {"summary": "Shipped the worklog CLI.", "author": "engineer"},
+                                               root=root)
+                    self.assertFalse(is_error, text)
+                    files = sorted((root / "worklog" / "entries").glob("*.md"))
+                    self.assertEqual(len(files), 1, files)
+                    self.assertIn('summary: "Shipped the worklog CLI."', files[0].read_text(encoding="utf-8"))
+                    self.assertFalse((root / "worklog" / "worklog.csv").exists())
 
     def test_before_the_handshake_the_markdown_path_is_unchanged(self):
         fake = FakeHE(self.root)

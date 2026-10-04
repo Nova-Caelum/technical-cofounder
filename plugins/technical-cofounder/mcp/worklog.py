@@ -1,22 +1,19 @@
-"""worklog.py -- canonical markdown worklog entries with a derived CSV index.
+"""worklog.py -- canonical markdown worklog entries.
 
-Entries are canonical (worklog/entries/<ts>-<slug>.md, YAML-style
-frontmatter). worklog/worklog.csv is regenerated from the entries on every
-append and is never hand-edited. Standard library only.
+One file per entry (worklog/entries/<ts>-<slug>.md, YAML-style frontmatter).
+Standard library only.
 
 Public API:
     append(root, summary, detail="", author="agent", tags=None) -> dict
     recent(root, n=5) -> list[dict]
     search(root, query) -> list[dict]
 """
-import csv
 import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 MAX_SUMMARY_LEN = 280
-CSV_FIELDS = ["date", "author", "summary", "tags", "file"]
 
 
 def _slugify(text, max_len=40):
@@ -71,10 +68,6 @@ def _entries_dir(root):
     return Path(root) / "worklog" / "entries"
 
 
-def _csv_path(root):
-    return Path(root) / "worklog" / "worklog.csv"
-
-
 def _sorted_entry_paths(entries_dir, reverse=False):
     """Sort by actual write order (mtime), not filename -- two entries
     appended within the same wall-clock second share a timestamp prefix,
@@ -85,38 +78,10 @@ def _sorted_entry_paths(entries_dir, reverse=False):
     return paths
 
 
-def _regenerate_csv(root):
-    root = Path(root)
-    entries_dir = _entries_dir(root)
-    entries_dir.mkdir(parents=True, exist_ok=True)
-    rows = []
-    for path in _sorted_entry_paths(entries_dir):
-        meta = _parse_entry(path)
-        tags = meta.get("tags")
-        tags_cell = ";".join(tags) if isinstance(tags, list) else ""
-        rows.append(
-            {
-                "date": meta.get("date", ""),
-                "author": meta.get("author", ""),
-                "summary": meta.get("summary", ""),
-                "tags": tags_cell,
-                "file": str(path.relative_to(root)),
-            }
-        )
-    csv_path = _csv_path(root)
-    csv_path.parent.mkdir(parents=True, exist_ok=True)
-    with csv_path.open("w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=CSV_FIELDS)
-        writer.writeheader()
-        writer.writerows(rows)
-
-
 def append(root, summary, detail="", author="agent", tags=None):
-    """Write one canonical entry, then regenerate the CSV index.
+    """Write one entry file; returns {"file": <path>}.
 
-    Rejects a summary over MAX_SUMMARY_LEN characters. If CSV regeneration
-    fails, the entry is still written and the failure is reported in the
-    returned dict's "csv_error" (None on success).
+    Rejects a summary over MAX_SUMMARY_LEN characters.
     """
     if len(summary) > MAX_SUMMARY_LEN:
         raise ValueError(f"summary exceeds {MAX_SUMMARY_LEN} characters ({len(summary)})")
@@ -142,14 +107,7 @@ def append(root, summary, detail="", author="agent", tags=None):
     if body and not body.endswith("\n"):
         text += "\n"
     entry_path.write_text(text, encoding="utf-8")
-
-    csv_error = None
-    try:
-        _regenerate_csv(root)
-    except Exception as exc:
-        csv_error = str(exc)
-
-    return {"file": str(entry_path), "csv_error": csv_error}
+    return {"file": str(entry_path)}
 
 
 def recent(root, n=5):

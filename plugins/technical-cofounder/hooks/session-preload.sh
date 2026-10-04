@@ -34,8 +34,9 @@
 #
 # With Hyperspace Engine present (.hyperspace/graph.db), bin/he_bridge.py
 # takes over the worklog block: in a set-up project it runs the one-time
-# handshake (write worklog_owner, and worklog_mirror_dir for an Obsidian
-# view, after importing worklog/entries once), then prints the block from
+# handshake (write worklog_owner and worklog_mirror_dir, after importing
+# worklog/entries once; a project that has the owner but not the mirror gets
+# the mirror key and one rebuild), then prints the block from
 # Hyperspace's store when TC owns the preload, or nothing when Hyperspace's
 # own hook does. Without .hyperspace/graph.db this script is unchanged.
 #

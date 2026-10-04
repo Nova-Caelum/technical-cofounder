@@ -64,17 +64,56 @@ NO_STORE = '{"ok": false, "error": "no /tmp/x/.hyperspace/graph.db \\u2014 run `
 # pasted body; this one is constructed in the contract's {"ok": false, "error"} shape.
 UNEXPECTED = '{"ok": false, "error": "OperationalError: database is locked"}'
 
+# The fake also does the one thing the real engine does on every insert that this
+# suite's claims rest on (hyperspace/store/worklog_mirror.py): when config.toml's
+# top level names `worklog_mirror_dir`, a new row is written there as a file, in
+# the engine's frontmatter shape and its <timestamp>-<slug>-<row-id8>.md name.
+# The row is what the caller passed, with the id and time of the canned reply.
 FAKE_PYTHON = """#!/usr/bin/env python3
-import json, sys
+import json, re, sys
+from datetime import datetime
 from pathlib import Path
 here = Path(__file__).resolve().parent
 verb = sys.argv[4]
 with open(here / "calls.jsonl", "a", encoding="utf-8") as fh:
     fh.write(json.dumps(sys.argv[1:]) + "\\n")
 body = here / (verb + ".json")
-sys.stdout.write(body.read_text(encoding="utf-8") if body.exists() else '{"ok": false, "error": "no canned body"}')
 code = here / (verb + ".exit")
-sys.exit(int(code.read_text()) if code.exists() else 0)
+status = int(code.read_text()) if code.exists() else 0
+
+
+def mirror_dir():
+    config = here.parent.parent / "config.toml"
+    for line in config.read_text(encoding="utf-8").splitlines():
+        if line.lstrip().startswith("["):
+            break
+        found = re.match(r'\\s*worklog_mirror_dir\\s*=\\s*"([^"]*)"', line)
+        if found:
+            return here.parent.parent.parent / found.group(1)
+    return None
+
+
+def render(entry, given):
+    slug = re.sub(r"[^a-z0-9]+", "-", given["summary"].lower()).strip("-")[:40].rstrip("-") or "entry"
+    stamp = datetime.fromisoformat(entry["created_at"])
+    name = stamp.strftime("%Y%m%dT%H%M%SZ") + "-" + slug + "-" + entry["id"][:8] + ".md"
+    tags = [t for t in given.get("tags", "").split(",") if t]
+    text = "\\n".join(["---", "date: " + stamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                      "author: " + json.dumps(given["author"]), "summary: " + json.dumps(given["summary"]),
+                      "tags: " + json.dumps(tags), "row_id: " + json.dumps(entry["id"]), "---"]) + "\\n"
+    text += given.get("detail", "")
+    return name, text
+
+
+target = mirror_dir()
+if verb == "append" and status == 0 and body.exists() and target is not None:
+    given = dict(a[2:].split("=", 1) for a in sys.argv[5:] if a.startswith("--") and "=" in a)
+    name, text = render(json.loads(body.read_text(encoding="utf-8"))["entry"], given)
+    target.mkdir(parents=True, exist_ok=True)
+    (target / name).write_text(text, encoding="utf-8")
+
+sys.stdout.write(body.read_text(encoding="utf-8") if body.exists() else '{"ok": false, "error": "no canned body"}')
+sys.exit(status)
 """
 
 
@@ -255,20 +294,43 @@ class HandshakeTests(_Tmp):
         self.assertEqual(data, {"judge": "none", "port": 8791, "user": "user",
                                 "worklog_owner": "technical-cofounder", "worklog_mirror_dir": "worklog/entries"})
 
-    def test_csv_writes_owner_only_and_never_rebuilds(self):
-        fake = FakeHE(self.root, view="csv", entries=1)
-        fake.respond("import", IMPORT_FIRST)
-        he_bridge.handshake(self.root)
-        self.assertIn("worklog_owner", fake.config())
-        self.assertNotIn("worklog_mirror_dir", fake.config())
-        self.assertEqual([c[3] for c in fake.calls()], ["import"])
+    def test_declining_obsidian_or_choosing_nothing_gets_the_same_two_keys_and_rebuild(self):
+        """The mirror is the worklog's file view for every user: Obsidian only
+        decides whether worklog.base sits beside the files."""
+        for view in ("csv", None):
+            with self.subTest(view=view):
+                with tempfile.TemporaryDirectory() as tmp:
+                    fake = FakeHE(tmp, view=view, entries=1)
+                    fake.respond("import", IMPORT_FIRST)
+                    fake.respond("mirror", MIRROR_REBUILT)
+                    self.assertIsNone(he_bridge.handshake(tmp))
+                    self.assertTrue(fake.config().startswith(HE_CONFIG), fake.config())
+                    self.assertIn('worklog_owner = "technical-cofounder"\n', fake.config())
+                    self.assertIn('worklog_mirror_dir = "worklog/entries"\n', fake.config())
+                    self.assertEqual([c[3] for c in fake.calls()], ["import", "mirror"])
+                    self.assertEqual(he_bridge.mode(tmp), "tc-preload")
 
-    def test_no_setup_record_writes_owner_only(self):
-        fake = FakeHE(self.root, entries=1)
-        fake.respond("import", IMPORT_FIRST)
-        he_bridge.handshake(self.root)
-        self.assertIn("worklog_owner", fake.config())
-        self.assertNotIn("worklog_mirror_dir", fake.config())
+    def test_without_obsidian_an_appended_entry_is_a_file_in_the_worklog_folder(self):
+        """The bug: a project set up without Obsidian showed only worklog/README.md
+        after 15 entries. After the handshake, an entry appended through the team's
+        tool while the engine owns the worklog is a readable file in worklog/entries/."""
+        for view in ("csv", None):
+            with self.subTest(view=view):
+                with tempfile.TemporaryDirectory() as tmp:
+                    fake = FakeHE(tmp, view=view)
+                    fake.respond("mirror", MIRROR_REBUILT)
+                    fake.respond("append", APPEND_OK)
+                    self.assertIsNone(he_bridge.handshake(tmp))
+                    he_bridge.append(tmp, "Shipped the worklog CLI.", detail="Full detail body.",
+                                     author="engineer", tags=["worklog"])
+                    files = sorted((Path(tmp) / "worklog" / "entries").glob("*.md"))
+                    self.assertEqual([f.name for f in files],
+                                     ["20260927T191418Z-shipped-the-worklog-cli-55b3ae00.md"])
+                    text = files[0].read_text(encoding="utf-8")
+                    self.assertTrue(text.startswith("---\n"), text)
+                    for line in ('summary: "Shipped the worklog CLI."', 'author: "engineer"',
+                                 f'row_id: "{ROW_ID}"', "Full detail body."):
+                        self.assertIn(line, text)
 
     def test_no_entries_folder_skips_the_import_but_still_rebuilds(self):
         fake = FakeHE(self.root, view="obsidian")
@@ -311,6 +373,77 @@ class HandshakeTests(_Tmp):
         self.assertFalse((self.root / ".hyperspace").exists())
 
 
+class MirrorUpgradeTests(_Tmp):
+    """A project past the handshake before the mirror was on for everyone: mode
+    tc-preload, owner key present, mirror key absent."""
+
+    def test_the_mirror_key_is_added_once_and_the_mirror_rebuilt_never_reimported(self):
+        fake = FakeHE(self.root, owner="technical-cofounder", view="csv", entries=2)
+        fake.respond("mirror", MIRROR_REBUILT)
+        before = fake.config()
+        self.assertIsNone(he_bridge.handshake(self.root))
+        config = fake.config()
+        self.assertTrue(config.startswith(before), "every existing line stays byte-identical")
+        self.assertEqual(config, before + 'worklog_mirror_dir = "worklog/entries"\n')
+        calls = fake.calls()
+        self.assertEqual([c[3] for c in calls], ["mirror"], "no import: it would take the engine's own mirror files")
+        self.assertIn("--rebuild", calls[0])
+        self.assertEqual(he_bridge.mode(self.root), "tc-preload")
+
+        self.assertIsNone(he_bridge.handshake(self.root))
+        self.assertEqual(fake.config(), config, "the second session leaves the keys unchanged")
+        self.assertEqual(len(fake.calls()), 1, "and rebuilds nothing")
+
+    def test_the_key_goes_before_the_first_table(self):
+        config = HE_CONFIG + 'worklog_owner = "technical-cofounder"\n\n[extra]\nk = 1\n'
+        fake = FakeHE(self.root, config=config)
+        fake.respond("mirror", MIRROR_REBUILT)
+        self.assertEqual(he_bridge.mode(self.root), "tc-preload")
+        he_bridge.handshake(self.root)
+        text = fake.config()
+        self.assertIn("worklog_mirror_dir", text)
+        self.assertLess(text.index("worklog_mirror_dir"), text.index("[extra]"))
+        self.assertTrue(text.endswith("[extra]\nk = 1\n"))
+        if tomllib is not None:
+            self.assertEqual(tomllib.loads(text)["worklog_mirror_dir"], "worklog/entries")
+
+    def test_a_failed_rebuild_is_one_note_and_is_not_retried(self):
+        fake = FakeHE(self.root, owner="technical-cofounder", entries=1)
+        fake.respond("mirror", MIRROR_REBUILT, 1)
+        note = he_bridge.handshake(self.root)
+        self.assertIsInstance(note, str)
+        self.assertNotIn("\n", note)
+        self.assertIn("hyperspace worklog mirror --rebuild", note)
+        self.assertIn("worklog_mirror_dir", fake.config())
+        self.assertIsNone(he_bridge.handshake(self.root))
+        self.assertEqual([c[3] for c in fake.calls()], ["mirror"])
+
+    def test_an_existing_mirror_key_is_left_alone_and_nothing_is_rebuilt(self):
+        for line in ('worklog_mirror_dir = "notes/log"\n', 'worklog_mirror_dir = ""\n'):
+            with self.subTest(line=line):
+                with tempfile.TemporaryDirectory() as tmp:
+                    fake = FakeHE(tmp, owner="technical-cofounder", config=HE_CONFIG + line)
+                    before = fake.config()
+                    self.assertIsNone(he_bridge.handshake(tmp))
+                    self.assertEqual(fake.config(), before)
+                    self.assertEqual(fake.calls(), [])
+
+    def test_a_project_the_engine_owns_is_not_touched(self):
+        fake = FakeHE(self.root, owner="hyperspace-engine", view="csv", entries=1)
+        before = fake.config()
+        self.assertIsNone(he_bridge.handshake(self.root))
+        self.assertEqual(fake.config(), before)
+        self.assertEqual(fake.calls(), [])
+
+    def test_an_entry_appended_after_the_upgrade_is_a_file(self):
+        fake = FakeHE(self.root, owner="technical-cofounder", view="csv")
+        fake.respond("mirror", MIRROR_REBUILT)
+        fake.respond("append", APPEND_OK)
+        he_bridge.handshake(self.root)
+        he_bridge.append(self.root, "Shipped the worklog CLI.")
+        self.assertEqual(len(list((self.root / "worklog" / "entries").glob("*-55b3ae00.md"))), 1)
+
+
 class TomlAppendTests(_Tmp):
     def test_keys_go_before_the_first_table(self):
         config = HE_CONFIG + "\n[extra]\nk = 1\n"
@@ -328,8 +461,10 @@ class TomlAppendTests(_Tmp):
 
     def test_file_without_trailing_newline(self):
         fake = FakeHE(self.root, config='judge = "none"', view="csv")
+        fake.respond("mirror", MIRROR_REBUILT)
         he_bridge.handshake(self.root)
-        self.assertEqual(fake.config(), 'judge = "none"\nworklog_owner = "technical-cofounder"\n')
+        self.assertEqual(fake.config(), 'judge = "none"\nworklog_owner = "technical-cofounder"\n'
+                                        'worklog_mirror_dir = "worklog/entries"\n')
 
     def test_existing_mirror_key_is_never_duplicated(self):
         fake = FakeHE(self.root, config=HE_CONFIG + 'worklog_mirror_dir = "notes/log"\n', view="obsidian")
@@ -349,7 +484,7 @@ class ResponseMappingTests(_Tmp):
         self.fake.respond("append", APPEND_OK)
         result = he_bridge.append(self.root, "Shipped the worklog CLI.", detail="Full detail body for the contract doc.",
                                   author="engineer", tags=["hsp-v0.1.2", "worklog"])
-        self.assertEqual(result, {"file": None, "csv_error": None, "row_id": ROW_ID})
+        self.assertEqual(result, {"file": None, "row_id": ROW_ID})
         argv = self.fake.calls()[0]
         self.assertEqual(argv[:4], ["-m", "hyperspace.cli", "worklog", "append"])
         for arg in ("--author=engineer", "--summary=Shipped the worklog CLI.",
