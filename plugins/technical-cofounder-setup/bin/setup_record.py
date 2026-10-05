@@ -24,7 +24,7 @@ Every subcommand first creates setup.json when it is absent (all steps
 pending). An existing record is never replaced; a step added to steps.json
 later reads as pending, and a record written before steps carried their part
 gains it the next time `set` writes. `set` refuses an unknown step, a choice key the step
-does not declare, an `os` other than mac, windows or linux, and a value that
+does not declare, an `os`, `judge` or `judge_why` outside its fixed set, and a value that
 is longer than 40 characters, is not a plain word, or looks like a key, path
 or email. A refusal never echoes the value and never touches the record.
 
@@ -58,7 +58,13 @@ STATUSES = ("done", "skipped", "pending")
 MAX_VALUE = 40
 PLAIN_VALUE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._+-]*$")
 MARKS = {"done": ("done", "✓ Done"), "skipped": ("skipped", "Skipped"), "pending": ("todo", "To do")}
-ALLOWED = {"os": ("mac", "windows", "linux")}  # choice keys whose values are a fixed set
+# Choice keys whose values are a fixed set. judge and judge_why are what
+# installer/nc_setup.py reports for Hyperspace Engine's verifier judge.
+ALLOWED = {
+    "os": ("mac", "windows", "linux"),
+    "judge": ("claude-code", "codex", "openrouter", "anthropic", "none"),
+    "judge_why": ("answered", "kept", "chosen", "not-signed-in", "no-answer", "no-cli"),
+}
 
 
 class Refused(Exception):

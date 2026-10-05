@@ -74,6 +74,9 @@ class World:
         self.inert = set()         # installs that exit 0 and change nothing
         self.failing = set()       # installs that exit 1 and change nothing
         self.half_install = False  # the team arrives without its engine
+        self.signed_in = False     # Claude Code's command line is signed in
+        self.auth_status = True    # `claude auth status` exists (False: an older CLI)
+        self.answers = True        # a signed-in `claude -p` answers
         self.calls = []            # every command run
         self.cwds = []             # the folder each command ran in
         self.child_envs = []       # the environment each command got
@@ -225,6 +228,16 @@ class World:
             return nc.Result(0, json.dumps([{"name": n, "source": "github"} for n in self.marketplaces]), "")
         if name == "claude" and rest[:3] == ["plugin", "marketplace", "add"]:
             return self._install("marketplace", lambda: self.marketplaces.append("nova-caelum"))
+        if name == "claude" and rest[:2] == ["auth", "status"]:
+            if not self.auth_status:
+                return nc.Result(1, "", "error: unknown command 'auth'")
+            state = {"loggedIn": self.signed_in, "authMethod": "claude.ai" if self.signed_in else "none"}
+            return nc.Result(0 if self.signed_in else 1, json.dumps(state), "")
+        if name == "claude" and rest[:1] == ["-p"]:
+            if self.signed_in and self.answers:
+                return nc.Result(0, json.dumps({"type": "result", "is_error": False, "result": "pong"}), "")
+            reason = "Failed to authenticate" if not self.signed_in else "API Error: overloaded"
+            return nc.Result(1, json.dumps({"type": "result", "is_error": True, "result": reason}), "")
         if name == "claude" and rest[:2] == ["plugin", "list"]:
             if "plugin-list" in self.failing:
                 return nc.Result(1, "", "claude: could not read plugins")
@@ -413,6 +426,8 @@ class Usage(Case):
             ["apply", "--project", "/x", "--item", "no-such-item"],
             ["ack", "--project", "/x"],
             ["ack", "--project", "/x", "--item", "jq"],
+            ["judge", "--project", "/x"],
+            ["judge", "--project", "/x", "--set", "codex"],
         ):
             with self.subTest(argv=argv):
                 with contextlib.redirect_stderr(io.StringIO()):
@@ -1334,6 +1349,169 @@ class ApplyItem(Case):
     def test_progress_goes_to_the_log_with_the_plain_why(self):
         self.apply("jq")
         self.assertIn("Installing jq so your team's guardrails can read what's happening in a session.", self.world.log)
+
+
+class JudgeCase(Case):
+    PING = ["/fake/bin/claude", "-p", "ping", "--output-format", "json", "--model", "sonnet"]
+    STATUS = ["/fake/bin/claude", "auth", "status"]
+
+    def fresh(self):
+        self.world.finished()
+        env = self.world.project / ".hyperspace" / "env"
+        (env / "bin" / "python").unlink()
+        (env / "bin").rmdir()
+        env.rmdir()
+        del self.world.env_state[str(self.world.project)]
+
+    def build(self):
+        code, doc = self.call("apply", "--project", self.world.project, "--item", "engine-env")
+        self.assertEqual(code, 0)
+        builds = [c for c in self.world.calls if len(c) > 1 and c[1].endswith("hyperspace_setup.py")]
+        self.assertEqual(len(builds), 1)
+        return builds[0][builds[0].index("--judge") + 1], doc
+
+    def config(self):
+        return (self.world.project / ".hyperspace" / "config.toml").read_text(encoding="utf-8")
+
+    def assert_one_line_reason(self, doc, *needles):
+        detail = doc["judge"]["detail"]
+        self.assertTrue(detail.strip())
+        self.assertNotIn("\n", detail)
+        for needle in needles:
+            self.assertIn(needle, detail)
+
+
+class JudgeDefault(JudgeCase):
+    """The judge a new project gets on Claude Code: Claude Code's own command
+    line (`claude-code`) when it is signed in and answers, otherwise `none`
+    with a one-line reason. A project that already chose keeps its choice."""
+
+    def test_a_signed_in_command_line_that_answers_gets_claude_code_on_sonnet(self):
+        self.fresh()
+        self.world.signed_in = True
+        judge, doc = self.build()
+        self.assertEqual(judge, "claude-code")
+        self.assertIn(self.PING, self.world.calls)
+        self.assertEqual(doc["judge"]["judge"], "claude-code")
+        self.assertEqual(doc["judge"]["why"], "answered")
+        self.assertIn('judge = "claude-code"', self.config())
+        self.assertIn('model = "sonnet"', self.config())   # the engine keeps a model it finds
+
+    def test_a_ping_that_fails_gets_none_and_a_one_line_reason(self):
+        self.fresh()
+        self.world.signed_in = True
+        self.world.answers = False
+        judge, doc = self.build()
+        self.assertEqual(judge, "none")
+        self.assertEqual(doc["judge"]["why"], "no-answer")
+        self.assert_one_line_reason(doc, "turn on the judge")
+
+    def test_a_signed_out_command_line_gets_none_without_spending_a_ping(self):
+        self.fresh()
+        judge, doc = self.build()
+        self.assertEqual(judge, "none")
+        self.assertIn(self.STATUS, self.world.calls)
+        self.assertFalse([c for c in self.world.calls if c[1:2] == ["-p"]])
+        self.assertEqual(doc["judge"]["why"], "not-signed-in")
+        self.assert_one_line_reason(doc, "claude auth login", "turn on the judge")
+
+    def test_an_older_command_line_without_auth_status_is_decided_by_the_ping(self):
+        self.fresh()
+        self.world.auth_status = False
+        self.world.signed_in = True
+        self.assertEqual(self.build()[0], "claude-code")
+
+    def test_an_existing_choice_is_kept_and_nothing_is_probed(self):
+        for chosen in ("none", "openrouter"):
+            with self.subTest(chosen=chosen):
+                self.setUp()
+                self.fresh()
+                self.world.signed_in = True
+                (self.world.project / ".hyperspace").mkdir(exist_ok=True)
+                (self.world.project / ".hyperspace" / "config.toml").write_text(
+                    'judge = "%s"\nport = 8791\n' % chosen)
+                judge, doc = self.build()
+                self.assertEqual(judge, chosen)
+                self.assertEqual(doc["judge"]["why"], "kept")
+                self.assertNotIn(self.STATUS, self.world.calls)
+                self.assertNotIn(self.PING, self.world.calls)
+
+    def test_every_reason_is_one_the_setup_record_accepts(self):
+        spec = importlib.util.spec_from_file_location("setup_record", SETUP_PLUGIN / "bin" / "setup_record.py")
+        record = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(record)
+        self.assertEqual(set(nc.JUDGE_REASONS), set(record.ALLOWED["judge_why"]))
+        self.assertTrue(set(nc.JUDGE_CHOICES) <= set(record.ALLOWED["judge"]))
+
+    def test_scan_and_plan_never_probe_the_judge(self):
+        self.fresh()
+        self.world.signed_in = True
+        self.plan()
+        self.call("scan", "--project", self.world.project, "--record")
+        self.assertNotIn(self.STATUS, self.world.calls)
+        self.assertNotIn(self.PING, self.world.calls)
+
+
+class JudgeChoice(JudgeCase):
+    """`judge --set none|claude-code`: no judge stays selectable before the
+    build and after it, and "turn on the judge" works once the command line
+    is signed in."""
+
+    def set(self, choice):
+        return self.call("judge", "--project", self.world.project, "--set", choice)
+
+    def test_no_judge_before_the_build_is_what_the_build_keeps(self):
+        self.fresh()
+        self.world.signed_in = True
+        code, doc = self.set("none")
+        self.assertEqual(code, 0)
+        self.assertEqual((doc["judge"], doc["why"]), ("none", "chosen"))
+        self.assertNotIn(self.PING, self.world.calls)
+        judge, built = self.build()
+        self.assertEqual(judge, "none")
+        self.assertEqual(built["judge"]["why"], "kept")
+
+    def test_turning_it_off_keeps_every_other_setting(self):
+        self.world.finished()
+        (self.world.project / ".hyperspace" / "config.toml").write_text(
+            'judge = "claude-code"\nmodel = "sonnet"\nport = 9100\nuser = "user"\nworklog_owner = "technical-cofounder"\n')
+        code, doc = self.set("none")
+        self.assertEqual(code, 0)
+        self.assertEqual(self.config().splitlines(), [
+            'judge = "none"', 'model = "sonnet"', 'port = 9100', 'user = "user"',
+            'worklog_owner = "technical-cofounder"'])
+
+    def test_turning_it_on_after_signing_in(self):
+        self.world.finished()
+        (self.world.project / ".hyperspace" / "config.toml").write_text('judge = "none"\nport = 8791\n')
+        self.world.signed_in = True
+        code, doc = self.set("claude-code")
+        self.assertEqual(code, 0)
+        self.assertEqual((doc["judge"], doc["why"]), ("claude-code", "answered"))
+        self.assertIn(self.PING, self.world.calls)
+        self.assertEqual(self.config().splitlines(), ['judge = "claude-code"', 'model = "sonnet"', 'port = 8791'])
+
+    def test_a_model_already_named_is_kept(self):
+        self.world.finished()
+        (self.world.project / ".hyperspace" / "config.toml").write_text('judge = "none"\nmodel = "opus"\n')
+        self.world.signed_in = True
+        self.assertEqual(self.set("claude-code")[0], 0)
+        self.assertEqual(self.config().splitlines(), ['judge = "claude-code"', 'model = "opus"'])
+
+    def test_turning_it_on_while_signed_out_changes_nothing_and_says_how(self):
+        self.world.finished()
+        before = 'judge = "none"\nport = 8791\n'
+        (self.world.project / ".hyperspace" / "config.toml").write_text(before)
+        code, doc = self.set("claude-code")
+        self.assertEqual(code, 1)
+        self.assertEqual(doc["why"], "not-signed-in")
+        self.assertIn("claude auth login", doc["detail"])
+        self.assertEqual(self.config(), before)
+
+    def test_there_is_nothing_to_set_before_the_project_folder_exists(self):
+        code, doc = self.set("none")
+        self.assertEqual(code, 1)
+        self.assertFalse(self.world.project.exists())
 
 
 class ApplyAll(Case):

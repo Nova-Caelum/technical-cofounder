@@ -261,6 +261,41 @@ class SessionPreloadTests(unittest.TestCase):
         self.write(".hyperspace/config.toml", "x = 1\n")
         self.assertEqual(self.stack(self.preload())["hyperspace-engine"], "present")
 
+    def judge_line(self, out):
+        lines = [ln for ln in out.splitlines() if ln.startswith("- verifier judge:")]
+        self.assertLessEqual(len(lines), 1, out)
+        return lines[0] if lines else None
+
+    def test_no_judge_line_before_the_engine_is_set_up(self):
+        self.assertIsNone(self.judge_line(self.preload()))
+
+    def test_the_judge_named_in_the_engine_config_is_on(self):
+        self.write(".hyperspace/config.toml", 'judge = "claude-code"\nmodel = "sonnet"\nport = 8791\n')
+        line = self.judge_line(self.preload())
+        self.assertIn("on (claude-code)", line)
+        self.assertIn('"turn off the judge"', line)
+
+    def test_an_engine_config_without_a_judge_is_off(self):
+        self.write(".hyperspace/config.toml", "port = 8791\n")
+        line = self.judge_line(self.preload())
+        self.assertIn("off", line)
+        self.assertIn('"turn on the judge"', line)
+
+    def test_off_because_the_command_line_was_signed_out_says_how_to_sign_in(self):
+        self.write(".hyperspace/config.toml", 'judge = "none"\n')
+        self.record(choices={"judge": "none", "judge_why": "not-signed-in"})
+        line = self.judge_line(self.preload())
+        self.assertIn("claude auth login", line)
+        self.assertIn('"turn on the judge"', line)
+
+    def test_the_engine_config_wins_over_an_older_record(self):
+        # The engine obeys its config; a record that says otherwise is stale.
+        self.write(".hyperspace/config.toml", 'judge = "claude-code"\n')
+        self.record(choices={"judge": "none", "judge_why": "not-signed-in"})
+        line = self.judge_line(self.preload())
+        self.assertIn("on (claude-code)", line)
+        self.assertNotIn("claude auth login", line)
+
     def test_without_super_pointer_resolves(self):
         lines = [ln for ln in self.preload().splitlines() if "without-super.md" in ln]
         self.assertEqual(len(lines), 1)

@@ -232,6 +232,21 @@ class SetTests(Project):
                 self.assertEqual(r.returncode, 0, r.stderr)
                 self.assertEqual(record(self.project)["choices"]["os"], value)
 
+    def test_prerequisites_records_the_judge_and_why(self):
+        r = cli("set", self.project, "prerequisites", "done",
+                "--choice", "judge=claude-code", "--choice", "judge_why=answered")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        choices = record(self.project)["choices"]
+        self.assertEqual((choices["judge"], choices["judge_why"]), ("claude-code", "answered"))
+        r = cli("set", self.project, "prerequisites", "done", "--choice", "judge=none", "--choice", "judge_why=not-signed-in")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(record(self.project)["choices"]["judge"], "none")
+
+    def test_the_judge_and_why_take_only_known_values(self):
+        for pair in ("judge=gpt-5", "judge=Claude-Code", "judge_why=because I said so", "judge_why=unknown"):
+            with self.subTest(pair=pair):
+                self._refused("prerequisites", "done", "--choice", pair)
+
     def test_os_is_refused_on_other_steps(self):
         for step in ("guide", "editor", "github"):
             with self.subTest(step=step):

@@ -7,6 +7,7 @@ install only that, and look again.
     nc_setup.py apply --project <absolute path> --item <id>
     nc_setup.py apply --project <absolute path> --all
     nc_setup.py ack   --project <absolute path> --item <id>
+    nc_setup.py judge --project <absolute path> --set claude-code|none
 
 Every verb prints one JSON document on stdout and nothing else there;
 progress lines go to stderr. Exit 0: the command did what it was asked.
@@ -20,6 +21,10 @@ apply  acts on an item only when its verdict is install, upgrade or repair,
        then checks the item again. The second check decides the result; a
        command that exits 0 is never taken as proof.
 ack    records a yes to a question that only needed one.
+judge  sets the judge Hyperspace Engine's verifier uses in this project:
+       claude-code only when Claude Code's command line is signed in and
+       answers, none always. It changes .hyperspace/config.toml and nothing
+       else, and works before the engine's workspace is built or after.
 
 Standard library only. Python 3.11 or newer.
 """
@@ -93,6 +98,28 @@ JQ_BUILDS = {
     ("linux", "arm64"): "jq-linux-arm64",
     ("windows", "amd64"): "jq-windows-amd64.exe",
     ("windows", "arm64"): "jq-windows-amd64.exe",   # Windows on Arm runs the 64-bit Intel build
+}
+
+# The verifier's judge. On Claude Code the default is Claude Code's own command
+# line, on the user's plan, with a modest model so a plan that runs Opus by
+# default does not spend Opus on every closure. `none` is always available.
+JUDGE_MODEL = "sonnet"
+JUDGE_CHOICES = ("claude-code", "none")
+JUDGE_SECONDS = 30
+JUDGE_REASONS = {
+    "answered": "The judge is on: Claude Code's command line will check each finished task, using your Claude plan.",
+    "kept": "This project already chose its judge, and setup keeps it.",
+    "chosen": 'The judge is off, as you chose. Say "turn on the judge" any time to switch it on.',
+    "not-signed-in": (
+        "Claude Code's command line is not signed in, so the judge cannot use it: run `claude auth login` "
+        'in your own terminal window, then say "turn on the judge".'
+    ),
+    "no-answer": (
+        "Claude Code's command line did not answer a test question within %d seconds, so the judge cannot "
+        'use it yet: if it is not signed in, run `claude auth login` in your own terminal window; then say '
+        '"turn on the judge" to try again.' % JUDGE_SECONDS
+    ),
+    "no-cli": "Claude Code's command line is not installed yet, so the judge cannot use it.",
 }
 
 STEPS_FILE = Path(__file__).resolve().parent.parent / "setup" / "steps.json"
@@ -226,6 +253,7 @@ class Ctx:
         self.unseen_git = None # (git.exe, DIRECT or STALE) on Windows, once it has been worked out
         self.changed = set()   # items installed or repaired by this run
         self.acks = set()      # questions answered yes by this run
+        self.judge = None      # the judge the engine build chose, and why
 
     def run(self, argv, cwd=None, env=None, timeout=60):
         return self.runner(argv, cwd=cwd, env=self.env if env is None else env, timeout=timeout)
@@ -842,16 +870,82 @@ def fix_team_plugin(ctx, verdict):
     return run_install(ctx, [claude, "plugin", "install", TEAM_PLUGIN, "--scope", "project"], cwd=ctx.project)
 
 
-def engine_judge(ctx):
-    """The judge this project already chose, so a rebuild does not reset it;
-    `none` for a project that has not chosen."""
+def engine_config(ctx):
+    return ctx.project_dir / ".hyperspace" / "config.toml"
+
+
+def chosen_judge(ctx):
+    """The judge this project's engine config already names, or None."""
     try:
         import tomllib
-        with open(ctx.project_dir / ".hyperspace" / "config.toml", "rb") as handle:
+        with open(engine_config(ctx), "rb") as handle:
             judge = tomllib.load(handle).get("judge")
     except Exception:   # no file yet, or one that cannot be read
         judge = None
-    return judge if isinstance(judge, str) and judge else "none"
+    return judge if isinstance(judge, str) and judge else None
+
+
+def signed_in(ctx, claude):
+    """False only when `claude auth status` says plainly that the command line
+    is signed out. True, or None when it cannot tell (an older CLI): the
+    ping decides then. The desktop app's sign-in does not reach the command
+    line, so a desktop-only user's command line is often signed out."""
+    result = ctx.run([claude, "auth", "status"], timeout=JUDGE_SECONDS)
+    try:
+        state = json.loads(result.out)
+    except ValueError:
+        return None
+    logged_in = state.get("loggedIn") if isinstance(state, dict) else None
+    return logged_in if isinstance(logged_in, bool) else None
+
+
+def host_judge(ctx):
+    """(judge, why) for this harness: Claude Code's own command line when it
+    is signed in and answers a one-word question on the judge's model, the
+    same probe the engine uses; otherwise none and why."""
+    claude = working(ctx, "claude")
+    if not claude:
+        return "none", "no-cli"
+    if signed_in(ctx, claude) is False:
+        return "none", "not-signed-in"
+    ping = ctx.run([claude, "-p", "ping", "--output-format", "json", "--model", JUDGE_MODEL], timeout=JUDGE_SECONDS)
+    return ("claude-code", "answered") if ping.code == 0 else ("none", "no-answer")
+
+
+def engine_judge(ctx):
+    """(judge, why): the judge this project already chose, so a rebuild does
+    not reset it; otherwise this harness's default."""
+    judge = chosen_judge(ctx)
+    return (judge, "kept") if judge else host_judge(ctx)
+
+
+def write_judge(ctx, judge):
+    """Name the judge in the engine's config and keep every other line. The
+    engine keeps a model it finds there, so claude-code gets the judge's
+    model when no model is named yet."""
+    path = engine_config(ctx)
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        lines = []
+
+    def key(line):
+        return line.split("=", 1)[0].strip() if "=" in line else None
+
+    entry = 'judge = "%s"' % judge
+    lines = [entry if key(line) == "judge" else line for line in lines]
+    if entry not in lines:
+        lines.insert(0, entry)
+    if judge == "claude-code" and not any(key(line) == "model" for line in lines):
+        lines.insert(lines.index(entry) + 1, 'model = "%s"' % JUDGE_MODEL)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_name(path.name + ".part")
+    partial.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.replace(partial, path)
+
+
+def judge_report(judge, why):
+    return {"judge": judge, "why": why, "detail": JUDGE_REASONS[why]}
 
 
 def fix_engine_env(ctx, verdict):
@@ -877,10 +971,14 @@ def fix_engine_env(ctx, verdict):
         child_env["PATH"] = os.pathsep.join(filter(None, [os.path.dirname(uv), child_env.get("PATH")]))
     if env.exists():
         child_env["UV_VENV_CLEAR"] = "1"   # uv will not build over an existing environment unless told to replace it
+    judge, why = engine_judge(ctx)
+    if why != "kept":
+        write_judge(ctx, judge)   # decided once: a build that fails is not asked again
+    ctx.judge = judge_report(judge, why)
     setup = Path(engines[0]["installPath"]) / "bin" / "hyperspace_setup.py"
     return run_install(
         ctx,
-        [ctx.python, str(setup), "--dir", ctx.project, "--provision", "--judge", engine_judge(ctx)],
+        [ctx.python, str(setup), "--dir", ctx.project, "--provision", "--judge", judge],
         cwd=ctx.project, env=child_env, timeout=1800,
     )
 
@@ -1006,11 +1104,14 @@ def do_apply(ctx, item_id):
             rows = scan_rows(ctx)   # the re-scan is the only source of "done"
         recorded = save_record(ctx, build_record(ctx, rows))
     failed = any(result["acted"] and result["after"] != READY for result in results)
-    return (1 if failed else 0), {
+    document = {
         "command": "apply", "project": ctx.project, "results": results,
         "stopped_at": stopped_at, "failed": failed,
         "restart_required": restart, "recorded": recorded,
     }
+    if ctx.judge:
+        document["judge"] = ctx.judge
+    return (1 if failed else 0), document
 
 
 def do_ack(ctx, item_id):
@@ -1021,6 +1122,19 @@ def do_ack(ctx, item_id):
     recorded = save_record(ctx, build_record(ctx, rows))
     row = next(row for row in rows if row["id"] == item_id)
     return 0, {"command": "ack", "project": ctx.project, "item": row, "recorded": recorded}
+
+
+def do_judge(ctx, choice):
+    """Set the judge, or say why it cannot be set: claude-code only after the
+    same checks a new project gets; nothing changes when they fail."""
+    if not ctx.project_dir.is_dir():
+        return 1, {"command": "judge", "project": ctx.project, "judge": None, "why": None,
+                   "detail": "The project folder does not exist yet; set the project up first."}
+    judge, why = ("none", "chosen") if choice == "none" else host_judge(ctx)
+    if judge == choice:
+        write_judge(ctx, judge)
+        return 0, dict(judge_report(judge, why), command="judge", project=ctx.project)
+    return 1, dict(judge_report(chosen_judge(ctx) or "none", why), command="judge", project=ctx.project)
 
 
 def parse(argv):
@@ -1035,7 +1149,9 @@ def parse(argv):
     which.add_argument("--all", action="store_true")
     ack = verbs.add_parser("ack", help="record a yes to a question setup asked")
     ack.add_argument("--item", required=True)
-    for verb in (scan, verbs.choices["plan"], apply_, ack):
+    judge = verbs.add_parser("judge", help="set the judge Hyperspace Engine's verifier uses here")
+    judge.add_argument("--set", required=True, choices=JUDGE_CHOICES, dest="choice")
+    for verb in (scan, verbs.choices["plan"], apply_, ack, judge):
         verb.add_argument("--project", required=True, help="absolute path of the project folder")
     return parser.parse_args(argv)
 
@@ -1057,6 +1173,8 @@ def main(argv=None, **overrides):
             code, document = do_plan(ctx)
         elif args.verb == "ack":
             code, document = do_ack(ctx, args.item)
+        elif args.verb == "judge":
+            code, document = do_judge(ctx, args.choice)
         else:
             code, document = do_apply(ctx, None if args.all else args.item)
     except UsageError as exc:
