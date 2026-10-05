@@ -3,3 +3,4 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 *.egg-info/
+# ci-gate probe 2026-10-05 - throwaway, closed unmerged
