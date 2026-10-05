@@ -34,9 +34,18 @@
 # exercises exactly this: N parallel Pre events + N successes never trips;
 # 5 identical failures do).
 #
+# Scope: subagents share the parent's session_id, so a session-only key would
+# let one agent's failures — and one agent's success — move every other
+# agent's count. State therefore lives in <session_id>/ for the main thread
+# and in <session_id>/agent-<agent_id>/ when the payload carries a non-empty
+# agent_id that passes sanitize_key (resolve_state_dir). Every fallback path
+# lands in the bare session dir, so correctness never depends on agent_id
+# being present.
+#
 # Never blocks on a session it cannot confidently identify — an
 # absent/unsafe session_id collapses into a shared "nosession" bucket that
-# must never gain blocking authority, only warn authority.
+# must never gain blocking authority, only warn authority. Block authority
+# is decided from session_id alone; a good agent_id never restores it.
 
 set -euo pipefail
 
@@ -114,6 +123,23 @@ count_lines() {
     printf '%s' "$count"
 }
 
+# resolve_state_dir <session_key> <agent_id> — where this caller's failure
+# counters live. A non-empty agent_id that survives sanitize_key scopes to
+# <session_key>/agent-<agent_key>; absent, unsafe or over-length falls back
+# to the bare session dir (reject-whole-value, so a hostile agent_id can
+# never add a path component).
+resolve_state_dir() {
+    local session_key="$1" agent_id="${2:-}" agent_key=""
+    if [ -n "$agent_id" ]; then
+        agent_key="$(sanitize_key "$agent_id" "")"
+    fi
+    if [ -n "$agent_key" ]; then
+        printf '%s' "$STATE_ROOT/$session_key/agent-$agent_key"
+    else
+        printf '%s' "$STATE_ROOT/$session_key"
+    fi
+}
+
 block_and_exit() {
     local tool_name="$1" count="$2"
     printf '⚠️ CIRCUIT BREAKER — BLOCKED: tool "%s" has failed the same way %s times in a row this session with no intervening success. Two options: (1) stop and change approach entirely — a different tool, a different method, or question whether the frame itself is wrong; or (2) escalate to the user/caller now and describe what failed and why. A success on any other tool does not clear this — "%s" itself has to succeed once to reset. If the problem is this plugin itself, /technical-cofounder:contact reaches its makers.\n' \
@@ -122,7 +148,7 @@ block_and_exit() {
 }
 
 handle_pretooluse() {
-    local session_id="$1" tool_name="$2"
+    local session_id="$1" tool_name="$2" agent_id="${3:-}"
     local session_confident=1 session_key tool_key
 
     if [ -z "$session_id" ]; then
@@ -134,7 +160,8 @@ handle_pretooluse() {
     fi
     tool_key="$(sanitize_key "$tool_name" "unknown-tool")"
 
-    local session_dir="$STATE_ROOT/$session_key"
+    local session_dir
+    session_dir="$(resolve_state_dir "$session_key" "$agent_id")"
     [ -d "$session_dir" ] || return 0
 
     local f count
@@ -149,21 +176,22 @@ handle_pretooluse() {
 }
 
 handle_posttooluse() {
-    local session_id="$1" tool_name="$2"
+    local session_id="$1" tool_name="$2" agent_id="${3:-}"
     local session_key tool_key
     session_key="$(sanitize_key "${session_id:-}" "nosession")"
     tool_key="$(sanitize_key "$tool_name" "unknown-tool")"
-    rm -f "$STATE_ROOT/$session_key/failclass-${tool_key}-"*.count 2>/dev/null || true
+    rm -f "$(resolve_state_dir "$session_key" "$agent_id")/failclass-${tool_key}-"*.count 2>/dev/null || true
     return 0
 }
 
 handle_posttoolusefailure() {
-    local session_id="$1" tool_name="$2" error_text="$3"
+    local session_id="$1" tool_name="$2" error_text="$3" agent_id="${4:-}"
     local session_key tool_key
     session_key="$(sanitize_key "${session_id:-}" "nosession")"
     tool_key="$(sanitize_key "$tool_name" "unknown-tool")"
 
-    local session_dir="$STATE_ROOT/$session_key"
+    local session_dir
+    session_dir="$(resolve_state_dir "$session_key" "$agent_id")"
     if ! mkdir -p "$session_dir" 2>/dev/null; then
         log_visible "cannot create $session_dir — skipping this failure (fail-open)"
         return 0
@@ -208,6 +236,7 @@ fi
 HOOK_EVENT=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.hook_event_name // empty' 2>/dev/null) || HOOK_EVENT=""
 TOOL_NAME=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.tool_name // empty' 2>/dev/null) || TOOL_NAME=""
 SESSION_ID=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.session_id // empty' 2>/dev/null) || SESSION_ID=""
+AGENT_ID=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.agent_id // empty' 2>/dev/null) || AGENT_ID=""
 
 if [ -z "$TOOL_NAME" ]; then
     log_visible "tool_name absent on $HOOK_EVENT — nothing to key on"
@@ -216,14 +245,14 @@ fi
 
 case "$HOOK_EVENT" in
     PreToolUse)
-        handle_pretooluse "$SESSION_ID" "$TOOL_NAME"
+        handle_pretooluse "$SESSION_ID" "$TOOL_NAME" "$AGENT_ID"
         ;;
     PostToolUse)
-        handle_posttooluse "$SESSION_ID" "$TOOL_NAME"
+        handle_posttooluse "$SESSION_ID" "$TOOL_NAME" "$AGENT_ID"
         ;;
     PostToolUseFailure)
         ERROR_TEXT=$(printf '%s' "$INPUT" | "$NC_JQ" -r '.error // empty' 2>/dev/null) || ERROR_TEXT=""
-        handle_posttoolusefailure "$SESSION_ID" "$TOOL_NAME" "$ERROR_TEXT"
+        handle_posttoolusefailure "$SESSION_ID" "$TOOL_NAME" "$ERROR_TEXT" "$AGENT_ID"
         ;;
     *)
         log_visible "unrecognized hook_event_name '$HOOK_EVENT' — no-op (fail-open)"
