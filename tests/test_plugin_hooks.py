@@ -123,6 +123,9 @@ THRESHOLD = 5  # identical failures in a row before the breaker stops the tool
 FAILING_CALL = {"tool_name": "Bash", "tool_input": {"command": "frobnicate --all"}}
 FAILED = {**FAILING_CALL, "error": "command not found: frobnicate"}
 PROMPT = {"prompt": "add a retry to the upload function"}
+# Two subagents of one session: Claude Code gives each hook call inside a
+# subagent its agent_id, and the session_id stays the parent's.
+AGENT_A, AGENT_B = "agent-a1b2c3", "agent-d4e5f6"
 
 # A minimal jq, for a machine that has none: it answers the calls the retry
 # breaker and the word-budget hook make (and lib/rule-disclosure.sh for them),
@@ -134,7 +137,7 @@ case "$1" in
     -e) [ "$2" = "." ] || { cat >/dev/null; exit 3; }
         grep -q '^[[:space:]]*{.*}[[:space:]]*$' ;;
     -r) case "$2" in
-            ".hook_event_name // empty"|".tool_name // empty"|".session_id // empty"|".error // empty"|".prompt // empty")
+            ".hook_event_name // empty"|".tool_name // empty"|".session_id // empty"|".agent_id // empty"|".error // empty"|".prompt // empty")
                 name="${2#.}"
                 field "${name% // empty}" ;;
             *) cat >/dev/null; exit 3 ;;
@@ -279,6 +282,76 @@ class GuardrailsActTests(unittest.TestCase):
         self.assertIn("stand-in", ran)
 
     # ── no jq anywhere ────────────────────────────────────────────────────
+    # ── subagents share the session's id; each one's failures are its own ──
+    def fail_as(self, agent, env, session=None):
+        return self.run_as("PostToolUseFailure", "circuit-breaker.sh", {**FAILED, "agent_id": agent}, env, session)
+
+    def check_as(self, agent, env, session=None):
+        return self.run_as("PreToolUse", "circuit-breaker.sh", {**FAILING_CALL, "agent_id": agent}, env, session)
+
+    def succeed_as(self, agent, env, session=None):
+        fields = {**FAILING_CALL, "tool_response": {"output": "ok"}, "agent_id": agent}
+        return self.run_as("PostToolUse", "circuit-breaker.sh", fields, env, session)
+
+    def test_failures_from_two_agents_in_one_session_do_not_add_up_to_a_block(self):
+        env = self.jq_on_path()
+        reports = {AGENT_A: [], AGENT_B: []}
+        for _ in range(4):
+            for agent in (AGENT_A, AGENT_B):
+                code, out, err = self.fail_as(agent, env)
+                self.assertEqual(code, 0, err)
+                reports[agent].append(out)
+        for agent in (AGENT_A, AGENT_B):
+            code, out, err = self.check_as(agent, env)
+            self.assertEqual(code, 0, f"{agent} was stopped after only four failures of its own; stderr: {err}")
+            self.assertNotIn(STOP_MESSAGE, err)
+            # each agent is warned at its own third failure, not at the session's
+            warned = [n for n, report in enumerate(reports[agent], start=1) if "consecutive failures of the same kind" in report]
+            self.assertEqual(warned, [3], f"{agent}: warned at failure(s) {warned}")
+
+    def test_one_agents_success_does_not_clear_another_agents_count(self):
+        env = self.jq_on_path()
+        for _ in range(4):
+            self.fail_as(AGENT_B, env)
+        code, out, err = self.succeed_as(AGENT_A, env)
+        self.assertEqual(code, 0, err)
+        code, out, err = self.fail_as(AGENT_B, env)  # B's fifth, with A's success in between
+        self.assertEqual(code, 0, err)
+        code, out, err = self.check_as(AGENT_B, env)
+        self.assertEqual(code, 2, f"A's success cleared B's count; the fifth failure did not stop B; stderr: {err}")
+        self.assertIn(STOP_MESSAGE, err)
+        code, out, err = self.check_as(AGENT_A, env)
+        self.assertEqual(code, 0, f"A has no failures and was stopped: {err}")
+
+    def test_an_agents_own_success_still_clears_its_own_count(self):
+        env = self.jq_on_path()
+        for _ in range(4):
+            self.fail_as(AGENT_B, env)
+        self.succeed_as(AGENT_B, env)
+        self.fail_as(AGENT_B, env)
+        code, out, err = self.check_as(AGENT_B, env)
+        self.assertEqual(code, 0, f"B's own success did not clear B's count: {err}")
+
+    def test_a_payload_with_no_agent_id_still_stops_after_five_in_the_session(self):
+        self.assert_breaker_stops_after_the_fifth_failure(self.jq_on_path())
+
+    def test_the_main_threads_failures_do_not_stop_an_agent_with_none_of_its_own(self):
+        env = self.jq_on_path()
+        self.failing_calls(env)
+        code, out, err = self.next_attempt(env)
+        self.assertEqual(code, 2, f"the main thread's fifth failure did not stop it; stderr: {err}")
+        code, out, err = self.check_as(AGENT_A, env)
+        self.assertEqual(code, 0, f"an agent with no failures of its own was stopped by the main thread's: {err}")
+
+    def test_an_unsafe_agent_id_falls_back_to_the_session_and_escapes_nowhere(self):
+        env = self.jq_on_path()
+        for _ in range(THRESHOLD):
+            self.fail_as("../../escape", env)
+        code, out, err = self.check_as("../../escape", env)
+        self.assertEqual(code, 2, f"five failures under an unusable agent_id were not counted in the session: {err}")
+        self.assertIn(STOP_MESSAGE, err)
+        self.assertEqual([p for p in self.tmp.rglob("*") if p.name.startswith("agent-") or p.name == "escape"], [])
+
     def test_with_jq_nowhere_both_say_they_are_skipping_and_exit_0(self):
         env = self.jq_nowhere()
         for n, (before, after) in enumerate(self.failing_calls(env), start=1):
