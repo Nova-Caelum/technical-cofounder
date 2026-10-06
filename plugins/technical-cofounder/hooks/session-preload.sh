@@ -8,7 +8,8 @@
 # the project root), inject it plus the 3 most recent worklog entries into
 # context. Otherwise print one line pointing at /technical-cofounder-setup:start.
 # Either way, print the live tech primer: which Nova Caelum plugins are
-# present, expected but missing, or not chosen; a pointer to the
+# present, expected but missing, or not chosen; whether Hyperspace Engine's
+# verifier judge is on or off, and how to switch it; a pointer to the
 # without-super fallbacks when super isn't present; a line saying no run is
 # open yet and that work starts at Understand, when Hyperspace Engine has no
 # open run (its own briefing prints a block for each one it has); setup
@@ -28,6 +29,10 @@
 # The block reports and nothing else: it repairs nothing and writes no file.
 # Whether a restart is pending is not reported: a new session is the restart.
 #
+# The judge line reads the `judge = "..."` line of .hyperspace/config.toml,
+# which the engine obeys (a record that disagrees is stale), and names only a
+# known judge; core_text/setup.json adds why it is off when it names the same
+# judge.
 # The primer reads JSON (settings enabledPlugins, core_text/setup.json) with
 # the Python lib/resolve-tools.sh finds: one on PATH first, and the project's
 # Hyperspace environment only when PATH has none. It prints the three fixed
@@ -194,6 +199,7 @@ tech_primer() {
     echo
     "$NC_PYTHON" - "$PROJECT_DIR" "${HOME:-}" "$PLUGIN_ROOT" <<'PY' 2>/dev/null || echo "(plugin stack unavailable: python3 could not run)"
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -239,9 +245,24 @@ choices = record.get("choices") if isinstance(record.get("choices"), dict) else 
 super_present = enabled("super-novacaelum")
 print("- technical-cofounder: present")
 print(f"- super-novacaelum: {state(super_present, choices.get('super') == 'yes')}")
-he_state = state(enabled("hyperspace-engine") or (project / ".hyperspace" / "config.toml").is_file(), False)
+engine_config = project / ".hyperspace" / "config.toml"
+he_state = state(enabled("hyperspace-engine") or engine_config.is_file(), False)
 he_owned = " · worklog: hyperspace (owned by TC preload)" if he_mode == "tc-preload" else ""
 print(f"- hyperspace-engine: {he_state}{he_owned}")
+if engine_config.is_file():
+    try:
+        found = re.search(r"""(?m)^\s*judge\s*=\s*["']([^"']*)["']""", engine_config.read_text(encoding="utf-8"))
+    except Exception:
+        found = None
+    judge = found.group(1) if found else "none"  # the engine's default
+    if judge != "none":
+        named = f" ({judge})" if judge in ("claude-code", "codex", "openrouter", "anthropic") else ""
+        print(f'- verifier judge: on{named} — say "turn off the judge" to stop it.')
+    elif choices.get("judge") == "none" and choices.get("judge_why") in ("not-signed-in", "no-answer"):
+        print("- verifier judge: off — Claude Code's command line is not signed in or did not answer: "
+              'run `claude auth login` in your terminal, then say "turn on the judge".')
+    else:
+        print('- verifier judge: off — say "turn on the judge" to switch it on.')
 if not super_present:
     print(f"Without super: {plugin / 'reference' / 'without-super.md'} lists what to use instead of each super service.")
 

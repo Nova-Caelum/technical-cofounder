@@ -1,5 +1,5 @@
 {
-  "about": "The one source of 'why' and 'how long' for setup. install: one entry per item the install script can plan; the script prints the why and the minutes with every plan row. steps: the guide's steps, in order; part is 1 (the guide) or 2 (the extras page), a null minutes shows no time, choices lists the only keys a step may record in core_text/setup.json, explain gives one line per option for a step that asks the user to choose (what they gain or lose with each), and verify is the one place the user can check the step themselves. installer/nc_setup.py, bin/setup_record.py and the setup skill all read this file, so adding an item or a step is an edit here.",
+  "about": "The one source of 'why' and 'how long' for setup. install: one entry per item the install script can plan; the script prints the why and the minutes with every plan row. steps: the guide's steps, in order; part is 1 (the guide) or 2 (the extras page), a null minutes shows no time, choices lists the only keys a step may record in core_text/setup.json, explain gives one line per option for a step (or, on engine-env, the judge question) that asks the user to choose (what they gain or lose with each), and verify is the one place the user can check the step themselves. installer/nc_setup.py, bin/setup_record.py and the setup skill all read this file, so adding an item or a step is an edit here.",
   "install": [
     {
       "id": "claude-cli",
@@ -66,7 +66,12 @@
       "id": "engine-env",
       "title": "Hyperspace Engine's workspace",
       "why": "Building Hyperspace Engine's private workspace, where your task graph and its checks run.",
-      "minutes": 2
+      "minutes": 2,
+      "judge": "When a task is finished, a judge reads what it had to achieve and the evidence, and says whether it is really done; it uses Claude Code's command line on your Claude plan. No judge turns it off, and you can switch it on or off later.",
+      "explain": [
+        "Judge on (our recommendation): a task closes only when Claude agrees the evidence shows it is done, and each check uses a little of your Claude plan.",
+        "No judge: a task closes on its file and command checks alone, which costs nothing, but nobody reads whether the work really does what the task asked."
+      ]
     },
     {
       "id": "obsidian",
@@ -86,7 +91,7 @@
       "cost": "Free",
       "minutes": 5,
       "part": 1,
-      "choices": ["os"],
+      "choices": ["os", "judge", "judge_why"],
       "explain": [
         "The Projects folder in your home folder (our default): kept apart from anything that syncs, so a workspace with thousands of files stays fast.",
         "A folder you already have: fine too, and your team's files go in beside yours. A folder that syncs, such as OneDrive, slows the workspace down."

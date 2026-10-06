@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Use when Technical Cofounder needs setting up, finishing or repairing on this computer — the user says "set me up", "set up", "get started", "install", "onboard me", "continue setup", "start another project" or "something is broken with my setup", or pasted the install message that says to read this file.
+description: Use when Technical Cofounder needs setting up, finishing or repairing on this computer — the user says "set me up", "set up", "get started", "install", "onboard me", "continue setup", "start another project", "something is broken with my setup", "turn on the judge" or "turn off the judge", or pasted the install message that says to read this file.
 ---
 
 # Setup
@@ -96,7 +96,7 @@ one, and changes only what is missing.
 
 ## Scan, plan, apply, re-scan
 
-The install script has four verbs. Each prints one JSON document. Read it;
+The install script has five verbs. Each prints one JSON document. Read it;
 never guess what it says.
 
 ```
@@ -104,6 +104,7 @@ never guess what it says.
 "<python>" "${CLAUDE_PLUGIN_ROOT}/installer/nc_setup.py" apply --project "<project>" --item <id>
 "<python>" "${CLAUDE_PLUGIN_ROOT}/installer/nc_setup.py" ack --project "<project>" --item <id>
 "<python>" "${CLAUDE_PLUGIN_ROOT}/installer/nc_setup.py" scan --project "<project>" --record
+"<python>" "${CLAUDE_PLUGIN_ROOT}/installer/nc_setup.py" judge --project "<project>" --set claude-code|none
 ```
 
 Run every `apply` with a ten-minute timeout on the tool call. A shell call is
@@ -136,6 +137,20 @@ with no JSON document was cut off, not failed: run the same command again.
    - `needs-restart`: explain that Claude Code has to be closed completely
      and opened again, and the same message pasted. If they started Claude
      Code from a terminal window, they close that window too. Then stop.
+   - **`engine-env` when its verdict is `install`** (the first build) comes
+     with a question. Before you run it, say the `judge` line of the
+     `engine-env` entry in `steps.json` and ask: Judge on / No judge /
+     **Explain the difference** (that entry's `explain` lines). On No judge,
+     first run
+     `"<python>" "${CLAUDE_PLUGIN_ROOT}/installer/nc_setup.py" judge --project "<project>" --set none`;
+     the build keeps that choice. Then run `apply` as above. Its document
+     carries a `judge` object: say its `detail`. When its `why` is
+     `not-signed-in` or `no-answer`, offer to fix it now: they run
+     `claude auth login` in their own terminal window (Terminal on a Mac,
+     PowerShell on Windows), which opens a browser page to sign in. When they
+     say it is done, run
+     `"<python>" "${CLAUDE_PLUGIN_ROOT}/installer/nc_setup.py" judge --project "<project>" --set claude-code`
+     and say its `detail`.
 4. **Finish.** Run `scan` with `--record` and say what it shows: how many
    items are `ready`, anything that is not, and where the record is
    (`recorded`). A row that is not `ready` goes back through step 3. Then say
@@ -163,6 +178,9 @@ When every row is `ready`, record it (`macos` in the plan's `platform` is
 ```
 "<python>" "${CLAUDE_PLUGIN_ROOT}/bin/setup_record.py" set "<project>" prerequisites done --choice os=mac|windows|linux
 ```
+
+When an `apply` or `judge` document carried a judge, add the last one you
+saw: `--choice judge=<judge> --choice judge_why=<why>`.
 
 ## The guide and the questions
 
@@ -405,6 +423,17 @@ this session is running:
 and resume the guide at the first step that is `pending` or `skipped`, in
 `steps.json` order. Name it and its minutes. For a skipped step, give one line
 on what it gets them now.
+
+**Turn the judge on or off.** When they say "turn on the judge" or "turn
+off the judge": `<project>` is the current folder; get `<python>` from the
+**First step**, then run
+`"<python>" "${CLAUDE_PLUGIN_ROOT}/installer/nc_setup.py" judge --project "<project>" --set claude-code`
+(`--set none` turns it off) and say its `detail`. A `why` of
+`not-signed-in` or `no-answer` gets the same offer as at the first build:
+`claude auth login` in their own terminal window, then try again. Record
+what it printed:
+`"<python>" "${CLAUDE_PLUGIN_ROOT}/bin/setup_record.py" set "<project>" prerequisites done --choice judge=<judge> --choice judge_why=<why>`.
+The next task that closes uses the new setting; nothing needs restarting.
 
 **Obsidian later.** Someone who said no at step 2 and uses Obsidian now moves
 over without moving anything: their worklog is already Markdown files in

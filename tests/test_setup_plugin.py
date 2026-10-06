@@ -236,6 +236,52 @@ class TheSkill(unittest.TestCase):
                 self.assertNotIn(stale, self.text)
 
 
+class TheJudgeStep(unittest.TestCase):
+    """The engine step says what the verifier's judge does and offers no
+    judge, with Explain the difference; its words live in steps.json like
+    every other reason. A command line that is not signed in is offered
+    `claude auth login`, and "turn on" / "turn off the judge" work later."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = SKILL.read_text(encoding="utf-8")
+        cls.flat = flat(cls.text)
+        cls.description = re.search(r"(?m)^description:\s*(.+?)\s*$", cls.text.split("---", 2)[1]).group(1)
+        cls.entry = next(e for e in STEPS["install"] if e["id"] == "engine-env")
+
+    def test_steps_json_carries_the_judge_line_and_an_explain_line_per_option(self):
+        line = self.entry.get("judge")
+        self.assertTrue(isinstance(line, str) and line.strip() and "\n" not in line)
+        for needle in ("Claude plan", "No judge"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, line)
+        explain = self.entry.get("explain")
+        self.assertIsInstance(explain, list)
+        self.assertEqual(len(explain), 2)
+        for text in explain:
+            self.assertTrue(isinstance(text, str) and text.strip() and "\n" not in text)
+
+    def test_the_skill_says_the_line_from_steps_json_and_never_restates_it(self):
+        self.assertNotIn(self.entry["judge"], self.flat)
+        for text in self.entry["explain"]:
+            self.assertNotIn(text, self.flat)
+        step = flat(heading_body(self.text, "Scan, plan, apply, re-scan"))
+        for needle in ("`engine-env`", "`judge` line", EXPLAIN_LABEL, "No judge"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, step)
+
+    def test_no_judge_and_turning_it_on_go_through_the_install_script(self):
+        for needle in ('judge --project "<project>" --set none', 'judge --project "<project>" --set claude-code',
+                       "claude auth login", "--choice judge=", "--choice judge_why="):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, self.flat)
+
+    def test_the_description_names_turning_the_judge_on_and_off(self):
+        for phrase in ("turn on the judge", "turn off the judge"):
+            with self.subTest(phrase=phrase):
+                self.assertIn(f'"{phrase}"', self.description.lower())
+
+
 class TheMessage(unittest.TestCase):
     """reference/install-message.md: the one message a person pastes. The
     README and the website copy it from this file."""
