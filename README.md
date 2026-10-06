@@ -39,7 +39,7 @@ For solo builders and the build-curious.
 
 > "The original version of Technical Cofounder was the first thing I built with agents. The tool has evolved alongside myself and my capabilities with each new build. It has put new things within reach, which is the core mission of Nova Caelum."
 >
-> *Founder and Principal*
+> *Founder and Lead Developer*
 <br>
 
 
