@@ -137,6 +137,14 @@ with no JSON document was cut off, not failed: run the same command again.
    - `needs-restart`: explain that Claude Code has to be closed completely
      and opened again, and the same message pasted. If they started Claude
      Code from a terminal window, they close that window too. Then stop.
+   - **`team-plugin` when its verdict is `install`, `upgrade` or `repair`**
+     comes with a consent line first. Before you run `apply` for it, say that
+     it installs the `technical-cofounder` plugin (their team, with Hyperspace
+     Engine) from Nova-Caelum/plugins, and ask in the chat (not a pop-up) for
+     a reply in their own words, for example "Yes, install technical-cofounder
+     from Nova-Caelum/plugins". Run `apply` for it only after that reply. If
+     they say no, run nothing, say that the rows after it wait on this one, and
+     offer to ask again whenever they are ready.
    - **`engine-env` when its verdict is `install`** (the first build) comes
      with a question. Before you run it, say the `judge` line of the
      `engine-env` entry in `steps.json` and ask: Judge on / No judge /
@@ -522,10 +530,13 @@ Context7 and Exa have free tiers, and a key only raises their limits;
 Browserbase needs a key, and its free plan includes one browser hour a month.
 Ask Yes / Not now / **Explain the difference**.
 
-If they want it, run the team's `super-setup` skill: it walks through each
-account, the project-scope install and entering keys through Claude Code's
-hidden configure prompt. `set … super done --choice super=yes` once it
-finishes, or `pending --choice super=yes` if they stop partway. If they don't
-want it, `set … super skipped --choice super=no`.
+If they want it, install nothing yet. Ask in the chat (not a pop-up) for a
+reply in their own words, for example "Yes, install super-novacaelum from
+Nova-Caelum/plugins". Run `super-setup` only after that reply. It is the
+team's skill: it walks through each account, the project-scope install and
+entering keys through Claude Code's hidden configure prompt.
+`set … super done --choice super=yes` once it finishes, or
+`pending --choice super=yes` if they stop partway. If they don't want it,
+`set … super skipped --choice super=no`.
 
 Source: Nova Caelum (Apache-2.0).
