@@ -251,7 +251,8 @@ the last option:
   raw text, without formatting, links or search. Say so: nobody needs a
   special app to finish setup.
 
-They install it; offer the download page. If they pick Obsidian, say: "Great:
+They install it; offer the download page (https://obsidian.md/download for
+Obsidian). If they pick Obsidian, say: "Great:
 everything you need is in OBSIDIAN.md (<absolute path>), or you can just ask
 me." The path is `<project>/OBSIDIAN.md` if it exists, otherwise
 `${CLAUDE_PLUGIN_ROOT}/template/OBSIDIAN.md`.
@@ -266,16 +267,52 @@ worklog is: the team's diary, one short Markdown file per piece of work in
 and reads them in the worklog tab of Hyperspace Engine's console; with
 Obsidian they also show as one table.
 
-If they have Obsidian or just chose it, yes is the easy call: they get a
-minimal `.obsidian/` folder and `worklog/worklog.base`, that table over every
-worklog entry. If they don't use Obsidian, don't sell it. Ask Yes / No /
-**Explain the difference**.
-`set … obsidian done --choice obsidian=yes`, or
-`skipped --choice obsidian=no`. Step 4 uses this answer.
+Pitch Obsidian in one line, to everyone: "Obsidian is free, it keeps everything
+on your computer, and it reads every file in this project." When the plan's
+`obsidian` row says it is not installed, add the download page,
+https://obsidian.md/download. Then ask Yes / No / **Explain the difference**.
+A yes gets a minimal `.obsidian/` folder and `worklog/worklog.base`, that table
+over every worklog entry.
 
-On a no, say one line: OBSIDIAN.md is at
-`${CLAUDE_PLUGIN_ROOT}/template/OBSIDIAN.md` (give the absolute path) if they
-change their mind, and "continue setup" switches them over later.
+Offer OBSIDIAN.md without being asked, on either answer: "There's a short guide
+to Obsidian for this project, OBSIDIAN.md. Want me to open it?" Its path is
+`<project>/OBSIDIAN.md` once step 4 has run, and until then
+`${CLAUDE_PLUGIN_ROOT}/template/OBSIDIAN.md` (give the absolute path). On a no,
+add that "continue setup" switches them over later.
+
+**Viewers (a yes only).** Obsidian opens Markdown and PDFs on its own. Word,
+PowerPoint, SQLite, JSON and HTML files each need a small add-on, a community
+plugin: code written by other people, which runs inside Obsidian with
+Obsidian's access to their files. So offer only the ones on setup's own list,
+each read-only and at a version we checked. Nothing is copied from us: each
+file comes from its author's GitHub page and must match the checked copy.
+
+1. `"<python>" "${CLAUDE_PLUGIN_ROOT}/bin/obsidian_plugins.py" list` prints
+   them, each with a `name` and a `for` line.
+2. Ask about each one, one at a time, with its `name` and `for` line: Yes / No /
+   **Explain the difference**. A viewer is optional; with No those files keep
+   opening in their own apps. Install a plugin only after a yes to that
+   plugin, in their own words: a yes to Obsidian is not a yes to a plugin.
+   Never install one that is not on that list.
+3. On a yes, run
+   `"<python>" "${CLAUDE_PLUGIN_ROOT}/bin/obsidian_plugins.py" install --project "<project>" --plugin <id>`
+   and say its `detail`. When its `result` is `failed`, say the `detail`:
+   nothing was left half-installed, so offer to try again.
+4. When any are installed, say what Obsidian will ask. They choose "Open
+   folder as vault" and pick the project folder, and Obsidian asks "Do you
+   trust the author of this vault?" with two buttons: **Trust author and
+   enable plugins** and "Browse vault in Restricted Mode". They choose Trust
+   author and enable plugins, because they said yes to each one. If they chose
+   Restricted Mode, or a viewer does nothing: Settings → Community plugins →
+   **Turn on community plugins**. Say that the HTML viewer opens pages with its
+   scripts off, and that they leave that switch off for any page they did not
+   write.
+
+The theme is a pointer, not a download: Settings → Appearance → Themes →
+Manage, then Minimal (free, made for reading) → Use.
+
+Then `set … obsidian done --choice obsidian=yes`, or, on a no,
+`skipped --choice obsidian=no`. Step 4 uses this answer.
 
 ### 3. GitHub (`github`)
 
@@ -459,7 +496,8 @@ over without moving anything: their worklog is already Markdown files in
 `worklog/`. Run
 `"<python>" "${CLAUDE_PLUGIN_ROOT}/bin/init_workspace.py" "<project>" --obsidian --no-super`
 (it adds `.obsidian/`, `worklog/worklog.base` and `OBSIDIAN.md`, and never
-overwrites a file), then `set … obsidian done --choice obsidian=yes` and
+overwrites a file), offer the viewers exactly as in step 2
+(`obsidian_plugins.py list`), then `set … obsidian done --choice obsidian=yes` and
 `set … workspace done --choice worklog_view=obsidian`. In Obsidian they choose
 "Open folder as vault" and pick the project folder.
 
