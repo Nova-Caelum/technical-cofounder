@@ -33,7 +33,7 @@ HOST_SYSTEM = "windows" if sys.platform == "win32" else "macos" if sys.platform 
 SIX = {"ready", "install", "upgrade", "repair", "needs-you", "needs-restart"}
 ITEM_ORDER = [
     "claude-cli", "git", "uv", "python", "jq", "network", "project-folder",
-    "existing-config", "marketplace", "team-plugin", "engine-env", "obsidian",
+    "existing-config", "marketplace", "team-plugin", "engine-env", "obsidian", "homebrew",
 ]
 TEAM = "technical-cofounder@nova-caelum"
 ENGINE = "hyperspace-engine@nova-caelum"
@@ -626,6 +626,80 @@ class ObsidianOnWindows(Case):
         (local / "Programs" / "Obsidian").mkdir(parents=True)
         self.world.env["LOCALAPPDATA"] = str(local)
         self.assertEqual(self.row("obsidian")["detail"], "installed")
+
+
+class HomebrewOnMac(Case):
+    """Homebrew is how a Mac gets `brew install gh`, for the optional GitHub
+    step. Setup never installs it (its installer asks for the Mac's password in
+    a terminal), so the row only looks, like Obsidian's: always ready, and the
+    detail says what the GitHub step needs to know."""
+
+    USUAL = ("/opt/homebrew/bin/brew", "/usr/local/bin/brew")
+
+    def test_a_mac_without_homebrew_is_told_so(self):
+        row = self.row("homebrew")
+        self.assertEqual((row["verdict"], row["detail"]), ("ready", "Homebrew is not installed"))
+
+    def test_nothing_was_run_to_find_that_out(self):
+        self.row("homebrew")
+        self.assertEqual([c for c in self.world.calls if c[0].endswith("brew")], [])
+
+    def test_on_path_and_running_names_where_it_is(self):
+        self.world.have("brew")
+        row = self.row("homebrew")
+        self.assertEqual(row["verdict"], "ready")
+        self.assertIn("at /fake/bin/brew", row["detail"])
+        self.assertNotIn("not installed", row["detail"])
+
+    def test_installed_but_off_this_sessions_path_is_found_where_its_installer_puts_it(self):
+        # This session started before Homebrew was installed, so PATH does not lead to it.
+        for usual in self.USUAL:
+            with self.subTest(usual=usual):
+                self.world.on_path.clear()
+                self.world.on_path[usual] = usual
+                self.world.tool_state["brew"] = "ok"
+                row = self.row("homebrew")
+                self.assertEqual(row["verdict"], "ready")
+                self.assertIn("at " + usual, row["detail"])
+
+    def test_a_copy_that_does_not_run_says_so_and_is_still_ready(self):
+        self.world.have("brew")
+        self.world.tool_state["brew"] = "broken"
+        row = self.row("homebrew")
+        self.assertEqual(row["verdict"], "ready")
+        self.assertIn("does not run", row["detail"])
+
+    def test_a_missing_homebrew_never_holds_up_the_plan(self):
+        self.world.finished()
+        doc = self.plan()
+        self.assertIsNone(doc["next"])
+        self.assertEqual([r["id"] for r in doc["items"] if r["verdict"] != "ready"], [])
+
+    def test_apply_has_nothing_to_install_for_it(self):
+        code, doc = self.call("apply", "--project", self.world.project, "--item", "homebrew")
+        self.assertEqual(code, 0)
+        self.assertFalse(doc["results"][0]["acted"])
+        self.assertEqual(self.world.installs, [])
+
+    def test_the_row_carries_its_reason_and_time_from_the_reasons_file(self):
+        row = self.row("homebrew")
+        entry = next(e for e in json.loads(STEPS_FILE.read_text(encoding="utf-8"))["install"] if e["id"] == "homebrew")
+        self.assertEqual((row["why"], row["minutes"], row["title"]), (entry["why"], entry["minutes"], entry["title"]))
+
+
+class HomebrewOffAMac(Case):
+    def check(self, detail):
+        row = self.row("homebrew")
+        self.assertEqual((row["verdict"], row["detail"]), ("ready", detail))
+        self.assertEqual([c for c in self.world.calls if c[0].endswith("brew")], [])
+
+    def test_windows_does_not_need_it(self):
+        self.world.system = "windows"
+        self.check("only a Mac needs Homebrew")
+
+    def test_linux_does_not_need_it(self):
+        self.world.system = "linux"
+        self.check("only a Mac needs Homebrew")
 
 
 # ---------------------------------------------------------------------------

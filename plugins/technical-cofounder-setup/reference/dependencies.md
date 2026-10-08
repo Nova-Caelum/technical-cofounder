@@ -21,6 +21,7 @@ Setup installs only what's missing and skips anything you already have. Each "wh
 | jq | `jq` | Mac and Windows | Installing jq so your team's guardrails can read what's happening in a session. |
 | Hyperspace Engine's workspace | `engine-env` | Mac and Windows | Building Hyperspace Engine's private workspace, where your task graph and its checks run. |
 | Obsidian | `obsidian` | Optional | Checking whether Obsidian is installed, so setup can offer it without asking you to look. |
+| Homebrew | `homebrew` | Mac only | Checking whether Homebrew is installed, so setup can show you the easy way to add GitHub's command line on a Mac. |
 
 Technical Cofounder itself needs no Node.js. A project of your own may need it; the engineer installs it when a project actually needs it.
 
@@ -104,6 +105,19 @@ Setup never installs Obsidian. It only looks for it, so it can offer the worklog
 - **Without it:** nothing breaks. The worklog stays as plain files in `worklog/entries/`.
 - **Check:** setup looks in the usual install places.
 - **Install:** obsidian.md.
+
+### Homebrew (Mac only, optional)
+
+Homebrew is a free app installer for the Mac. Setup never installs it: its installer asks for your Mac password in Terminal, so setup tells you how and waits.
+
+- **Used by:** the optional GitHub step. On a Mac, `brew install gh` is the way GitHub's own docs recommend for adding its command line ([GitHub CLI on macOS](https://github.com/cli/cli/blob/trunk/docs/install_macos.md)).
+- **Without it:** nothing in setup stops. You can't run `brew install gh`, so connecting GitHub waits until you install Homebrew; GitHub is optional.
+- **Check:** `brew --version` prints a version. Setup looks on your PATH and in the two places Homebrew's installer puts it (`/opt/homebrew/bin` on Apple Silicon, `/usr/local/bin` on Intel), because a session that started before Homebrew was installed doesn't have them on its PATH.
+- **Install:** paste this in Terminal (it is the command on [brew.sh](https://brew.sh)):
+  - `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+  - It explains what it will do and waits for Enter, then asks for your Mac password (nothing shows as you type) and takes a few minutes.
+  - It ends with a "Next steps" section: run the commands it lists, open a new Terminal window, and `brew --version` prints a version.
+  - Homebrew supports macOS 15 (Sequoia) or newer; an older Mac may still work but is unsupported ([Homebrew installation docs](https://docs.brew.sh/Installation)).
 
 ## Research extras (optional, part 2)
 
