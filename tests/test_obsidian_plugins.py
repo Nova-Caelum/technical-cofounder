@@ -20,6 +20,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tests.test_setup_plugin import flat, step_section
 
@@ -181,6 +182,7 @@ class NeverLeavesHalfAnInstall(Case):
         leftovers = [p.name for p in self.plugins_dir.iterdir()] if self.plugins_dir.exists() else []
         self.assertEqual(leftovers, [], "a staging folder or part-file was left behind")
         self.assertFalse(self.enabled_file.exists(), "the plugin was listed without being installed")
+        self.assertFalse(Path(str(self.enabled_file) + ".part").exists(), "a half-written list was left behind")
 
     def test_a_download_that_fails_leaves_no_folder_and_no_list_entry(self):
         code, doc, _ = self.install(fetch=Fetcher(fail={"styles.css"}))
@@ -200,6 +202,20 @@ class NeverLeavesHalfAnInstall(Case):
         self.assertEqual(code, 1)
         self.assertIn("main.js", doc["detail"])
         self.assertIn("does not match", doc["detail"])
+        self.assert_nothing_left()
+
+    def test_a_list_that_cannot_be_written_takes_the_installed_folder_back_out(self):
+        real = self.op.os.replace
+
+        def replace(source, target):
+            if Path(target).name == "community-plugins.json":
+                raise OSError("disk full")
+            return real(source, target)
+
+        with mock.patch.object(self.op.os, "replace", replace):
+            code, doc, _ = self.install()
+        self.assertEqual(code, 1)
+        self.assertIn("disk full", doc["detail"])
         self.assert_nothing_left()
 
     def test_a_failure_does_not_touch_ids_already_listed(self):

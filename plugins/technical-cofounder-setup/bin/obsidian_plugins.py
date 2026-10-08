@@ -104,7 +104,11 @@ def install(plugins, project, plugin_id, fetch_bytes):
         download_into(stage, plugin, fetch_bytes)
         pending.write_text(json.dumps(listed, indent=2) + "\n", encoding="utf-8")
         os.replace(stage, final)
-        os.replace(pending, enabled_path)
+        try:
+            os.replace(pending, enabled_path)
+        except OSError:
+            shutil.rmtree(final, ignore_errors=True)   # not listed means not installed
+            raise
     except OSError as exc:
         raise Failed("could not write into %s: %s" % (project / ".obsidian", exc))
     finally:
