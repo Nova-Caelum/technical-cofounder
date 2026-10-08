@@ -25,6 +25,14 @@ An install made for another project is not this project's engine.
 The script runs with `.hyperspace/env`'s Python, not the system python3: the
 engine needs 3.11 (tomllib) and the system one may be older.
 
+The map must not show as modified in a user's git at every session start, and
+the engine stamps each run with the time. So once a map exists the engine writes
+to a temporary file (seeded with the current map, because the engine keeps the
+text people wrote after the dash from the file it writes over), and the map is
+replaced only when the two differ somewhere other than the stamp. An unchanged
+project leaves the file alone: same bytes, same mtime. The pointer line still
+prints every session. The first map, when there is none yet, is written directly.
+
 Failing is quiet and free: one line on stderr (the hook log, never the model's
 context), exit 0, and no pointer line, because a pointer to a map that was not
 written is worse than none. A project with no map this session simply has none.
@@ -38,8 +46,10 @@ Standard library only.
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 MAP = "core_text/drive-map.md"
@@ -47,6 +57,7 @@ ENGINE_PREFIX = "hyperspace-engine@"
 PREFERRED_ENGINE = "hyperspace-engine@nova-caelum"
 RUN_SECONDS = 20  # the most a session start waits for the engine
 _COUNT = re.compile(r"\((\d+) folders?\b")
+_STAMP = re.compile(r"(?m)^(> Generated )[^.\n]*\.")  # "> Generated 2026-10-08 12:00 UTC. **5 folders, ..."
 
 
 class Quiet(Exception):
@@ -115,6 +126,25 @@ def engine_python(project):
     return None
 
 
+def same_apart_from_the_stamp(a, b):
+    """True when two maps are the same text but for the time the engine stamped them with."""
+    try:
+        return (_STAMP.sub(r"\1.", Path(a).read_text(encoding="utf-8"))
+                == _STAMP.sub(r"\1.", Path(b).read_text(encoding="utf-8")))
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
+def publish(new, target):
+    """Replace `target` with `new` in one step, so a reader never sees half a map."""
+    partial = target.with_name(target.name + ".part")
+    try:
+        shutil.copyfile(new, partial)
+        os.replace(partial, target)
+    finally:
+        partial.unlink(missing_ok=True)
+
+
 def preload(project, seconds=RUN_SECONDS):
     """Write the map and print the one pointer line. Always returns 0."""
     project = Path(project)
@@ -126,22 +156,33 @@ def preload(project, seconds=RUN_SECONDS):
         if python is None:
             raise Quiet("this project has no Hyperspace environment yet, so there is no drive map this session")
         target = project / MAP
-        try:
-            done = subprocess.run(
-                [str(python), str(script), "tree", str(project), "--out", str(target)],
-                stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                timeout=seconds, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
-            )
-        except subprocess.TimeoutExpired:
-            raise Quiet(f"the engine did not finish in {seconds} seconds, so there is no drive map this session")
-        except OSError as exc:
-            raise Quiet(f"the engine could not be started ({exc.__class__.__name__})")
-        if done.returncode != 0:
-            tail = next((ln.strip() for ln in reversed(done.stderr.splitlines()) if ln.strip()), "no message")
-            raise Quiet(f"the engine's `tree` mode failed (an engine from before it?): {tail[:160]}")
-        counted = _COUNT.search(done.stdout)
-        if not counted or not target.is_file():
-            raise Quiet("the engine reported no map, so there is no drive map this session")
+        with tempfile.TemporaryDirectory(prefix="drive-map-") as scratch:
+            # The first map is written where it goes; later ones to a temporary file outside the project (a file
+            # inside it would be listed in the map).
+            written = Path(scratch) / target.name if target.is_file() else target
+            if written != target:
+                try:
+                    shutil.copyfile(target, written)
+                except OSError:
+                    raise Quiet("the existing drive map cannot be read, so it is left as it is")
+            try:
+                done = subprocess.run(
+                    [str(python), str(script), "tree", str(project), "--out", str(written)],
+                    stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                    timeout=seconds, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
+                )
+            except subprocess.TimeoutExpired:
+                raise Quiet(f"the engine did not finish in {seconds} seconds, so there is no drive map this session")
+            except OSError as exc:
+                raise Quiet(f"the engine could not be started ({exc.__class__.__name__})")
+            if done.returncode != 0:
+                tail = next((ln.strip() for ln in reversed(done.stderr.splitlines()) if ln.strip()), "no message")
+                raise Quiet(f"the engine's `tree` mode failed (an engine from before it?): {tail[:160]}")
+            counted = _COUNT.search(done.stdout)
+            if not counted or not written.is_file():
+                raise Quiet("the engine reported no map, so there is no drive map this session")
+            if written != target and not same_apart_from_the_stamp(written, target):
+                publish(written, target)
         n = int(counted.group(1))
         print(f"Drive map: {MAP} ({n} folder{'' if n == 1 else 's'}) — read it before creating a file.")
     except Quiet as why:

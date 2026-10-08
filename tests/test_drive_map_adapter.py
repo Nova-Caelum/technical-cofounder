@@ -74,6 +74,32 @@ sys.stderr.write("usage: drive_map.py [-h] {write,check} ...\\ndrive_map.py: err
 sys.exit(2)
 '''
 SLOW_ENGINE = "import time\ntime.sleep(60)\n"
+# What the real `tree` does that matters for churn: it stamps every run with a new time, keeps the text people
+# wrote after the dash from the file it writes over, lists the map file when that file exists (or is where it
+# writes), and lists the project's folders. The stamp is a counter, so two runs never share one.
+STAMPING_ENGINE = '''\
+import json, re, sys
+from pathlib import Path
+args = sys.argv[1:]
+Path(__file__).with_name("argv.json").write_text(json.dumps(args))
+root, out = Path(args[1]).resolve(), Path(args[args.index("--out") + 1])
+counter = Path(__file__).with_name("runs.txt")
+runs = int(counter.read_text()) + 1 if counter.exists() else 1
+counter.write_text(str(runs))
+out.parent.mkdir(parents=True, exist_ok=True)  # the real one makes the folder before it walks, so a first map lists its own folder
+kept = {}
+if out.exists():
+    for line in out.read_text(encoding="utf-8").splitlines():
+        found = re.match(r"^- `([^`]+)` — (.*)$", line)
+        if found:
+            kept[found.group(1)] = found.group(2)
+paths = sorted(str(p.relative_to(root).as_posix()) + "/" for p in root.rglob("*") if p.is_dir() and not p.relative_to(root).parts[0].startswith("."))
+if (root / "core_text" / "drive-map.md").exists() or root in out.resolve().parents:
+    paths.append("core_text/drive-map.md")
+body = ["- `%s`%s" % (n, " — " + kept[n] if n in kept else "") for n in paths]
+out.write_text("\\n".join(["# Drive map", "", "> Generated 2026-10-08 12:%02d UTC. **%d folders, 0 files** under `proj/`." % (runs, len(paths)), "", "## Tree", "", *body]) + "\\n", encoding="utf-8")
+print("wrote %s (%d folders, 0 files, %d lines)" % (out, len(paths), len(body) + 6))
+'''
 
 
 def load_pointer():
@@ -261,6 +287,86 @@ class PointerTests(unittest.TestCase):
         self.m.pointer()
         who = (self.m.engine_dir / "bin" / "who.txt").read_text(encoding="utf-8")
         self.assertEqual(os.path.realpath(who), os.path.realpath(self.m.project / ".hyperspace" / "env"))
+
+
+class NoChurnTests(unittest.TestCase):
+    """The map must not show as modified in a user's git every session: an unchanged project leaves the
+    file alone (same bytes, same mtime), and only a real change rewrites it."""
+
+    LONG_AGO = 1_000_000_000  # an mtime nothing written just now can share
+
+    def setUp(self):
+        self.m = Machine(self)
+        self.m.environment()
+        self.m.engine(STAMPING_ENGINE)
+
+    def age(self):
+        os.utime(self.m.map, (self.LONG_AGO, self.LONG_AGO))
+        return self.m.map.read_bytes()
+
+    def test_two_runs_with_no_folder_change_leave_the_file_untouched(self):
+        self.assertRegex(self.m.pointer().stdout, POINTER_LINE)
+        first = self.age()
+        done = self.m.pointer()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.m.map.read_bytes(), first, "the bytes changed")
+        self.assertEqual(self.m.map.stat().st_mtime, self.LONG_AGO, "the file was rewritten")
+
+    def test_the_pointer_line_is_printed_on_every_run_even_when_the_file_is_left_alone(self):
+        for _ in range(3):
+            self.assertRegex(self.m.pointer().stdout.strip(), POINTER_LINE)
+
+    def test_adding_a_folder_rewrites_it(self):
+        self.m.pointer()
+        before = self.age()
+        (self.m.project / "work" / "app").mkdir(parents=True)
+        self.assertRegex(self.m.pointer().stdout, POINTER_LINE)
+        after = self.m.map.read_bytes()
+        self.assertNotEqual(after, before)
+        self.assertIn(b"work/app/", after)
+        self.assertNotEqual(self.m.map.stat().st_mtime, self.LONG_AGO)
+
+    def test_removing_a_folder_rewrites_it(self):
+        (self.m.project / "work").mkdir()
+        self.m.pointer()
+        self.age()
+        (self.m.project / "work").rmdir()
+        self.m.pointer()
+        self.assertNotIn(b"work/", self.m.map.read_bytes())
+
+    def test_text_after_the_dash_survives_a_rewrite(self):
+        (self.m.project / "reference").mkdir()
+        self.m.pointer()
+        self.m.map.write_text(self.m.map.read_text(encoding="utf-8").replace(
+            "- `reference/`", "- `reference/` — what the user brings"), encoding="utf-8")
+        (self.m.project / "work").mkdir()  # a change, so the file is rewritten
+        self.m.pointer()
+        text = self.m.map.read_text(encoding="utf-8")
+        self.assertIn("- `reference/` — what the user brings", text)
+        self.assertIn("- `work/`", text)
+
+    def test_the_first_map_lists_itself_so_the_second_run_finds_nothing_to_change(self):
+        self.m.pointer()
+        self.assertIn("core_text/drive-map.md", self.m.map.read_text(encoding="utf-8"))
+
+    def test_the_first_run_writes_the_map_and_later_runs_write_a_temporary_file_outside_the_project(self):
+        self.m.pointer()
+        self.assertEqual(self.m.argv()[3], str(self.m.map))
+        self.age()
+        self.m.pointer()
+        later = Path(self.m.argv()[3])
+        self.assertNotEqual(later, self.m.map)
+        self.assertNotIn(self.m.project.resolve(), later.resolve().parents, "a temp file in the project would be listed in the map")
+        self.assertFalse(later.exists(), "the temporary file is cleaned up")
+
+    def test_a_failing_run_leaves_the_existing_map_as_it_was(self):
+        self.m.pointer()
+        first = self.age()
+        (self.m.engine_dir / "bin" / "drive_map.py").write_text(OLD_ENGINE, encoding="utf-8")  # the same install, now without tree
+        done = self.m.pointer()
+        self.assertEqual((done.returncode, done.stdout), (0, ""))
+        self.assertEqual(self.m.map.read_bytes(), first)
+        self.assertEqual(self.m.map.stat().st_mtime, self.LONG_AGO)
 
 
 class BriefingTests(unittest.TestCase):
@@ -476,20 +582,45 @@ class AgentRuleTests(unittest.TestCase):
 class RealEngineTests(unittest.TestCase):
     """Local whole-path check: a fresh init_workspace project, the REAL engine's tree mode, the real pointer."""
 
-    def test_a_fresh_project_gets_a_map_that_honours_its_exclude_list(self):
+    def machine(self):
         m = Machine(self)
         m.environment()
         subprocess.run([sys.executable, str(INIT), str(m.project), "--no-obsidian", "--no-super"], check=True,
                        capture_output=True)
         (m.project / "core_text" / "user.md").write_text("# profile\n", encoding="utf-8")
+        m.engine_dir = Path(os.environ["NC_TEST_ENGINE_DIR"])
+        m.plugins.mkdir()
+        (m.plugins / "installed_plugins.json").write_text(json.dumps({"version": 2, "plugins": {
+            "hyperspace-engine@nova-caelum": [{"scope": "user", "installPath": str(m.engine_dir), "version": "dev"}]}}), encoding="utf-8")
+        return m
+
+    def test_a_second_run_with_no_change_leaves_the_real_map_untouched_and_a_new_folder_rewrites_it(self):
+        m = self.machine()
+        self.assertRegex(m.pointer().stdout, POINTER_LINE)
+        os.utime(m.map, (1_000_000_000, 1_000_000_000))
+        first = m.map.read_bytes()
+        self.assertRegex(m.pointer().stdout, POINTER_LINE)
+        self.assertEqual(m.map.read_bytes(), first)
+        self.assertEqual(m.map.stat().st_mtime, 1_000_000_000, "the file was rewritten")
+        (m.project / "work" / "app").mkdir()
+        self.assertRegex(m.pointer().stdout, POINTER_LINE)
+        self.assertIn("work/app/", m.map.read_text(encoding="utf-8"))
+        self.assertNotEqual(m.map.stat().st_mtime, 1_000_000_000)
+
+    def test_text_after_the_dash_in_the_real_map_survives_the_temporary_file(self):
+        m = self.machine()
+        m.pointer()
+        m.map.write_text(m.map.read_text(encoding="utf-8").replace("- `work/`", "- `work/` — what I build"), encoding="utf-8")
+        (m.project / "work" / "app").mkdir()
+        m.pointer()
+        self.assertIn("- `work/` — what I build", m.map.read_text(encoding="utf-8"))
+
+    def test_a_fresh_project_gets_a_map_that_honours_its_exclude_list(self):
+        m = self.machine()
         (m.project / "reference" / "scratch").mkdir()
         (m.project / "reference" / "scratch" / "huge.txt").write_text("x", encoding="utf-8")
         toml = (m.project / ".drivemap.toml").read_text(encoding="utf-8")
         (m.project / ".drivemap.toml").write_text(toml.replace('exclude = [', 'exclude = ["scratch", '), encoding="utf-8")
-        m.engine_dir = Path(os.environ["NC_TEST_ENGINE_DIR"])
-        (m.plugins).mkdir()
-        (m.plugins / "installed_plugins.json").write_text(json.dumps({"version": 2, "plugins": {
-            "hyperspace-engine@nova-caelum": [{"scope": "user", "installPath": str(m.engine_dir), "version": "dev"}]}}), encoding="utf-8")
         done = m.pointer()
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertRegex(done.stdout.strip(), POINTER_LINE)
