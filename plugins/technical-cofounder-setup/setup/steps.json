@@ -133,7 +133,7 @@
     {
       "id": "obsidian",
       "title": "Obsidian (recommended)",
-      "does": "Opens this project as an Obsidian vault, with a ready-made worklog table and a short how-to (OBSIDIAN.md).",
+      "does": "Opens this project as an Obsidian vault, with a ready-made worklog table, a short how-to (OBSIDIAN.md) and, on your yes to each, read-only viewers for Word, PowerPoint, SQLite, JSON and HTML files.",
       "why": "Your whole project, every file and link, in one searchable place instead of a folder of files.",
       "skippable": true,
       "if_skipped": "Everything still works in your editor, without the vault view or the worklog table.",
@@ -143,9 +143,10 @@
       "choices": ["obsidian"],
       "explain": [
         "Yes: your project opens as one searchable vault, and your worklog (the team's diary: one short file per piece of work, so the next session knows what happened) also shows as one table. You learn one more app.",
-        "No: nothing breaks. The worklog files still land in worklog/ and Hyperspace Engine's console shows them in its worklog tab, without the vault view or the table. You can switch later."
+        "No: nothing breaks. The worklog files still land in worklog/ and Hyperspace Engine's console shows them in its worklog tab, without the vault view or the table. You can switch later.",
+        "Each viewer is asked separately. Yes: Obsidian can open that kind of file (Word, PowerPoint, SQLite, JSON or HTML), read-only. The viewer is code by an independent author that runs inside Obsidian with its access to your files, so we offer only ones we checked, at the exact version we checked. No: those files open in their own apps, as before."
       ],
-      "verify": "In Obsidian, choose “Open folder as vault” and pick your project folder: worklog/worklog.base shows your worklog as a table."
+      "verify": "In Obsidian, choose “Open folder as vault” and pick your project folder: worklog/worklog.base shows your worklog as a table. If Obsidian asks whether you trust the author of this vault, choose “Trust author and enable plugins”."
     },
     {
       "id": "github",

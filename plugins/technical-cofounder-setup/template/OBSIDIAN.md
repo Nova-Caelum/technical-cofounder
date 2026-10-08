@@ -37,8 +37,11 @@ anything.
 
 1. Install Obsidian — free, from [obsidian.md](https://obsidian.md).
 2. Open it, choose **Open folder as vault**, and select this project's folder.
-3. Trust the author when it asks. That prompt is about the `.obsidian/` config in this
-   folder, which is ours and which enables only Obsidian's own built-in plugins.
+3. If Obsidian asks **Do you trust the author of this vault?**, choose **Trust author
+   and enable plugins**. It asks because this folder lists community plugins (§4): the
+   viewers setup added with your yes, if any. If you choose **Browse vault in Restricted
+   Mode** instead, nothing breaks; the plugins stay off until you open Settings →
+   Community plugins and select **Turn on community plugins**.
 
 The sidebar is now your project. The `worklog/entries/` folder is the shared memory
 your agents write to, and you can read it like any other notes.
@@ -79,11 +82,31 @@ only. But they are the main reason people like Obsidian, so:
 Some plugins need a restart before their settings take effect. If one seems inert
 after you changed something, quit and reopen Obsidian before assuming it is broken.
 
+### The viewers setup can add
+
+PDFs, images, audio and video open in Obsidian on their own. Word, PowerPoint, SQLite,
+JSON and HTML files do not, so setup offers five small viewers, each only after your yes:
+
+- **Word Viewer**: opens `.docx` files as read-only text.
+- **Slide Deck Viewer**: opens `.pptx` decks as read-only slide text and notes.
+- **SQL Viewer**: opens SQLite database files as read-only tables you can query; it
+  cannot change the file.
+- **JSON Viewer**: opens JSON files as a read-only tree you can search.
+- **HTML Viewer**: opens HTML pages, such as your setup guide, in a sandboxed view.
+  It keeps scripts off by default; leave that switch off for any page you did not write.
+
+Two things to know. They are other people's code, free under the MIT licence, and Obsidian
+cannot restrict what a plugin does, so setup downloads each one from its author's GitHub
+page at a version we checked and refuses a file that is not the checked copy. And they do
+not update on their own: ask your agent when you want newer versions. To remove one,
+select the trash icon next to it under Settings → Community plugins → Installed plugins.
+
 ### Making it yours
 
 - **Settings → Appearance → Themes → Manage** to browse community themes. This is the
   single fastest way to make Obsidian feel like your own tool rather than someone
-  else's. *Minimal* and *Things* are common starting points.
+  else's. *Minimal* (free, made for reading) and *Things* are common starting points:
+  search for *Minimal*, then select **Use**.
 - **Settings → Editor** controls readable line length, whether headings fold, and
   whether you see the Markdown source or the rendered result as you type. If Markdown
   syntax is distracting, that pane is where you turn it down.

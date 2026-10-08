@@ -1,0 +1,75 @@
+{
+  "about": "The Obsidian viewers setup can add on a user's yes. Nothing here is copied into the starter template: bin/obsidian_plugins.py downloads each plugin's files over HTTPS from the author's GitHub release (https://github.com/<repo>/releases/download/<tag>/<file>), refuses any file whose SHA-256 is not the one pinned here, and only then installs it. Each entry was chosen on 2026-10-08 after opening the repository's LICENSE (MIT) and scanning the release's main.js for calls that write, rename or delete vault files (none). To change a version, download the release's files, check them the same way, and replace the tag and the hashes together.",
+  "plugins": [
+    {
+      "id": "word-viewer",
+      "name": "Word Viewer",
+      "repo": "viggomeesters/obsidian-word-viewer",
+      "tag": "0.1.1",
+      "licence": "MIT",
+      "read_only": true,
+      "for": "Opens Word (.docx) files as read-only text, so you can read them without Word.",
+      "files": {
+        "main.js": "2dadd6b2aac608b3380104d92792c95a1356b3dd6edeb7996b2b90dda9ba251e",
+        "manifest.json": "cd810cf9a9515f543c803c48ab3c199490495b34bfcf2779f87936e4175b66d8",
+        "styles.css": "d4af6a6d00aa8218b488a599f90b8ebcfc4e2e5440c2c32dd946cc306eb7cbc7"
+      }
+    },
+    {
+      "id": "slide-deck-viewer",
+      "name": "Slide Deck Viewer",
+      "repo": "viggomeesters/obsidian-slide-deck-viewer",
+      "tag": "0.1.1",
+      "licence": "MIT",
+      "read_only": true,
+      "for": "Opens PowerPoint (.pptx) decks as read-only slide text and notes.",
+      "files": {
+        "main.js": "da2eb9bfd00d4a643f319b390ab41cd42e71282d352f871a7fde930ba319ef5c",
+        "manifest.json": "9e94077af0b8e606d231142262fb22d08a569184ccc2d7654baa46154647701e",
+        "styles.css": "6c2618585eb60e0b85c6b019634201993c335ef2b5092dbac89788019d53be15"
+      }
+    },
+    {
+      "id": "sql-viewer",
+      "name": "SQL Viewer",
+      "repo": "viggomeesters/obsidian-sql-viewer",
+      "tag": "0.1.2",
+      "licence": "MIT",
+      "read_only": true,
+      "for": "Opens SQLite database files as read-only tables you can look through and query; it cannot change the file.",
+      "files": {
+        "main.js": "3e54917b68fb35df409ad8e9a41af528d1d3fd412b211a43d1e3a3ac5c136417",
+        "manifest.json": "d2323729d9a08abab8c099e1d0d9f1fa84fa5ec3ed9b8bda050fb774568c4afd",
+        "styles.css": "9e6819993d865a2ec0d8c4b2069035f1d353c080ec3bf9d30cf4f083a3fef0f4"
+      }
+    },
+    {
+      "id": "json-viewer",
+      "name": "JSON Viewer",
+      "repo": "viggomeesters/obsidian-json-viewer",
+      "tag": "0.1.1",
+      "licence": "MIT",
+      "read_only": true,
+      "for": "Opens JSON files as a read-only tree you can search.",
+      "files": {
+        "main.js": "adc74965153f7cad68a146dc564b7919120647f6727191e13fff87f7703caf7a",
+        "manifest.json": "07a8f708ce29159b6fdec8ccd1750b96a91b24279ae1517400945345aaf62e5d",
+        "styles.css": "f50de05003ab1c4424dd0c0fb6a054c4d045dbf71fdffca2484ba7d20718876d"
+      }
+    },
+    {
+      "id": "html-viewer",
+      "name": "HTML Viewer",
+      "repo": "jialinzhang24/obsidian-html-viewer",
+      "tag": "1.2.0",
+      "licence": "MIT",
+      "read_only": true,
+      "for": "Opens HTML pages, such as the setup guide, in a sandboxed view; scripts stay off unless you switch them on.",
+      "files": {
+        "main.js": "41565c27b0f93130762da5a1ad57a2954e3a0706df718198241f6d210653626b",
+        "manifest.json": "856a6c04a8ed0ca91dbfb03cf4de4dedc0b5eeca3af25c8debe2b3facc0b6e91",
+        "styles.css": "cd3a3d1928087c87405392964902625bdbb150b351aa9e3aac34ca1b8d3e5f6c"
+      }
+    }
+  ]
+}
