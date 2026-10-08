@@ -938,6 +938,50 @@ class Install:
                  "the first briefing in the set-up project handed the worklog to Hyperspace Engine's store")
         w.expect(bool(first) and first in out, "the entry written before that is in the briefing's recent worklog")
         self.worklog_round_trip(team, also=first)
+        self.drive_map(team, plugin_entry(entries, ENGINE) or {}, out)
+
+    def drive_map(self, team, engine, briefing):
+        """The project's drive map, in the set-up project, with the engine as installed: the team plugin
+        finds the engine's script among the installed plugins, the briefing carries at most one pointer
+        line (exactly one when that engine has `tree` mode, none when it predates it), and the Write
+        hook's declared command speaks for a new file and stays silent for an existing one."""
+        w = self.w
+        w.section("The drive map")
+        project, root = self.project, team["installPath"]
+        env = dict(self.env, CLAUDE_PROJECT_DIR=str(project), CLAUDE_PLUGIN_ROOT=str(root))
+        script = Path(engine.get("installPath") or "") / "bin" / "drive_map.py"
+        code, out, _ = self.w.run([self.python, Path(root) / "bin" / "drive_map_pointer.py", "locate", project], env, timeout=120)
+        w.expect(code == 0 and Path(out.strip()) == script,
+                 "the team plugin finds Hyperspace Engine's drive_map.py among the installed plugins: %s" % out.strip())
+        has_tree = script.is_file() and '"tree"' in script.read_text(encoding="utf-8", errors="replace")
+        pointers = [line for line in briefing.splitlines() if line.startswith("Drive map:")]
+        w.expect(len(pointers) == (1 if has_tree else 0),
+                 "the briefing carries %s pointer line (this engine %s `tree` mode): %s" % (
+                     "one" if has_tree else "no", "has" if has_tree else "predates", pointers))
+        w.expect((project / "core_text" / "drive-map.md").is_file() == has_tree,
+                 "the map %s written" % ("was" if has_tree else "was not (an engine without `tree` mode)"))
+
+        declared = json_document((Path(root) / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+        commands = [c for c in hook_commands(declared, "PreToolUse") if "drive_map_write.py" in c]
+        if not w.expect(len(commands) == 1, "the team plugin declares its Write hook for PreToolUse: %s" % commands):
+            return
+        stand_in = project / "core_text" / "drive-map.md"
+        if not stand_in.is_file():
+            stand_in.write_text("# Drive map (stand-in: the pinned engine has no tree mode)\n", encoding="utf-8")
+        bash = self.git_root / "bin" / "bash.exe" if self.windows else which("bash", env) or "bash"
+
+        def fire(path):
+            event = json.dumps({"session_id": "install-walk", "hook_event_name": "PreToolUse", "cwd": str(project),
+                                "tool_name": "Write", "tool_input": {"file_path": str(path), "content": "x"}})
+            return w.run([bash, "-c", "eval $NC_WALK_LINE"], dict(env, NC_WALK_LINE=commands[0]), cwd=project,
+                         timeout=300, text_in=event, label="(bash, %s) %s" % (bash, commands[0]))
+
+        code, out, err = fire(project / "work" / "walk-new-file.md")
+        w.expect(code == 0 and "New file: check core_text/drive-map.md" in out and "permissionDecision" not in out,
+                 "the declared Write command, run by bash with the workspace's Python, speaks for a new file and decides nothing")
+        code, out, err = fire(project / "CLAUDE.md")
+        w.expect(code == 0 and out.strip() == "" and err.strip() == "",
+                 "it says nothing for a file that exists, and nothing on stderr")
 
     def worklog_round_trip(self, team, also=None):
         """Start the team's server the way Claude Code would, write one

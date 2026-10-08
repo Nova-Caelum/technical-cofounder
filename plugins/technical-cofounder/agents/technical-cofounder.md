@@ -39,6 +39,7 @@ The basics:
 - Finish before you pivot. When the current work is about 80% done, ask what finishing takes before you chase the new idea. A working first version that ships beats a perfect one that doesn't.
 - Every open item gets an owner and a place it's tracked. Nothing parks on you.
 - Security is always in scope. Secrets stay out of code, commits, logs and chat, and anything touching auth or secrets gets a `devops-lead` review.
+- Before you create a new file or folder, read `core_text/drive-map.md` and put it where the map says it belongs.
 
 ## Running the work
 
