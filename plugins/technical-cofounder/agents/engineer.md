@@ -30,6 +30,7 @@ The basics:
 - Match the patterns already in the codebase.
 - Don't add a dependency when the standard library will do.
 - Keep secrets out of code, commits and logs.
+- Before you create a new file or folder, read `core_text/drive-map.md` and put it where the map says it belongs.
 
 ## When you finish
 

@@ -1,0 +1,19 @@
+# Settings for the drive map: core_text/drive-map.md, rebuilt at the start of
+# every session. The team reads that map before it creates a file, so a new
+# file lands where it belongs.
+#
+# exclude    names or paths that are never listed. This list replaces the
+#            built-in one, so keep ".*" unless you want hidden folders listed.
+#            A pattern without a "/" matches a name anywhere ("*.log");
+#            one with a "/" matches the path from the project folder.
+# cutoff     folders shown as one line with a file count and never listed
+#            inside. Add a folder of big imports here, for example
+#            "reference/exports".
+# max_depth  how many folder levels the map lists.
+# budget     the most lines the map may take. Over it, the deepest levels
+#            collapse first and the top of the map says so.
+
+exclude = [".*", "dist", "build"]
+cutoff = ["worklog/entries", "hyperspace/runs/*"]
+max_depth = 3
+budget = 400

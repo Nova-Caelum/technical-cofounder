@@ -16,7 +16,15 @@ Where each piece lives:
   `setup.json` records which setup steps are done, and `setup-guide.html`
   shows them as a page you can open in any browser.
 - `worklog/` — the shared memory across sessions and agents. See
-  `worklog/README.md` for how entries work.
+  `worklog/README.md` for how entries work; `worklog/_entry-template.md` is the
+  shape of one.
+- `reference/` — material you bring in: documents, PDFs, exports, links. Agents
+  read it and don't rewrite it.
+- `work/` — what you build here, one folder per thing: `work/<name>/`.
+- `core_text/drive-map.md` — a map of this project's folders, rebuilt at the
+  start of every session. Agents read it before they create a file or a folder, so
+  new things land where they belong. `.drivemap.toml` sets what the map skips
+  (`exclude`), shows as one line (`cutoff`), and how deep and long it runs.
 - `.claude/rules/` — five behavior rules that load automatically every
   session. Each file's header says what it enforces and why.
 - `_templates/` — starting points for your own skills, agents, rules and

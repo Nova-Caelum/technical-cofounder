@@ -48,6 +48,12 @@
 # Hyperspace's store when TC owns the preload, or nothing when Hyperspace's
 # own hook does. Without .hyperspace/graph.db this script is unchanged.
 #
+# In a set-up project, bin/drive_map_pointer.py then rebuilds the project's drive
+# map (core_text/drive-map.md, with Hyperspace Engine's drive_map.py in its `tree`
+# mode) and the briefing carries one line pointing at it, never the map itself.
+# With no engine, no project environment or an engine from before `tree`, it
+# prints nothing and logs one line to stderr.
+#
 # Plain stdout on SessionStart is added to Claude's context as plain text
 # (code.claude.com/docs/en/hooks-guide) — no JSON needed here.
 #
@@ -349,6 +355,8 @@ else
     fi
 fi
 echo
+# The project's drive map: written fresh, then one pointer line (or a log line on stderr).
+[ -z "$NC_PYTHON" ] || "$NC_PYTHON" "$PLUGIN_ROOT/bin/drive_map_pointer.py" preload "$PROJECT_DIR" || true
 tech_primer
 echo
 echo "$ASK_LINE"
