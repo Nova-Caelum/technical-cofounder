@@ -27,7 +27,7 @@ _spec.loader.exec_module(walk)
 
 ITEMS = [
     "claude-cli", "git", "uv", "python", "jq", "network", "project-folder",
-    "existing-config", "marketplace", "team-plugin", "engine-env", "obsidian",
+    "existing-config", "marketplace", "team-plugin", "engine-env", "obsidian", "homebrew",
 ]
 RESTART_AFTER_INSTALL = (
     "Git was installed. Close Claude Code completely, open it again, and paste the same message. "
@@ -263,7 +263,7 @@ class SavedPathReads(unittest.TestCase):
 
 
 class ThePlan(unittest.TestCase):
-    def test_twelve_items_each_with_one_of_the_six_verdicts_is_fine(self):
+    def test_every_item_each_with_one_of_the_six_verdicts_is_fine(self):
         verdicts = {"jq": "install", "project-folder": "install", "git": "needs-restart",
                     "claude-cli": "upgrade", "uv": "repair", "network": "needs-you"}
         self.assertEqual(walk.plan_problems(plan(verdicts)), [])

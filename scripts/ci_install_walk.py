@@ -73,7 +73,7 @@ GIT_CATALOG = "https://github.com/Nova-Caelum/technical-cofounder.git"
 VERDICTS = ("ready", "install", "upgrade", "repair", "needs-you", "needs-restart")
 ITEMS = (
     "claude-cli", "git", "uv", "python", "jq", "network", "project-folder",
-    "existing-config", "marketplace", "team-plugin", "engine-env", "obsidian",
+    "existing-config", "marketplace", "team-plugin", "engine-env", "obsidian", "homebrew",
 )
 MIN_PYTHON = (3, 11)
 # Everything the walk makes lives under a folder with a space and an accent in
@@ -224,7 +224,7 @@ def restarted_path(saved, current, is_git, sep=";"):
 
 
 def plan_problems(doc):
-    """Why this is not a plan of the twelve items with one of the six
+    """Why this is not a plan of every item with one of the six
     verdicts each; empty when it is."""
     rows = doc.get("items") if isinstance(doc, dict) else None
     if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
@@ -816,7 +816,7 @@ class Install:
         code, plan = self.setup("plan", "--project", project)
         first = verdicts(plan)
         w.expect(code == 0, "plan exits 0")
-        w.none_of(plan_problems(plan), "the plan has the twelve items, each with one of the six verdicts: %s" % first)
+        w.none_of(plan_problems(plan), "the plan has every item, each with one of the six verdicts: %s" % first)
         for item, wanted in (("jq", "install"), ("project-folder", "install"), ("marketplace", "ready"),
                              ("team-plugin", "install"), ("engine-env", "install")):
             w.expect(first.get(item) == wanted, "%s is planned as %s" % (item, wanted))
@@ -831,7 +831,7 @@ class Install:
         code, applied = self.setup("apply", "--project", project, "--all", timeout=3000)
         results = {r.get("id"): r for r in (applied or {}).get("results", []) if isinstance(r, dict)}
         w.expect(code == 0 and (applied or {}).get("stopped_at") is None and len(results) == len(ITEMS),
-                 "apply --all exits 0 and walks all twelve items (stopped at: %s)" % (applied or {}).get("stopped_at", "no document"))
+                 "apply --all exits 0 and walks every item (stopped at: %s)" % (applied or {}).get("stopped_at", "no document"))
         acted = acted_on(applied)
         w.expect({"jq", "project-folder", "team-plugin", "engine-env"} <= set(acted),
                  "apply fetched jq, created the folder, installed the team and built the engine's workspace (acted on: %s)" % acted)
@@ -847,7 +847,7 @@ class Install:
 
         code, scan = self.setup("scan", "--project", project, "--record")
         w.expect(code == 0, "scan --record exits 0")
-        w.none_of(plan_problems(scan), "the re-scan has the twelve items")
+        w.none_of(plan_problems(scan), "the re-scan has every item")
         w.expect(not not_ready(scan), "every item is ready in the re-scan (not ready: %s)" % (not_ready(scan) or "none"))
         record = project / "core_text" / "setup-scan.json"
         w.expect(record.is_file(), "the scan record is written: %s" % record)

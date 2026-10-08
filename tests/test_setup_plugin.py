@@ -640,6 +640,47 @@ class GitHubOnWindows(unittest.TestCase):
         self.assertIn("terminal window", self.github)
 
 
+class GitHubOnMac(unittest.TestCase):
+    """`brew install gh` needs Homebrew, which a first-time Mac user may not
+    have and which setup cannot install for them (its installer asks for the
+    Mac's password in a terminal). The skill reads the plan's `homebrew` row
+    and, when Homebrew is missing, walks them through getting it before it
+    asks them to run `brew install gh`."""
+
+    INSTALLER = "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.github = step_section("github")
+
+    def test_it_reads_the_plans_homebrew_row_on_a_mac(self):
+        self.assertIn("`homebrew` row", self.github)
+        self.assertIn("Homebrew is not installed", self.github)
+
+    def test_the_homebrew_route_comes_before_brew_install_gh(self):
+        self.assertIn(self.INSTALLER, self.github)
+        self.assertIn("brew install gh", self.github)
+        self.assertLess(self.github.index("Homebrew is not installed"), self.github.index("brew install gh"))
+        self.assertLess(self.github.index(self.INSTALLER), self.github.index("brew install gh"))
+
+    def test_the_first_time_user_is_told_what_the_homebrew_installer_asks_of_them(self):
+        for needle in ("Terminal", "Mac password", "Next steps", "new Terminal window", "brew --version"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, self.github)
+        self.assertIn("No password goes in the chat", self.github)
+
+    def test_setup_checks_again_instead_of_taking_their_word(self):
+        self.assertIn("run `plan` again", self.github)
+
+    def test_a_mac_that_would_rather_not_install_homebrew_can_leave_github_for_later(self):
+        self.assertIn("GitHub is optional", self.github)
+
+    def test_a_gh_installed_a_moment_ago_is_used_by_its_full_path_on_a_mac_too(self):
+        for path in ("/opt/homebrew/bin/gh", "/usr/local/bin/gh"):
+            with self.subTest(path=path):
+                self.assertIn(path, self.github)
+
+
 class ResearchExtras(unittest.TestCase):
     """The extras are three services, each named with what it buys, where
     they are offered and in the reference page the agent reads."""

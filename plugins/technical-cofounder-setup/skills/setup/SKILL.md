@@ -293,10 +293,23 @@ A second no is final: `set … github skipped --choice github=no`, and continue.
 On a yes, walk them through it. They run every command:
 
 1. **An account:** a free one at github.com, if they don't have one.
-2. **The GitHub command line (`gh`):** `brew install gh` on a Mac,
-   `winget install --id GitHub.cli` on Windows, or their Linux package manager
-   (cli.github.com lists each). A terminal window opened before the install
-   can't find it: they open a new one.
+2. **The GitHub command line (`gh`):** `winget install --id GitHub.cli` on
+   Windows, or their Linux package manager (cli.github.com lists each). A
+   terminal window opened before the install can't find it: they open a new
+   one. On a Mac it comes through Homebrew, a free app installer for the Mac,
+   so read the plan's `homebrew` row first; its `detail` is the answer:
+   - **Homebrew is not installed** (or it **does not run**): say so, and that
+     GitHub is optional, so they can get Homebrew now or leave GitHub for
+     later. If they want it now, they run this in Terminal:
+     `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`.
+     It explains what it will do and waits for Enter. Then it asks for their
+     Mac password: nothing shows as they type, and that is normal. No password
+     goes in the chat. It takes a few minutes and ends with a "Next steps"
+     section: they run the commands it lists, then open a new Terminal window.
+     `brew --version` printing a version means it worked. Then run `plan`
+     again and read the `homebrew` row: the re-scan decides, not their word.
+   - **Homebrew at <path>**: it is there. In Terminal they run
+     `brew install gh`.
 3. **Log in:** in a terminal window (Terminal on a Mac, PowerShell on
    Windows), `gh auth login`. It asks four questions; give them every answer
    before they start. Arrow keys move, Enter picks.
@@ -319,7 +332,13 @@ in double quotes, for every `gh` command you run yourself (or put its folder
 first on PATH for your own commands). The terminal window they open for step 3
 finds `gh` by name.
 
-Confirm with `gh auth status` (by its full path on Windows, as above), then
+**`gh` on a Mac, just installed.** Homebrew puts it in `/opt/homebrew/bin`
+(Apple Silicon) or `/usr/local/bin` (Intel), and this session's PATH may
+predate that. For every `gh` command you run yourself, use
+`/opt/homebrew/bin/gh` or `/usr/local/bin/gh`, whichever exists, in double
+quotes. The terminal window they open for step 3 finds `gh` by name.
+
+Confirm with `gh auth status` (by its full path on Windows or a Mac, as above), then
 `set … github done --choice github=yes`.
 
 ### 4. The starter workspace (`workspace`)

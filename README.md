@@ -71,13 +71,14 @@ Start a new session in that folder and say "set up hyperspace" to build the task
     <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11 or newer"></a>
     <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/uv-DE5FE9?logo=uv&logoColor=white" alt="uv"></a>
     <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/jq-555555" alt="jq"></a>
+    <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><img src="https://img.shields.io/badge/Homebrew-Mac%20only-FBB040?logo=homebrew&logoColor=white" alt="Homebrew (Mac only)"></a>
   </p>
 
   <!-- Expandable Dropdown Dialog Box -->
   <details>
     <summary><b>⚠️ View Environment & Tool Requirements</b></summary>
     <p>
-      You need Claude Code and Git. Hyperspace Engine needs Python 3.11 or newer, or <a href="https://docs.astral.sh/uv/"><code>uv</code></a>; the message below installs one for you. What each tool is for is written down in <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><code>dependencies.md</code></a>.
+      You need Claude Code and Git. Hyperspace Engine needs Python 3.11 or newer, or <a href="https://docs.astral.sh/uv/"><code>uv</code></a>; the message below installs one for you. On a Mac, <a href="https://brew.sh">Homebrew</a> is only needed if you connect GitHub; setup checks for it and shows you how to get it. What each tool is for is written down in <a href="plugins/technical-cofounder-setup/reference/dependencies.md"><code>dependencies.md</code></a>.
     </p>
   </details>
 </div>

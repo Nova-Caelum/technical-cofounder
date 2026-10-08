@@ -78,6 +78,12 @@
       "title": "Obsidian check",
       "why": "Checking whether Obsidian is installed, so setup can offer it without asking you to look.",
       "minutes": 1
+    },
+    {
+      "id": "homebrew",
+      "title": "Homebrew check",
+      "why": "Checking whether Homebrew is installed, so setup can show you the easy way to add GitHub's command line on a Mac.",
+      "minutes": 1
     }
   ],
   "steps": [

@@ -21,6 +21,7 @@ SETUP = REPO_ROOT / "plugins" / "technical-cofounder-setup"
 TEAM = REPO_ROOT / "plugins" / "technical-cofounder"
 STEPS_FILE = SETUP / "setup" / "steps.json"
 PAGE = SETUP / "reference" / "dependencies.md"
+README = REPO_ROOT / "README.md"
 
 DOC = json.loads(STEPS_FILE.read_text(encoding="utf-8"))
 INSTALL = {entry["id"]: entry for entry in DOC["install"]}
@@ -32,6 +33,7 @@ INSTALL = {entry["id"]: entry for entry in DOC["install"]}
 # either documented or added here on purpose.
 NOT_TOOLS = {"network", "project-folder", "existing-config", "marketplace", "team-plugin"}
 WINDOWS_ONLY = "Windows only"
+MAC_ONLY = "Mac only"
 
 
 def load_install_script():
@@ -136,6 +138,18 @@ class DependenciesPage(unittest.TestCase):
             with self.subTest(tool=tool):
                 self.assertTrue([h for h in headings if h.startswith(tool)], "no '### <tool>' section")
 
+    def test_homebrew_is_listed_as_a_mac_only_tool(self):
+        rows = {item_id: (tool, needed) for tool, item_id, needed, _ in page_rows()}
+        self.assertEqual(rows.get("homebrew"), ("Homebrew", MAC_ONLY))
+
+    def test_the_homebrew_section_says_what_it_is_for_and_that_setup_does_not_install_it(self):
+        text = PAGE.read_text(encoding="utf-8")
+        self.assertIn("### Homebrew", text, "no '### Homebrew' section")
+        section = text.split("### Homebrew", 1)[1].split("\n### ", 1)[0]
+        for needle in ("brew install gh", "Mac password", "https://brew.sh", "Setup never installs"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, section)
+
     def test_the_page_states_the_python_floor_and_that_setup_installs_it(self):
         text = PAGE.read_text(encoding="utf-8")
         section = text.split("### Python", 1)[1].split("\n### ", 1)[0]
@@ -151,3 +165,27 @@ class DependenciesPage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class ReadmeDependencyRow(unittest.TestCase):
+    """The README's badge row shows what the page lists; a Mac user without
+    Homebrew finds out there that it exists and what it is for."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.readme = README.read_text(encoding="utf-8")
+
+    def test_the_row_has_a_homebrew_badge_that_links_to_the_dependencies_page(self):
+        badge = re.search(
+            r'<a href="([^"]+)"><img src="https://img\.shields\.io/badge/Homebrew[^"]*" alt="([^"]*)"></a>', self.readme)
+        self.assertIsNotNone(badge, "no Homebrew badge in the README")
+        self.assertEqual(badge.group(1), "plugins/technical-cofounder-setup/reference/dependencies.md")
+        self.assertIn("Homebrew", badge.group(2))
+        self.assertIn("Mac", badge.group(2))
+
+    def test_it_sits_in_the_same_row_as_the_other_tools(self):
+        row = self.readme.split("<!-- Top Row Badges -->", 1)[1].split("</p>", 1)[0]
+        for alt in ("Claude Code CLI", "Git", "Python 3.11 or newer", "uv", "jq", "Homebrew"):
+            with self.subTest(alt=alt):
+                self.assertIn('alt="%s' % alt, row)

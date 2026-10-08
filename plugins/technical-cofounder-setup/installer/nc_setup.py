@@ -90,6 +90,9 @@ UV_INSTALL = {
     "windows": ["powershell", "-ExecutionPolicy", "ByPass", "-c",
                 "irm https://astral.sh/uv/install.ps1 | iex"],
 }
+# Where Homebrew's installer puts `brew`: Apple Silicon, then Intel. A session that
+# started before Homebrew was installed does not have either folder on its PATH.
+HOMEBREW_PATHS = ("/opt/homebrew/bin/brew", "/usr/local/bin/brew")
 JQ_DOWNLOADS = "https://github.com/jqlang/jq/releases/latest/download/"
 JQ_BUILDS = {
     ("macos", "arm64"): "jq-macos-arm64",
@@ -457,6 +460,22 @@ def check_obsidian(ctx):
     return READY, "installed" if any(place.exists() for place in places) else "not installed"
 
 
+def check_homebrew(ctx):
+    """Homebrew is how a Mac gets `brew install gh`, for the optional GitHub
+    step. Setup never installs it, because its installer asks for the Mac's
+    password in a terminal; like Obsidian, this only looks. It is always
+    ready, so a Mac without Homebrew is never held up, and the detail says
+    what the GitHub step needs to know."""
+    if ctx.system != "macos":
+        return READY, "only a Mac needs Homebrew"
+    path, result = probe(ctx, "brew")
+    if path is None:
+        return READY, "Homebrew is not installed"
+    if result.code == 0:
+        return READY, "Homebrew at %s" % path
+    return READY, "Homebrew at %s does not run (exit %s)" % (path, result.code)
+
+
 # -- tools ------------------------------------------------------------------
 
 def exe(ctx, name):
@@ -473,6 +492,8 @@ def copies(ctx, name):
             return [git]   # its folder is first on this run's PATH: it is the Git every child gets
     found = ctx.which(name)
     places = [str(found)] if found else []
+    if name == "brew":
+        places += [str(path) for path in map(ctx.which, HOMEBREW_PATHS) if path and str(path) not in places]
     for folder in (ctx.tools_dir, ctx.home / ".local" / "bin"):
         candidate = folder / exe(ctx, name)
         if candidate.is_file() and str(candidate) not in places:
@@ -1006,6 +1027,7 @@ ITEMS = [
     Item("team-plugin", check_team_plugin, fix_team_plugin),
     Item("engine-env", check_engine_env, fix_engine_env),
     Item("obsidian", check_obsidian),
+    Item("homebrew", check_homebrew),
 ]
 ITEM_BY_ID = {item.id: item for item in ITEMS}
 
