@@ -820,10 +820,20 @@ class ToolResolverTests(unittest.TestCase):
         self.assertEqual(self.resolve("nc_resolve_system_python", PATH=path)[0], "python3.12")
 
     def test_the_system_resolver_finds_the_uv_link_in_home_local_bin_when_path_lacks_it(self):
-        link = write_tool(self.tmp / "home" / ".local" / "bin" / "python3.12", FAKE_PYTHON)
+        started = self.tmp / "uv-link-started.log"
+        recording_tool(self.tmp / "home" / ".local" / "bin" / "python3.12", started)
         write_tool(self.project / PROJECT_PYTHONS[0], FAKE_PYTHON)
         path = self.path_without(*NO_PYTHON)
-        self.assertEqual(self.resolve("nc_resolve_system_python", PATH=path)[0], link.as_posix())
+        found = self.resolve("nc_resolve_system_python", PATH=path)[0]
+        # Git Bash hands $HOME back in its own form (/tmp/... for C:/.../Temp/...), so the path is judged by
+        # what every consumer does with it: bash runs it. (session-preload.sh, cli-freshness.sh and
+        # run-system-python.sh all start "$NC_PYTHON" from bash and pass it to nothing else.)
+        self.assertTrue(found.endswith("/.local/bin/python3.12"), found)
+        self.assertTrue(started.exists(), "the resolver did not start the candidate it chose")
+        started.unlink()
+        r = subprocess.run([BASH, "-c", '"$0" -S -c ""', found], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(started.exists(), "bash did not start the link through the path the resolver printed")
 
     def test_python_on_path_wins_over_the_uv_link_in_home_local_bin(self):
         write_tool(self.tmp / "home" / ".local" / "bin" / "python3.12", FAKE_PYTHON)
