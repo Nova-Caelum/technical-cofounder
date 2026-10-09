@@ -396,9 +396,9 @@ class TheSessionBriefing(unittest.TestCase):
 
     def test_the_team_plugin_declares_its_briefing_for_session_start(self):
         declared = json.loads((REPO_ROOT / "plugins" / "technical-cofounder" / "hooks" / "hooks.json").read_text(encoding="utf-8"))
-        commands = walk.hook_commands(declared, "SessionStart")
+        # The briefing is one of the SessionStart hooks (the walk picks it out the same way).
+        commands = [c for c in walk.hook_commands(declared, "SessionStart") if c.endswith("/hooks/session-preload.sh")]
         self.assertEqual(len(commands), 1)
-        self.assertTrue(commands[0].endswith("/hooks/session-preload.sh"))
 
     def test_a_health_heading_is_found_wherever_it_starts_a_line(self):
         text = "## Tech primer (live)\n\n- technical-cofounder: present\n## Health\n- jq is missing\n"

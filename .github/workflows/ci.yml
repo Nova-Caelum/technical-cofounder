@@ -59,7 +59,8 @@ jobs:
             tests.test_obsidian_plugins \
             tests.test_super_plugin \
             tests.test_ci_install_walk \
-            tests.test_drive_map_adapter
+            tests.test_drive_map_adapter \
+            tests.test_cli_freshness
 
       # The real install, end to end: the pasted message's own commands, the
       # first-step script, the install script, then the team plugin as it was
