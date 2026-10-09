@@ -89,7 +89,7 @@ class StandInCatalog(Temp):
         self.assertEqual(engine, {
             "source": "url",
             "url": "https://github.com/Nova-Caelum/hyperspace-engine.git",
-            "sha": "ba35bfd90fd31ab99fcf767b20a57db3d4721c11",
+            "sha": "35263507143a5ed2a494d4ac977230eef8b0268e",
         })
 
     def test_no_compiled_python_is_copied(self):
