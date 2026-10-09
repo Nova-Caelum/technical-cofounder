@@ -978,7 +978,7 @@ class Install:
 
         code, out, err = fire(project / "work" / "walk-new-file.md")
         w.expect(code == 0 and "New file: check core_text/drive-map.md" in out and "permissionDecision" not in out,
-                 "the declared Write command, run by bash with the workspace's Python, speaks for a new file and decides nothing")
+                 "the declared Write command, run by bash with this computer's own Python, speaks for a new file and decides nothing")
         code, out, err = fire(project / "CLAUDE.md")
         w.expect(code == 0 and out.strip() == "" and err.strip() == "",
                  "it says nothing for a file that exists, and nothing on stderr")

@@ -13,7 +13,9 @@ The line is fixed text. It never echoes the path or what is being written. Any
 failure is silence and exit 0: a guardrail that can break a write is worse than
 none.
 
-Registered in hooks.json for the `Write` matcher. Standard library only.
+Registered in hooks.json for the `Write` matcher, through hooks/run-system-python.sh:
+it runs with this computer's own Python, never the project's, so it may import only the
+standard library.
 """
 import json
 import os

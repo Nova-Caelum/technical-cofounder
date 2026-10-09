@@ -720,13 +720,14 @@ class ToolResolverTests(unittest.TestCase):
     def path_without_jq(self):
         return self.path_without("jq")
 
-    def resolve(self, **env_extra):
-        """Source the resolver the way a hook does and return (the Python it
-        finds when asked, NC_JQ). Sourcing alone must not look for Python."""
+    def resolve(self, finder="nc_resolve_python", **env_extra):
+        """Source the resolver the way a hook does and return (the Python the
+        `finder` function finds when asked, NC_JQ). Sourcing alone must not
+        look for Python."""
         env = {k: v for k, v in os.environ.items() if k not in ("NC_TOOLS_DIR", "NC_PYTHON", "NC_JQ")}
-        env.update(self.env, RESOLVER=(HOOKS_DIR / "lib" / "resolve-tools.sh").as_posix(), **env_extra)
+        env.update(self.env, RESOLVER=(HOOKS_DIR / "lib" / "resolve-tools.sh").as_posix(), FINDER=finder, **env_extra)
         r = subprocess.run(
-            [BASH, "-c", 'set -euo pipefail; source "$RESOLVER"; printf "%s\\n%s\\n" "$(nc_resolve_python)" "$NC_JQ"'],
+            [BASH, "-c", 'set -euo pipefail; source "$RESOLVER"; printf "%s\\n%s\\n" "$($FINDER)" "$NC_JQ"'],
             capture_output=True, text=True, encoding="utf-8", env=env,
         )
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -788,6 +789,35 @@ class ToolResolverTests(unittest.TestCase):
                 shutil.rmtree(self.project / ".hyperspace", ignore_errors=True)
                 write_tool(self.project / rel, FAKE_PYTHON)
                 self.assertEqual(self.resolve(PATH=path)[0], f"{self.project}/{rel}")
+
+    def test_the_system_resolver_never_falls_back_to_the_project_interpreter(self):
+        # For a hook whose script needs only the standard library: nothing on
+        # PATH runs means nothing, in either layout, while the full resolver
+        # (the briefing's, which needs the project's environment) still
+        # reaches the project's file as its last resort.
+        path = self.path_without(*NO_PYTHON)
+        for rel in PROJECT_PYTHONS:
+            with self.subTest(interpreter=rel):
+                shutil.rmtree(self.project / ".hyperspace", ignore_errors=True)
+                write_tool(self.project / rel, FAKE_PYTHON)
+                self.assertEqual(self.resolve("nc_resolve_system_python", PATH=path)[0], "")
+                self.assertEqual(self.resolve(PATH=path)[0], f"{self.project}/{rel}")
+
+    def test_the_system_resolver_finds_what_the_full_resolver_finds_when_python_is_on_path(self):
+        started = self.tmp / "planted-started.log"
+        for rel in PROJECT_PYTHONS:
+            recording_tool(self.project / rel, started)
+        system = self.resolve("nc_resolve_system_python")[0]
+        self.assertNotEqual(system, "")
+        self.assertEqual(system, self.resolve()[0])
+        self.assertFalse(started.exists(), f"the planted interpreter was started: {started.read_text() if started.exists() else ''}")
+
+    def test_the_py_launcher_is_found_by_the_system_resolver(self):
+        launcher = self.tmp / "launcher"
+        write_tool(launcher / "py", "#!/bin/bash\nprintf '%s\\r\\n' 'C:\\Fake\\python.exe'\n")
+        write_tool(self.project / PROJECT_PYTHONS[0], FAKE_PYTHON)
+        path = os.pathsep.join([str(launcher), self.path_without(*NO_PYTHON)])
+        self.assertEqual(self.resolve("nc_resolve_system_python", PATH=path)[0], "C:/Fake/python.exe")
 
     def test_a_project_interpreter_that_does_not_run_is_passed_over(self):
         path = self.path_without(*NO_PYTHON)
