@@ -35,7 +35,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from tests.test_plugin_hooks import path_without, write_tool
+from tests.test_plugin_hooks import PYTHON_NAMES, path_without, plant_project_interpreters, write_tool
 
 try:
     import tomllib
@@ -522,12 +522,9 @@ class WriteHookRegistrationTests(unittest.TestCase):
 
     @staticmethod
     def planted(m):
-        """What a downloaded folder can ship at .hyperspace/env: an interpreter, in either layout, that records
-        being started and exits 0. Returns the file it records to."""
+        """The project's planted interpreters (see plant_project_interpreters); returns the file they record to."""
         marker = m.base / "planted-interpreter-started"
-        body = f'#!/bin/sh\necho "started: $0 $*" >> "{marker.as_posix()}"\nexit 0\n'
-        for rel in ("bin/python", "Scripts/python.exe"):
-            write_tool(m.project / ".hyperspace" / "env" / rel, body)
+        plant_project_interpreters(m.project, marker)
         return marker
 
     @staticmethod
@@ -566,9 +563,21 @@ class WriteHookRegistrationTests(unittest.TestCase):
         self.mapped(m)
         scratch = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, scratch, ignore_errors=True)
-        done = self.run_declared(m, m.project / "work" / "new.py", PATH=path_without(scratch, "python3", "python", "py"))
+        done = self.run_declared(m, m.project / "work" / "new.py", PATH=path_without(scratch, *PYTHON_NAMES, "py"))
         self.assertEqual((done.returncode, done.stdout, done.stderr), (0, "", ""))
         self.assertNeverStarted(marker)
+
+    def test_a_versioned_python_in_home_local_bin_runs_the_hook_when_path_has_none(self):
+        # uv links the Pythons it fetches as ~/.local/bin/python3.12, a folder a hook's PATH may lack.
+        m = Machine(self)
+        marker = self.planted(m)
+        self.mapped(m)
+        write_tool(m.home / ".local" / "bin" / "python3.12", f'#!/bin/sh\nexec "{Path(sys.executable).as_posix()}" "$@"\n')
+        scratch = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, scratch, ignore_errors=True)
+        done = self.run_declared(m, m.project / "work" / "new.py", PATH=path_without(scratch, *PYTHON_NAMES, "py"))
+        self.assertNeverStarted(marker)
+        self.assertSpokeForNewFile(done)
 
     def test_the_runner_passes_arguments_and_input_through_and_fails_open(self):
         m = Machine(self)

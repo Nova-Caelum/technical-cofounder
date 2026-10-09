@@ -15,6 +15,9 @@
 #              is defined, and not called. It prints the first of these that
 #              runs, or nothing:
 #                python3, python, then `py -3` on PATH
+#                python3.13, python3.12, python3.11 on PATH
+#                $HOME/.local/bin/python3.13, .12, .11 (the links uv leaves
+#                there, for a hook whose PATH lacks that folder)
 #              `py -3` is printed as the interpreter it starts, so the result
 #              is always one word a hook can run. A hook whose script needs
 #              only the standard library uses this one: it can never start a
@@ -57,7 +60,25 @@ nc_resolve_system_python() {
     found="${found%$'\r'}"
     if [ -n "$found" ]; then
         printf '%s' "${found//\\//}"
+        return 0
     fi
+    # uv links the Pythons it fetches under versioned names only, so a machine
+    # can have a good Python and no python3 or python.
+    local versioned=(python3.13 python3.12 python3.11) name
+    for name in "${versioned[@]}"; do
+        if "$name" -S -c '' </dev/null >/dev/null 2>&1; then
+            printf '%s' "$name"
+            return 0
+        fi
+    done
+    [ -n "${HOME:-}" ] || return 0
+    for name in "${versioned[@]}"; do
+        candidate="$HOME/.local/bin/$name"
+        if { [ -f "$candidate" ] || [ -f "$candidate.exe" ]; } && "$candidate" -S -c '' </dev/null >/dev/null 2>&1; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    done
     return 0
 }
 

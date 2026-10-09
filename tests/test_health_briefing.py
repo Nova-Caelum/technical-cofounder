@@ -20,7 +20,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
-from tests.test_plugin_hooks import BASH, PLUGIN_ROOT, path_without, write_tool  # noqa: E402
+from tests.test_plugin_hooks import BASH, PLUGIN_ROOT, PYTHON_NAMES, path_without, write_tool  # noqa: E402
 
 SETUP_RECORD = REPO_ROOT / "plugins" / "technical-cofounder-setup" / "bin" / "setup_record.py"
 
@@ -59,7 +59,7 @@ class HealthBriefingTests(unittest.TestCase):
             # server is started with.
             shutil.copytree(cls.env_template / "Scripts", cls.env_template / "bin")
         cls.no_jq = path_without(cls.shared, "jq")
-        cls.no_python = path_without(cls.shared, "python3", "python", "py")
+        cls.no_python = path_without(cls.shared, *PYTHON_NAMES, "py")
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())

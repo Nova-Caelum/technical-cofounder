@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(1, str(REPO_ROOT / "plugins" / "technical-cofounder" / "bin"))
 
 import cli_freshness as cf  # noqa: E402
-from tests.test_plugin_hooks import HOOKS, SHELL_DEBRIS, hook_command, run_hook  # noqa: E402
+from tests.test_plugin_hooks import HOOKS, PYTHON_NAMES, SHELL_DEBRIS, hook_command, path_without, plant_project_interpreters, run_hook  # noqa: E402
 
 NOW = 1_800_000_000
 DAY = 86400
@@ -574,10 +574,33 @@ class WrapperTests(TempCase):
         self.assertEqual(result.stdout, b"")
         self.assertEqual(json.loads(stamp.read_text(encoding="utf-8")), seed)
 
-    def test_due_with_no_network_it_is_silent_quick_and_tries_again_tomorrow(self):
+    def offline_env(self):
         dead = "http://127.0.0.1:%d" % free_port()
         env = {key: dead for key in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy")}
         env.update(NO_PROXY="", no_proxy="")
+        return env
+
+    def test_it_runs_with_the_system_python_and_never_starts_the_projects(self):
+        marker = self.tmp / "planted-interpreter-started"
+        plant_project_interpreters(self.tmp / "project", marker)
+        result, stamp, _ = self.run_wrapper(self.offline_env())
+        self.assert_clean(result)
+        self.assertFalse(marker.exists(), "the project's own interpreter was started:\n" + (marker.read_text() if marker.exists() else ""))
+        self.assertTrue(stamp.exists(), "cli_freshness.py never ran, so the line above proved nothing")
+
+    def test_with_no_python_on_the_machine_it_is_silent_and_never_starts_the_projects(self):
+        marker = self.tmp / "planted-interpreter-started"
+        plant_project_interpreters(self.tmp / "project", marker)
+        no_python = path_without(self.tmp, *PYTHON_NAMES, "py")
+        home = self.tmp / "home"  # not this machine's: a Python linked in ~/.local/bin would count
+        result, stamp, _ = self.run_wrapper({**self.offline_env(), "PATH": no_python, "HOME": str(home)})
+        self.assert_clean(result)
+        self.assertEqual(result.stdout, b"")
+        self.assertFalse(marker.exists(), "the project's own interpreter was started as a last resort")
+        self.assertFalse(stamp.exists())
+
+    def test_due_with_no_network_it_is_silent_quick_and_tries_again_tomorrow(self):
+        env = self.offline_env()
         before = int(time.time())
         result, stamp, seconds = self.run_wrapper(env)
         self.assert_clean(result)

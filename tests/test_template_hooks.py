@@ -329,7 +329,7 @@ class SessionPreloadTests(unittest.TestCase):
 
 sys.path.insert(0, str(REPO_ROOT))
 from tests.test_he_bridge import IMPORT_FIRST, MIRROR_REBUILT, NO_STORE, RECENT_OK, FakeHE  # noqa: E402
-from tests.test_plugin_hooks import BASH, path_without, write_tool  # noqa: E402
+from tests.test_plugin_hooks import BASH, PYTHON_NAMES, path_without, write_tool  # noqa: E402
 
 BLOCK_RE = re.compile(r"(?m)^## Recent worklog")
 
@@ -688,7 +688,7 @@ esac
 FAKE_PYTHON = "#!/bin/bash\nexit 0\n"
 # The two places a project's own interpreter can be (Mac and Linux, then Windows).
 PROJECT_PYTHONS = (".hyperspace/env/bin/python", ".hyperspace/env/Scripts/python.exe")
-NO_PYTHON = ("python3", "python", "py")
+NO_PYTHON = (*PYTHON_NAMES, "py")
 GUARDRAIL_HOOKS = ("circuit-breaker.sh", "concision-budget.sh", "concision-contract.sh", "concision-stop.sh")
 
 
@@ -812,6 +812,24 @@ class ToolResolverTests(unittest.TestCase):
         self.assertEqual(system, self.resolve()[0])
         self.assertFalse(started.exists(), f"the planted interpreter was started: {started.read_text() if started.exists() else ''}")
 
+    def test_the_system_resolver_finds_a_versioned_python_on_path(self):
+        # uv links the Pythons it fetches under versioned names only.
+        on_path = write_tool(self.tmp / "uv-bin" / "python3.12", FAKE_PYTHON).parent
+        write_tool(self.project / PROJECT_PYTHONS[0], FAKE_PYTHON)
+        path = os.pathsep.join([str(on_path), self.path_without(*NO_PYTHON)])
+        self.assertEqual(self.resolve("nc_resolve_system_python", PATH=path)[0], "python3.12")
+
+    def test_the_system_resolver_finds_the_uv_link_in_home_local_bin_when_path_lacks_it(self):
+        link = write_tool(self.tmp / "home" / ".local" / "bin" / "python3.12", FAKE_PYTHON)
+        write_tool(self.project / PROJECT_PYTHONS[0], FAKE_PYTHON)
+        path = self.path_without(*NO_PYTHON)
+        self.assertEqual(self.resolve("nc_resolve_system_python", PATH=path)[0], link.as_posix())
+
+    def test_python_on_path_wins_over_the_uv_link_in_home_local_bin(self):
+        write_tool(self.tmp / "home" / ".local" / "bin" / "python3.12", FAKE_PYTHON)
+        self.assertEqual(self.resolve("nc_resolve_system_python")[0], self.resolve()[0])
+        self.assertNotIn(".local", self.resolve("nc_resolve_system_python")[0])
+
     def test_the_py_launcher_is_found_by_the_system_resolver(self):
         launcher = self.tmp / "launcher"
         write_tool(launcher / "py", "#!/bin/bash\nprintf '%s\\r\\n' 'C:\\Fake\\python.exe'\n")
@@ -886,7 +904,7 @@ class ToolResolverTests(unittest.TestCase):
         # runs as one word: no trailing CR, forward slashes.
         launcher = self.tmp / "launcher"
         write_tool(launcher / "py", "#!/bin/bash\nprintf '%s\\r\\n' 'C:\\Fake\\python.exe'\n")
-        path = os.pathsep.join([str(launcher), self.path_without("python3", "python")])
+        path = os.pathsep.join([str(launcher), self.path_without(*PYTHON_NAMES)])
         self.assertEqual(self.resolve(PATH=path)[0], "C:/Fake/python.exe")
 
 
