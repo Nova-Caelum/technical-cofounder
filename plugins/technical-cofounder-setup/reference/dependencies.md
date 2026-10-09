@@ -132,3 +132,13 @@ Part 2 of setup offers `super-novacaelum`, an opt-in plugin that gives your agen
 - **Install:** in a session inside your project, say "set up the extras". The team's `super-setup` skill walks through each account, installs the plugin for this project only, and has you enter each key in Claude Code's own hidden prompt, never in the chat.
 - **Check:** in a session in your project, type `/mcp`: context7, exa and browserbase are listed, marked as coming from a plugin.
 - **Without them:** agents use Claude Code's built-in web search and web fetch, and anything that needs a real browser comes back to you.
+
+## Staying current (a check every two weeks)
+
+Once every 14 days, at the start of a session, your team looks up whether the tools above have a newer version. If one does, Claude tells you in plain words and gives you the one command that updates it, and runs it only if you say yes. If nothing is out of date, you are offline, or it checked recently, you see nothing.
+
+- **Checked:** Claude Code (only if it will not update itself: automatic updates are switched off, or it came from Homebrew or WinGet), uv, jq, GitHub's command line (`gh`), and Git for Windows. A tool counts as out of date when a newer minor version exists (Claude Code, which only numbers its builds: seven or more releases behind); a patch alone is not worth a message.
+- **Never checked:** anything your computer's system owns, such as Apple's Git on a Mac, because it updates with macOS. Homebrew, which updates itself. Python, which uv fetched and keeps current. jq that setup downloaded for you, which has no safe one-line update.
+- **Cost:** a few hundred milliseconds, once a fortnight, with a hard stop at a few seconds; no network means no check and no message. It looks versions up with `curl` on GitHub's public pages and on Claude Code's download site; each is an ordinary web request with nothing from your project in it.
+- **Where it keeps its place:** `cli-freshness.json` in the team plugin's data folder (`~/.claude/plugins/data/`, in the folder named for the team plugin), with the time of the last check and the last try. Delete it to be checked at your next session.
+- **Switch it off:** set `TC_CLI_FRESHNESS=off` in your environment.
