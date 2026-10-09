@@ -57,6 +57,18 @@ def write_tool(path, text):
     return path
 
 
+# Every name the hooks' Python resolvers look for on PATH (hooks/lib/resolve-tools.sh), bar the `py` launcher.
+PYTHON_NAMES = ("python3", "python", "python3.13", "python3.12", "python3.11")
+
+
+def plant_project_interpreters(project, marker):
+    """What a downloaded folder can ship at .hyperspace/env: an interpreter, in either venv layout, that
+    records being started in `marker` and exits 0. Nothing in a session may start it."""
+    body = f'#!/bin/sh\necho "started: $0 $*" >> "{Path(marker).as_posix()}"\nexit 0\n'
+    for rel in ("bin/python", "Scripts/python.exe"):
+        write_tool(Path(project) / ".hyperspace" / "env" / rel, body)
+
+
 def path_without(scratch, *tools):
     """PATH with the named tools taken out of it. A directory that holds one
     beside the shell's own tools (/usr/bin on macOS) is replaced by a folder

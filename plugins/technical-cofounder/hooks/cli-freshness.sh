@@ -6,6 +6,9 @@
 #
 # All of the work is bin/cli_freshness.py; this script only finds a Python that
 # runs (lib/resolve-tools.sh, the resolver every hook here shares) and starts it.
+# That script imports only the standard library, so the Python is this
+# computer's own and never the project's: a downloaded folder can ship a file at
+# .hyperspace/env/bin/python, and this hook runs at every SessionStart.
 # What it checks, when, and what it costs: the header of that file.
 #
 # When something is out of date it prints one line, which Claude Code adds to
@@ -35,7 +38,7 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$HERE/..}"
 
 # shellcheck source=lib/resolve-tools.sh disable=SC1091
 source "$HERE/lib/resolve-tools.sh" 2>/dev/null || exit 0
-NC_PYTHON="$(CLAUDE_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}" nc_resolve_python)" || NC_PYTHON=""
+NC_PYTHON="$(nc_resolve_system_python)" || NC_PYTHON=""
 [ -n "$NC_PYTHON" ] || exit 0
 
 "$NC_PYTHON" "$PLUGIN_ROOT/bin/cli_freshness.py" || true

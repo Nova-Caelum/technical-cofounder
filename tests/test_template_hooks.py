@@ -329,7 +329,7 @@ class SessionPreloadTests(unittest.TestCase):
 
 sys.path.insert(0, str(REPO_ROOT))
 from tests.test_he_bridge import IMPORT_FIRST, MIRROR_REBUILT, NO_STORE, RECENT_OK, FakeHE  # noqa: E402
-from tests.test_plugin_hooks import BASH, path_without, write_tool  # noqa: E402
+from tests.test_plugin_hooks import BASH, PYTHON_NAMES, path_without, write_tool  # noqa: E402
 
 BLOCK_RE = re.compile(r"(?m)^## Recent worklog")
 
@@ -688,7 +688,7 @@ esac
 FAKE_PYTHON = "#!/bin/bash\nexit 0\n"
 # The two places a project's own interpreter can be (Mac and Linux, then Windows).
 PROJECT_PYTHONS = (".hyperspace/env/bin/python", ".hyperspace/env/Scripts/python.exe")
-NO_PYTHON = ("python3", "python", "py")
+NO_PYTHON = (*PYTHON_NAMES, "py")
 GUARDRAIL_HOOKS = ("circuit-breaker.sh", "concision-budget.sh", "concision-contract.sh", "concision-stop.sh")
 
 
@@ -720,13 +720,14 @@ class ToolResolverTests(unittest.TestCase):
     def path_without_jq(self):
         return self.path_without("jq")
 
-    def resolve(self, **env_extra):
-        """Source the resolver the way a hook does and return (the Python it
-        finds when asked, NC_JQ). Sourcing alone must not look for Python."""
+    def resolve(self, finder="nc_resolve_python", **env_extra):
+        """Source the resolver the way a hook does and return (the Python the
+        `finder` function finds when asked, NC_JQ). Sourcing alone must not
+        look for Python."""
         env = {k: v for k, v in os.environ.items() if k not in ("NC_TOOLS_DIR", "NC_PYTHON", "NC_JQ")}
-        env.update(self.env, RESOLVER=(HOOKS_DIR / "lib" / "resolve-tools.sh").as_posix(), **env_extra)
+        env.update(self.env, RESOLVER=(HOOKS_DIR / "lib" / "resolve-tools.sh").as_posix(), FINDER=finder, **env_extra)
         r = subprocess.run(
-            [BASH, "-c", 'set -euo pipefail; source "$RESOLVER"; printf "%s\\n%s\\n" "$(nc_resolve_python)" "$NC_JQ"'],
+            [BASH, "-c", 'set -euo pipefail; source "$RESOLVER"; printf "%s\\n%s\\n" "$($FINDER)" "$NC_JQ"'],
             capture_output=True, text=True, encoding="utf-8", env=env,
         )
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -788,6 +789,63 @@ class ToolResolverTests(unittest.TestCase):
                 shutil.rmtree(self.project / ".hyperspace", ignore_errors=True)
                 write_tool(self.project / rel, FAKE_PYTHON)
                 self.assertEqual(self.resolve(PATH=path)[0], f"{self.project}/{rel}")
+
+    def test_the_system_resolver_never_falls_back_to_the_project_interpreter(self):
+        # For a hook whose script needs only the standard library: nothing on
+        # PATH runs means nothing, in either layout, while the full resolver
+        # (the briefing's, which needs the project's environment) still
+        # reaches the project's file as its last resort.
+        path = self.path_without(*NO_PYTHON)
+        for rel in PROJECT_PYTHONS:
+            with self.subTest(interpreter=rel):
+                shutil.rmtree(self.project / ".hyperspace", ignore_errors=True)
+                write_tool(self.project / rel, FAKE_PYTHON)
+                self.assertEqual(self.resolve("nc_resolve_system_python", PATH=path)[0], "")
+                self.assertEqual(self.resolve(PATH=path)[0], f"{self.project}/{rel}")
+
+    def test_the_system_resolver_finds_what_the_full_resolver_finds_when_python_is_on_path(self):
+        started = self.tmp / "planted-started.log"
+        for rel in PROJECT_PYTHONS:
+            recording_tool(self.project / rel, started)
+        system = self.resolve("nc_resolve_system_python")[0]
+        self.assertNotEqual(system, "")
+        self.assertEqual(system, self.resolve()[0])
+        self.assertFalse(started.exists(), f"the planted interpreter was started: {started.read_text() if started.exists() else ''}")
+
+    def test_the_system_resolver_finds_a_versioned_python_on_path(self):
+        # uv links the Pythons it fetches under versioned names only.
+        on_path = write_tool(self.tmp / "uv-bin" / "python3.12", FAKE_PYTHON).parent
+        write_tool(self.project / PROJECT_PYTHONS[0], FAKE_PYTHON)
+        path = os.pathsep.join([str(on_path), self.path_without(*NO_PYTHON)])
+        self.assertEqual(self.resolve("nc_resolve_system_python", PATH=path)[0], "python3.12")
+
+    def test_the_system_resolver_finds_the_uv_link_in_home_local_bin_when_path_lacks_it(self):
+        started = self.tmp / "uv-link-started.log"
+        recording_tool(self.tmp / "home" / ".local" / "bin" / "python3.12", started)
+        write_tool(self.project / PROJECT_PYTHONS[0], FAKE_PYTHON)
+        path = self.path_without(*NO_PYTHON)
+        found = self.resolve("nc_resolve_system_python", PATH=path)[0]
+        # Git Bash hands $HOME back in its own form (/tmp/... for C:/.../Temp/...), so the path is judged by
+        # what every consumer does with it: bash runs it. (session-preload.sh, cli-freshness.sh and
+        # run-system-python.sh all start "$NC_PYTHON" from bash and pass it to nothing else.)
+        self.assertTrue(found.endswith("/.local/bin/python3.12"), found)
+        self.assertTrue(started.exists(), "the resolver did not start the candidate it chose")
+        started.unlink()
+        r = subprocess.run([BASH, "-c", '"$0" -S -c ""', found], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(started.exists(), "bash did not start the link through the path the resolver printed")
+
+    def test_python_on_path_wins_over_the_uv_link_in_home_local_bin(self):
+        write_tool(self.tmp / "home" / ".local" / "bin" / "python3.12", FAKE_PYTHON)
+        self.assertEqual(self.resolve("nc_resolve_system_python")[0], self.resolve()[0])
+        self.assertNotIn(".local", self.resolve("nc_resolve_system_python")[0])
+
+    def test_the_py_launcher_is_found_by_the_system_resolver(self):
+        launcher = self.tmp / "launcher"
+        write_tool(launcher / "py", "#!/bin/bash\nprintf '%s\\r\\n' 'C:\\Fake\\python.exe'\n")
+        write_tool(self.project / PROJECT_PYTHONS[0], FAKE_PYTHON)
+        path = os.pathsep.join([str(launcher), self.path_without(*NO_PYTHON)])
+        self.assertEqual(self.resolve("nc_resolve_system_python", PATH=path)[0], "C:/Fake/python.exe")
 
     def test_a_project_interpreter_that_does_not_run_is_passed_over(self):
         path = self.path_without(*NO_PYTHON)
@@ -856,7 +914,7 @@ class ToolResolverTests(unittest.TestCase):
         # runs as one word: no trailing CR, forward slashes.
         launcher = self.tmp / "launcher"
         write_tool(launcher / "py", "#!/bin/bash\nprintf '%s\\r\\n' 'C:\\Fake\\python.exe'\n")
-        path = os.pathsep.join([str(launcher), self.path_without("python3", "python")])
+        path = os.pathsep.join([str(launcher), self.path_without(*PYTHON_NAMES)])
         self.assertEqual(self.resolve(PATH=path)[0], "C:/Fake/python.exe")
 
 

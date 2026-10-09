@@ -19,6 +19,7 @@ real engine is exercised when NC_TEST_ENGINE_DIR names a Hyperspace Engine
 checkout; CI has none until an engine release carries `tree`, and says so by
 skipping that class. Standard library only.
 """
+import ast
 import importlib.util
 import io
 import json
@@ -33,6 +34,8 @@ import venv
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
+
+from tests.test_plugin_hooks import PYTHON_NAMES, path_without, plant_project_interpreters, write_tool
 
 try:
     import tomllib
@@ -472,9 +475,22 @@ class WriteHookTests(unittest.TestCase):
     def test_another_tool_is_silent(self):
         self.assertEqual(self.run_hook(self.event("work/x.py", tool="Edit")).stdout, "")
 
+    def test_it_imports_only_the_standard_library(self):
+        """hooks/run-system-python.sh runs it with the computer's own Python, which has none of the project's packages."""
+        stdlib = getattr(sys, "stdlib_module_names", None)
+        if stdlib is None:
+            self.skipTest("sys.stdlib_module_names needs Python 3.10+")
+        tree = ast.parse(WRITE_HOOK.read_text(encoding="utf-8"))
+        imported = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
+        imported |= {n.module.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module and not n.level}
+        self.assertTrue(imported, "found no imports; the check proves nothing")
+        self.assertEqual(sorted(imported - set(stdlib)), [])
+
 
 class WriteHookRegistrationTests(unittest.TestCase):
-    """The declared command, run the way Claude Code runs it: under bash, with a real project environment."""
+    """The declared command, run the way Claude Code runs it: under bash. It runs with this
+    computer's own Python and never with the project's: a downloaded folder can ship a file at
+    .hyperspace/env/bin/python, and this hook fires on every Write in every folder."""
 
     def groups(self):
         return [g for g in HOOKS.get("PreToolUse", []) if g.get("matcher") == "Write"]
@@ -484,6 +500,9 @@ class WriteHookRegistrationTests(unittest.TestCase):
         (hook,) = group["hooks"]
         self.assertEqual(hook["type"], "command")
         self.assertIn("hooks/drive_map_write.py", hook["command"])
+        self.assertIn("hooks/run-system-python.sh", hook["command"])
+        self.assertNotIn(".hyperspace", hook["command"])
+        self.assertNotIn("CLAUDE_PROJECT_DIR", hook["command"])
         wildcard = [g for g in HOOKS["PreToolUse"] if g.get("matcher") == "*"]
         self.assertTrue(any("circuit-breaker.sh" in h["command"] for g in wildcard for h in g["hooks"]))
 
@@ -501,23 +520,83 @@ class WriteHookRegistrationTests(unittest.TestCase):
         return subprocess.run([BASH, "-c", "eval $TC_HOOK_COMMAND"], input=json.dumps(event), capture_output=True,
                               text=True, encoding="utf-8", env=env_all, timeout=60)
 
-    def test_the_declared_command_speaks_for_a_new_file_with_the_projects_python(self):
-        m = Machine(self)
-        m.environment()
+    @staticmethod
+    def planted(m):
+        """The project's planted interpreters (see plant_project_interpreters); returns the file they record to."""
+        marker = m.base / "planted-interpreter-started"
+        plant_project_interpreters(m.project, marker)
+        return marker
+
+    @staticmethod
+    def mapped(m):
         (m.project / "core_text").mkdir()
         m.map.write_text("# Drive map\n", encoding="utf-8")
-        done = self.run_declared(m, m.project / "work" / "new.py")
+
+    def assertSpokeForNewFile(self, done):
         self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertTrue(done.stdout, "the hook said nothing for a new file")
         self.assertEqual(json.loads(done.stdout)["hookSpecificOutput"]["additionalContext"], NEW_FILE_LINE)
+
+    def assertNeverStarted(self, marker):
+        self.assertFalse(marker.exists(),
+                         "the project's own interpreter was started:\n" + (marker.read_text() if marker.exists() else ""))
+
+    def test_the_declared_command_speaks_for_a_new_file_with_the_system_python_and_never_starts_the_projects(self):
+        m = Machine(self)
+        marker = self.planted(m)
+        self.mapped(m)
+        done = self.run_declared(m, m.project / "work" / "new.py")
+        self.assertNeverStarted(marker)
+        self.assertSpokeForNewFile(done)
         quiet = self.run_declared(m, m.project / "core_text" / "drive-map.md")
         self.assertEqual((quiet.returncode, quiet.stdout), (0, ""))
+        self.assertNeverStarted(marker)
 
-    def test_the_declared_command_is_silent_and_clean_where_there_is_no_project_python(self):
-        m = Machine(self)  # no .hyperspace/env: the engine is not set up here
-        (m.project / "core_text").mkdir()
-        m.map.write_text("# Drive map\n", encoding="utf-8")
-        done = self.run_declared(m, m.project / "work" / "new.py")
+    def test_the_declared_command_speaks_in_a_project_that_was_never_set_up(self):
+        m = Machine(self)  # no .hyperspace/env: the hook needs none
+        self.mapped(m)
+        self.assertSpokeForNewFile(self.run_declared(m, m.project / "work" / "new.py"))
+
+    def test_with_no_python_on_the_machine_the_declared_command_is_silent_and_never_starts_the_projects(self):
+        m = Machine(self)
+        marker = self.planted(m)
+        self.mapped(m)
+        scratch = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, scratch, ignore_errors=True)
+        done = self.run_declared(m, m.project / "work" / "new.py", PATH=path_without(scratch, *PYTHON_NAMES, "py"))
         self.assertEqual((done.returncode, done.stdout, done.stderr), (0, "", ""))
+        self.assertNeverStarted(marker)
+
+    def test_a_versioned_python_in_home_local_bin_runs_the_hook_when_path_has_none(self):
+        # uv links the Pythons it fetches as ~/.local/bin/python3.12, a folder a hook's PATH may lack.
+        m = Machine(self)
+        marker = self.planted(m)
+        self.mapped(m)
+        write_tool(m.home / ".local" / "bin" / "python3.12", f'#!/bin/sh\nexec "{Path(sys.executable).as_posix()}" "$@"\n')
+        scratch = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, scratch, ignore_errors=True)
+        done = self.run_declared(m, m.project / "work" / "new.py", PATH=path_without(scratch, *PYTHON_NAMES, "py"))
+        self.assertNeverStarted(marker)
+        self.assertSpokeForNewFile(done)
+
+    def test_the_runner_passes_arguments_and_input_through_and_fails_open(self):
+        m = Machine(self)
+        runner = PLUGIN / "hooks" / "run-system-python.sh"
+        echo = m.base / "echo.py"
+        echo.write_text("import sys\nprint(sys.argv[1:], sys.stdin.read())\n", encoding="utf-8")
+        crash = m.base / "crash.py"
+        crash.write_text("import sys\nsys.stderr.write('boom')\nraise SystemExit(7)\n", encoding="utf-8")
+
+        def run(*args):
+            return subprocess.run([BASH, str(runner), *map(str, args)], input="payload", capture_output=True, text=True,
+                                  encoding="utf-8", env=m.env(), timeout=60)
+
+        done = run(echo, "one", "two w")
+        self.assertEqual((done.returncode, done.stdout.strip()), (0, "['one', 'two w'] payload"))
+        failed = run(crash)  # exits 7 and writes to stderr: the runner says nothing and exits 0
+        self.assertEqual((failed.returncode, failed.stdout, failed.stderr), (0, "", ""))
+        bare = run()  # nothing to run
+        self.assertEqual((bare.returncode, bare.stdout, bare.stderr), (0, "", ""))
 
 
 class StarterLayoutTests(unittest.TestCase):

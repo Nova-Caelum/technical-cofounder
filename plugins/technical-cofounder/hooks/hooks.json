@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PROJECT_DIR}/.hyperspace/env/bin/python\" \"${CLAUDE_PLUGIN_ROOT}/hooks/drive_map_write.py\" 2>/dev/null || \"${CLAUDE_PROJECT_DIR}/.hyperspace/env/Scripts/python.exe\" \"${CLAUDE_PLUGIN_ROOT}/hooks/drive_map_write.py\" 2>/dev/null || true"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/run-system-python.sh \"${CLAUDE_PLUGIN_ROOT}/hooks/drive_map_write.py\""
           }
         ]
       }
