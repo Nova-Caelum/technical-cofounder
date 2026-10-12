@@ -103,6 +103,20 @@ class TheFolderEverythingLivesIn(unittest.TestCase):
         self.assertFalse(walk.ROOT_PREFIX.isascii())
 
 
+class TheCatalogTheCloneCheckFetches(unittest.TestCase):
+    def test_a_pull_request_clones_its_own_branch_not_the_default_one(self):
+        env = {"GITHUB_HEAD_REF": "feat/directory-links", "GITHUB_REF_TYPE": "tag", "GITHUB_REF_NAME": "43/merge"}
+        self.assertEqual(walk.git_catalog(env), walk.GIT_CATALOG + "#feat/directory-links")
+
+    def test_a_push_clones_the_branch_pushed(self):
+        env = {"GITHUB_HEAD_REF": "", "GITHUB_REF_TYPE": "branch", "GITHUB_REF_NAME": "fix/windows-paths"}
+        self.assertEqual(walk.git_catalog(env), walk.GIT_CATALOG + "#fix/windows-paths")
+
+    def test_a_pushed_tag_or_a_local_run_clones_the_bare_address(self):
+        self.assertEqual(walk.git_catalog({"GITHUB_REF_TYPE": "tag", "GITHUB_REF_NAME": "v1"}), walk.GIT_CATALOG)
+        self.assertEqual(walk.git_catalog({}), walk.GIT_CATALOG)
+
+
 class FirstStepLastLine(unittest.TestCase):
     def test_ok_carries_the_python(self):
         out = "noise\nBOOTSTRAP=OK python=/home/me/.local/share/uv/python/cpython-3.12/bin/python3.12\n\n"

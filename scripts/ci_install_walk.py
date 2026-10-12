@@ -70,6 +70,17 @@ ENGINE_VERSION = "1.0.0"
 # A real catalog reached by a Git address, for the one check that needs a clone.
 GIT_CATALOG = "https://github.com/Nova-Caelum/technical-cofounder.git"
 
+
+def git_catalog(environ):
+    """GIT_CATALOG at the branch this run is for, so the clone is of the change
+    under test and not of whatever the default branch holds (`url#branch` is how
+    `claude plugin marketplace add` takes a ref). Outside GitHub Actions it is
+    the bare address."""
+    branch = environ.get("GITHUB_HEAD_REF")   # a pull request: its source branch
+    if not branch and environ.get("GITHUB_REF_TYPE") == "branch":
+        branch = environ.get("GITHUB_REF_NAME")   # a push
+    return "%s#%s" % (GIT_CATALOG, branch) if branch else GIT_CATALOG
+
 VERDICTS = ("ready", "install", "upgrade", "repair", "needs-you", "needs-restart")
 ITEMS = (
     "claude-cli", "git", "uv", "python", "jq", "network", "project-folder",
@@ -1055,7 +1066,8 @@ class Install:
         w.note("\n-- a catalog that has to be cloned, added by the install script with Git on neither PATH")
         config = self.root / "claude-config-clone"
         config.mkdir()
-        env = dict(self.env, CLAUDE_CONFIG_DIR=str(config), NC_MARKETPLACE_SOURCE=GIT_CATALOG)
+        catalog = git_catalog(os.environ)
+        env = dict(self.env, CLAUDE_CONFIG_DIR=str(config), NC_MARKETPLACE_SOURCE=catalog)
         claude = self.claude(env)
         w.run([claude, "plugin", "marketplace", "list", "--json"], env, cwd=self.root, timeout=300,
               label="claude plugin marketplace list --json   # first call in a fresh config")
@@ -1070,8 +1082,8 @@ class Install:
         control = self.root / "claude-config-control"
         control.mkdir()
         env = dict(env, CLAUDE_CONFIG_DIR=str(control))
-        code, _, _ = w.run([claude, "plugin", "marketplace", "add", GIT_CATALOG], env, cwd=self.root, timeout=900,
-                           label="claude plugin marketplace add %s   # the same, without the install script's PATH" % GIT_CATALOG)
+        code, _, _ = w.run([claude, "plugin", "marketplace", "add", catalog], env, cwd=self.root, timeout=900,
+                           label="claude plugin marketplace add %s   # the same, without the install script's PATH" % catalog)
         w.note("for the record, not a check: without the install script putting Git's folder on PATH, the same command exits %s" % code)
 
     # -- the order ----------------------------------------------------------------
