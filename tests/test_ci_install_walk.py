@@ -437,6 +437,26 @@ class WhatChanged(Temp):
         self.assertIn("changed: kept.txt", found)
 
 
+class TheDeepestPathInTheRepo(unittest.TestCase):
+    """Git for Windows, without core.longpaths, refuses a path of 260
+    characters, and Claude Code clones a catalog into
+    `<config>\\plugins\\marketplaces\\temp_git_<13 digits>_<6>..clone\\` (36
+    characters, 2.1.296). The walk's root is 66 characters, and a user's
+    `C:\\Users\\<name>\\.claude` is 17 plus the name, so a file 115 characters
+    deep is the first to fail (it did: CLONE_WITH_GIT_OFF_PATH). The limit
+    leaves headroom for both."""
+
+    LIMIT = 100
+
+    def test_no_file_is_deeper_than_a_windows_clone_can_take(self):
+        listed = subprocess.run(["git", "ls-files", "-z"], cwd=str(REPO_ROOT), capture_output=True,
+                                encoding="utf-8", stdin=subprocess.DEVNULL, timeout=60)
+        if listed.returncode != 0:
+            self.skipTest("not a Git checkout")
+        too_deep = sorted((len(p), p) for p in listed.stdout.split("\0") if len(p) > self.LIMIT)
+        self.assertEqual(too_deep, [], "paths longer than %d characters; shorten them" % self.LIMIT)
+
+
 class ThePythonTheFirstStepProved(unittest.TestCase):
     def test_new_enough_and_not_one_that_was_already_here_is_fine(self):
         self.assertEqual(walk.python_problems((3, 12, 13), "/uv/python/bin/python3.12",

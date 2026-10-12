@@ -135,10 +135,10 @@ Papering over an unverifiable completion claim is the failure mode this skill ex
 
 See `references/` for accumulated failure patterns. Common ones:
 
-- **should-work-without-running** — claim without running; broken code merges
-- **trusting-agent-success-reports** — subagent said done; work incomplete
-- **partial-check-treated-as-full** — linter clean ≠ build clean
-- **assumption-swapped-for-verification** — assumed criteria met; misaligned deliverable ships
+- **should-work** — claim without running; broken code merges
+- **agent-success** — subagent said done; work incomplete
+- **partial-check** — linter clean ≠ build clean
+- **assumed-met** — assumed criteria met; misaligned deliverable ships
 
 ## When To Apply
 
