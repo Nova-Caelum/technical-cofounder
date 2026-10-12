@@ -6,7 +6,8 @@ triggers it and points at it:
   * the starter layout the setup plugin lays down (`reference/`, `work/`,
     `worklog/_entry-template.md`, `.drivemap.toml`);
   * bin/drive_map_pointer.py, which finds the engine's script, runs it with the
-    project's own Hyperspace interpreter and prints ONE pointer line;
+    project's own Hyperspace interpreter (only one setup recorded on this
+    computer, which bin/launch_env.py checks) and prints ONE pointer line;
   * the session briefing's one call to it;
   * hooks/drive_map_write.py, the PreToolUse `Write` hook that adds one line of
     context for a new file, never blocks and stays silent for an existing one;
@@ -35,7 +36,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from tests.test_plugin_hooks import PYTHON_NAMES, path_without, plant_project_interpreters, write_tool
+from tests.test_plugin_hooks import PYTHON_NAMES, path_without, plant_project_interpreters, register_env, write_tool
 
 try:
     import tomllib
@@ -152,8 +153,10 @@ class Machine:
 
     def environment(self, with_pip=False):
         """A real venv where the project's Hyperspace environment goes: bin/python on
-        Mac and Linux, Scripts/python.exe on Windows."""
+        Mac and Linux, Scripts/python.exe on Windows. Recorded under this HOME, as
+        setup records the one it builds."""
         venv.EnvBuilder(with_pip=with_pip, symlinks=os.name != "nt").create(self.project / ".hyperspace" / "env")
+        register_env(self.project, self.home)
 
     def engine(self, script=STUB_ENGINE, scope="project", project_path=None, id_="hyperspace-engine@nova-caelum"):
         """Install `script` as the engine's bin/drive_map.py and record it as Claude Code does."""
@@ -245,7 +248,8 @@ class PointerTests(unittest.TestCase):
         self.m.engine()
         team = self.m.plugins / "cache" / "nova-caelum" / "technical-cofounder" / "0.3.0"
         (team / "bin").mkdir(parents=True)
-        shutil.copyfile(POINTER, team / "bin" / "drive_map_pointer.py")
+        for script in (POINTER, PLUGIN / "bin" / "launch_env.py"):  # the launcher ships beside it
+            shutil.copyfile(script, team / "bin" / script.name)
         env = clean_env(self.m.home, CLAUDE_PLUGIN_ROOT=str(team))
         done = subprocess.run([sys.executable, str(team / "bin" / "drive_map_pointer.py"), "preload", str(self.m.project)],
                               capture_output=True, text=True, encoding="utf-8", env=env, timeout=120)
@@ -265,6 +269,16 @@ class PointerTests(unittest.TestCase):
         self.m.engine()
         self.assertQuiet(self.m.pointer(), "environment")
         self.assertFalse((self.m.engine_dir / "bin" / "argv.json").exists(), "nothing may be run without it")
+
+    def test_an_environment_setup_has_no_record_of_is_one_log_line_and_never_started(self):
+        shutil.rmtree(self.m.project / ".hyperspace")
+        marker = self.m.base / "planted-started.log"
+        plant_project_interpreters(self.m.project, marker)
+        (self.m.project / ".hyperspace" / "env" / "pyvenv.cfg").write_text("home = /usr/bin\n", encoding="utf-8")
+        self.m.engine()
+        self.assertQuiet(self.m.pointer(), "not built by setup on this computer")
+        self.assertFalse(marker.exists(), "the planted interpreter was started")
+        self.assertFalse((self.m.engine_dir / "bin" / "argv.json").exists())
 
     def test_an_engine_that_hangs_is_given_up_on(self):
         self.m.engine(SLOW_ENGINE)

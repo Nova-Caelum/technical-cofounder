@@ -345,7 +345,7 @@ class HyperspacePreloadTests(unittest.TestCase):
 
     def set_up(self, view="obsidian", owner=None, entries=0):
         self.write("core_text/user.md", "# p\n")
-        return FakeHE(self.project, owner=owner, view=view, entries=entries)
+        return FakeHE(self.project, owner=owner, view=view, entries=entries, home=self.home)
 
     def test_he_first_preload_runs_the_handshake_once(self):
         fake = self.set_up(entries=2)
@@ -416,7 +416,7 @@ class HyperspacePreloadTests(unittest.TestCase):
         self.assertNotIn("worklog_owner", fake.config())
 
     def test_he_not_set_up_claims_nothing(self):
-        fake = FakeHE(self.project, entries=1)
+        fake = FakeHE(self.project, entries=1, home=self.home)
         before = fake.config()
         out = self.preload()
         self.assertIn(SETUP_COMMAND, out)

@@ -2,6 +2,7 @@
 Standard library only.
 """
 import json
+import os
 import re
 import subprocess
 import sys
@@ -73,7 +74,7 @@ class WorklogAppendTests(unittest.TestCase):
 
 
 class _StdioSession:
-    def __init__(self):
+    def __init__(self, env=None):
         self.proc = subprocess.Popen(
             ["python3", str(SERVER_PATH)],
             stdin=subprocess.PIPE,
@@ -82,6 +83,7 @@ class _StdioSession:
             text=True,
             encoding="utf-8",
             bufsize=1,
+            env=env,
         )
 
     def send(self, message):
@@ -230,18 +232,21 @@ class ServerProtocolTests(unittest.TestCase):
 
 
 sys.path.insert(0, str(REPO_ROOT))
-from tests.test_he_bridge import APPEND_OK, MIRROR_REBUILT, NO_STORE, RECENT_OK, FakeHE  # noqa: E402
+from tests.test_he_bridge import APPEND_OK, MIRROR_REBUILT, NO_STORE, RECENT_OK, FakeHE, scratch_home  # noqa: E402
 import he_bridge  # noqa: E402  (on sys.path once tests.test_he_bridge is imported)
 
 
 class HyperspaceAdapterTests(unittest.TestCase):
     """With Hyperspace Engine holding the worklog, the worklog tools go through
-    its CLI (stubbed by FakeHE), fail loud, and never write markdown."""
+    its CLI (stubbed by FakeHE), fail loud, and never write markdown. HOME is a
+    temp folder, here and in the server, so FakeHE's environment record is the
+    one the server reads."""
 
     def setUp(self):
+        scratch_home(self)
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
-        self.session = _StdioSession()
+        self.session = _StdioSession(env=dict(os.environ))
 
     def tearDown(self):
         self.session.close()
@@ -287,8 +292,8 @@ class HyperspaceAdapterTests(unittest.TestCase):
             with self.subTest(tool=name):
                 is_error, text = self.call(name, arguments)
                 self.assertTrue(is_error)
-                self.assertIn('Fix: run /technical-cofounder-setup:start (or say "set up hyperspace")', text)
-                self.assertNotIn("hyperspace-setup", text)
+                self.assertIn("/technical-cofounder-setup:start and choose repair", text)
+                self.assertIn("not built by setup on this computer", text)
         self.assertEqual(self.markdown(), [])
 
     def test_cli_error_is_isError_and_no_markdown(self):

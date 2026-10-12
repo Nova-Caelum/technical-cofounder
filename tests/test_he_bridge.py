@@ -5,10 +5,16 @@ The hyperspace CLI is stubbed: FakeHE builds a project with an empty
 .hyperspace/graph.db, a config.toml, and a fake .hyperspace/env/bin/python that
 logs its argv and replays one canned JSON body (and exit code) per verb. The
 canned bodies below are copied from HE's CLI contract (pasted there from real
-runs), except where a comment says otherwise. Standard library only.
+runs), except where a comment says otherwise.
+
+The bridge starts that environment only when bin/launch_env.py finds setup's
+record of it, so FakeHE records it the way setup does, in a scratch HOME: each
+test here runs with HOME pointed at its own temp folder, never this machine's.
+Standard library only.
 """
 import json
 import os
+import shutil
 import stat
 import sys
 import tempfile
@@ -24,7 +30,14 @@ sys.path.insert(0, str(BIN_DIR))
 sys.path.insert(1, str(MCP_DIR))
 
 import he_bridge  # noqa: E402
+import launch_env  # noqa: E402  (bin/launch_env.py, on sys.path beside he_bridge)
 import worklog  # noqa: E402
+
+sys.path.insert(0, str(REPO_ROOT))
+from tests.test_plugin_hooks import register_env  # noqa: E402
+
+# This machine's own home, as it was when this file was imported: nothing here records into it.
+REAL_HOME = Path(os.path.expanduser("~")).resolve()
 
 try:
     import tomllib
@@ -117,16 +130,31 @@ sys.exit(status)
 """
 
 
-class FakeHE:
-    """A project that looks HE-provisioned, with a scripted CLI."""
+def scratch_home(test):
+    """A temp folder as HOME (and USERPROFILE) for the rest of the test, so the
+    environment record the bridge reads is the test's own."""
+    home = tempfile.mkdtemp(prefix="home-")
+    test.addCleanup(shutil.rmtree, home, ignore_errors=True)
+    patch = mock.patch.dict(os.environ, {"HOME": home, "USERPROFILE": home})
+    patch.start()
+    test.addCleanup(patch.stop)
+    return Path(home)
 
-    def __init__(self, root, owner=None, config=HE_CONFIG, view=None, entries=0):
+
+class FakeHE:
+    """A project that looks HE-provisioned, with a scripted CLI. Its environment
+    is recorded the way setup records one, under `home` (default: the HOME this
+    process has now, which a test points at a temp folder first); recorded=False
+    leaves it as a folder from somewhere else would arrive."""
+
+    def __init__(self, root, owner=None, config=HE_CONFIG, view=None, entries=0, home=None, recorded=True):
         if os.name == "nt":
             raise unittest.SkipTest("HE bridge on Windows: out of scope for tc-windows")
         self.root = Path(root)
         hs = self.root / ".hyperspace"
         self.bin = hs / "env" / "bin"
         self.bin.mkdir(parents=True)
+        (hs / "env" / "pyvenv.cfg").write_text("home = /usr/bin\n", encoding="utf-8")
         (hs / "graph.db").write_bytes(b"")
         if owner is not None:
             config += f'worklog_owner = "{owner}"\n'
@@ -135,6 +163,11 @@ class FakeHE:
         self.python = self.bin / "python"
         self.python.write_text(FAKE_PYTHON, encoding="utf-8")
         self.python.chmod(self.python.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        if recorded:
+            home = Path(home or os.path.expanduser("~")).resolve()
+            if home == REAL_HOME:
+                raise AssertionError("FakeHE would record into this machine's own home; point HOME at a temp folder")
+            register_env(self.root, home)
         if view is not None:
             record = self.root / "core_text" / "setup.json"
             record.parent.mkdir(parents=True, exist_ok=True)
@@ -160,6 +193,7 @@ class FakeHE:
 
 class _Tmp(unittest.TestCase):
     def setUp(self):
+        self.home = scratch_home(self)
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
 
@@ -207,43 +241,37 @@ class ConfigDetectionTests(_Tmp):
 
 
 class InterpreterTests(_Tmp):
-    """HE's interpreter: env/bin/python on POSIX, env/Scripts/python.exe on
-    Windows; each OS checks its own layout first, then the other."""
+    """HE's interpreter comes only from launch_env.verify: the environment's own
+    on this OS when setup recorded it here, else BridgeError and nothing run."""
 
-    def layout(self, *rels):
-        for rel in rels:
-            path = self.root / ".hyperspace" / "env" / rel
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text("stub", encoding="utf-8")
-            path.chmod(path.stat().st_mode | stat.S_IXUSR)
-        return self.root / ".hyperspace" / "env"
+    def test_a_recorded_environment_gives_its_interpreter(self):
+        FakeHE(self.root)
+        self.assertEqual(he_bridge.interpreter(self.root), self.root / ".hyperspace" / "env" / "bin" / "python")
 
-    def on(self, os_name):
-        return mock.patch.object(he_bridge, "os", SimpleNamespace(name=os_name))
-
-    def test_windows_picks_scripts_python_exe(self):
-        env = self.layout("Scripts/python.exe", "bin/python")
-        with self.on("nt"):
-            self.assertEqual(he_bridge.interpreter(self.root), env / "Scripts" / "python.exe")
-
-    def test_posix_picks_bin_python(self):
-        env = self.layout("Scripts/python.exe", "bin/python")
-        with self.on("posix"):
-            self.assertEqual(he_bridge.interpreter(self.root), env / "bin" / "python")
-
-    def test_each_os_falls_back_to_the_other_layout(self):
-        env = self.layout("Scripts/python.exe")
-        with self.on("posix"):
-            self.assertEqual(he_bridge.interpreter(self.root), env / "Scripts" / "python.exe")
-
-    def test_missing_on_windows_names_the_windows_path_with_forward_slashes(self):
-        FakeHE(self.root, owner="technical-cofounder").python.unlink()
-        with self.on("nt"):
-            self.assertIsNone(he_bridge.interpreter(self.root))
+    def test_an_environment_with_no_record_is_refused_and_not_started(self):
+        fake = FakeHE(self.root, owner="technical-cofounder", recorded=False)
+        fake.respond("recent", RECENT_OK)
+        for call in (lambda: he_bridge.interpreter(self.root), lambda: he_bridge.recent(self.root)):
             with self.assertRaises(he_bridge.BridgeError) as ctx:
-                he_bridge.recent(self.root)
-        self.assertIn(".hyperspace/env/Scripts/python.exe", str(ctx.exception))
-        self.assertNotIn("\\", str(ctx.exception))
+                call()
+            self.assertIn(launch_env.REFUSED_LINE, str(ctx.exception))
+            self.assertIn("no record", str(ctx.exception))
+        self.assertEqual(fake.calls(), [])
+
+    def test_an_environment_changed_since_it_was_recorded_is_refused(self):
+        fake = FakeHE(self.root, owner="technical-cofounder")
+        fake.python.write_text(FAKE_PYTHON + "# swapped\n", encoding="utf-8")
+        with self.assertRaises(he_bridge.BridgeError) as ctx:
+            he_bridge.recent(self.root)
+        self.assertIn("python_sha256 no longer matches", str(ctx.exception))
+        self.assertEqual(fake.calls(), [])
+
+    def test_no_environment_names_setup_on_one_line(self):
+        with self.assertRaises(he_bridge.BridgeError) as ctx:
+            he_bridge.interpreter(self.root)
+        self.assertIn(launch_env.MISSING_LINE, str(ctx.exception))
+        self.assertNotIn("\n", str(ctx.exception))
+
 
 class HandshakeTests(_Tmp):
     def test_obsidian_imports_writes_both_keys_and_rebuilds_the_mirror_once(self):
@@ -589,8 +617,8 @@ class ResponseMappingTests(_Tmp):
         self.fake.python.unlink()
         with self.assertRaises(he_bridge.BridgeError) as ctx:
             he_bridge.append(self.root, "x")
-        self.assertIn(f"Fix: run {SETUP_FIX}", str(ctx.exception))
-        self.assertNotIn("hyperspace-setup", str(ctx.exception))
+        self.assertIn(launch_env.REFUSED_LINE, str(ctx.exception))
+        self.assertIn("/technical-cofounder-setup:start and choose repair", str(ctx.exception))
         self.assertIn("markdown", str(ctx.exception))
         self.assertFalse((self.root / "worklog").exists())
 
