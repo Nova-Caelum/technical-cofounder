@@ -14,8 +14,9 @@ downloaded or cloned folder can ship a file at `.hyperspace/env/bin/python`.
 Starting that file runs whatever it is. So when setup builds the environment
 it also writes a record OUTSIDE the project, in `~/.hyperspace/envs.json`, and
 this launcher starts the environment only when the folder still matches its
-record: the same project path, the same environment folder (by path and by
-file-system identity), the same `pyvenv.cfg` and the same interpreter. A
+record: the same project path, the same environment folder (by path, and by
+a random token setup leaves inside it and keeps in the record), the same
+`pyvenv.cfg` and the same interpreter. A
 folder that arrived from somewhere else has no record on this computer, so it
 is refused and nothing in it runs. What the check does not cover: a file
 added inside an environment that was already recorded (for example a `.pth`
@@ -40,6 +41,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import secrets
 import subprocess
 import sys
 import tempfile
@@ -48,7 +50,14 @@ import time
 OK, USAGE, REFUSED, MISSING = 0, 2, 3, 4
 RECORD_VERSION = 1
 # The fields that must match the record, in the order they are compared.
-FIELDS = ("project", "env", "env_id", "pyvenv_cfg_sha256", "python", "python_sha256")
+FIELDS = ("project", "env", "env_token", "pyvenv_cfg_sha256", "python", "python_sha256")
+# Compared without regard to letter case on Windows, where paths ignore it.
+PATH_FIELDS = ("project", "env", "python")
+# The token's file, inside the environment. A folder swapped in for the
+# environment, or the environment rebuilt without setup, does not have it.
+# (A token rather than the folder's inode: on Windows, Pythons of different
+# versions report different st_dev/st_ino for the same folder.)
+TOKEN_FILE = "hyperspace-provenance"
 
 REFUSED_LINE = (
     "This folder's Hyperspace environment (.hyperspace/env) was not built by setup on this computer, "
@@ -101,6 +110,14 @@ def _inside(path, folder):
     return path.startswith(folder.rstrip(os.sep) + os.sep)
 
 
+def _token(real_env):
+    try:
+        with open(os.path.join(real_env, TOKEN_FILE), "r", encoding="utf-8") as handle:
+            return handle.read().strip() or None
+    except FileNotFoundError:
+        return None
+
+
 def fingerprint(project):
     """What identifies the project's environment now, or None when there is
     none. Raises OSError when something is there but cannot be read.
@@ -113,12 +130,11 @@ def fingerprint(project):
     if not os.path.lexists(env):
         return None
     real_env = os.path.realpath(env)
-    status = os.stat(real_env)
     python = os.path.realpath(interpreter(env))
     return {
         "project": os.path.realpath(project),
         "env": real_env,
-        "env_id": "%d:%d" % (status.st_dev, status.st_ino),
+        "env_token": _token(real_env),
         "pyvenv_cfg_sha256": _sha256(os.path.join(real_env, "pyvenv.cfg")),
         "python": python,
         "python_sha256": _sha256(python) if _inside(python, real_env) else None,
@@ -148,7 +164,12 @@ def verify(project):
     if not isinstance(entry, dict):
         return REFUSED, None, "this computer has no record of it"
     for field in FIELDS:
-        if entry.get(field) != current[field]:
+        recorded, now = entry.get(field), current[field]
+        if field in PATH_FIELDS and isinstance(recorded, str) and isinstance(now, str):
+            recorded, now = os.path.normcase(recorded), os.path.normcase(now)
+        if field == "env_token" and not now:
+            return REFUSED, None, "it has no token from setup"
+        if recorded != now:
             return REFUSED, None, "its %s no longer matches the record" % field
     python = interpreter(env_dir(project))
     if not os.path.isfile(python):
@@ -160,9 +181,12 @@ def register(project, by=""):
     """Record the project's environment as built on this computer. Called by
     setup right after it builds the environment, and by nothing else. Returns
     the entry; raises OSError when there is no environment to record."""
+    env = env_dir(project)
+    if not os.path.isdir(env) or not os.path.isfile(interpreter(env)):
+        raise FileNotFoundError("no environment with an interpreter at %s" % env)
+    with open(os.path.join(os.path.realpath(env), TOKEN_FILE), "w", encoding="utf-8") as handle:
+        handle.write(secrets.token_hex(16) + "\n")
     current = fingerprint(project)
-    if current is None or not os.path.isfile(interpreter(env_dir(project))):
-        raise FileNotFoundError("no environment with an interpreter at %s" % env_dir(project))
     entry = dict(current, registered_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), by=by)
     path = record_path()
     folder = os.path.dirname(path)
