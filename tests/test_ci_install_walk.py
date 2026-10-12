@@ -85,12 +85,15 @@ class StandInCatalog(Temp):
                              (REPO_ROOT / "plugins" / "technical-cofounder-setup" / "installer" / name).read_bytes())
 
     def test_the_engine_is_the_pinned_release_over_https(self):
+        # The pin is walk.ENGINE_SHA alone (with ENGINE_VERSION beside it), so moving it is one edit.
         engine = next(p["source"] for p in self.written["plugins"] if p["name"] == "hyperspace-engine")
         self.assertEqual(engine, {
             "source": "url",
             "url": "https://github.com/Nova-Caelum/hyperspace-engine.git",
-            "sha": "35263507143a5ed2a494d4ac977230eef8b0268e",
+            "sha": walk.ENGINE_SHA,
         })
+        self.assertRegex(walk.ENGINE_SHA, r"^[0-9a-f]{40}$")
+        self.assertRegex(walk.ENGINE_VERSION, r"^\d+\.\d+\.\d+$")
 
     def test_no_compiled_python_is_copied(self):
         self.assertEqual([p for p in (self.root / "marketplace").rglob("__pycache__")], [])
@@ -342,13 +345,29 @@ class InstalledPlugins(unittest.TestCase):
 
 
 class TheTeamsServer(unittest.TestCase):
+    LISTED = entry("technical-cofounder@nova-caelum", mcpServers={"caelum-dev-team": {
+        "command": "${CLAUDE_PLUGIN_ROOT}/bin/hyperspace-env",
+        "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"]}})
+
     def test_its_command_is_the_one_claude_code_would_start(self):
-        listed = entry("technical-cofounder@nova-caelum", mcpServers={"caelum-dev-team": {
-            "command": "${CLAUDE_PROJECT_DIR}/.hyperspace/env/bin/python",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"]}})
-        self.assertEqual(walk.server_command(listed, "caelum-dev-team", project="/work/p", plugin_root="/cache/team"),
-                         ["/work/p/.hyperspace/env/bin/python", "/cache/team/mcp/server.py"])
+        self.assertEqual(walk.server_command(self.LISTED, "caelum-dev-team", project="/work/p", plugin_root="/cache/team"),
+                         ["/cache/team/bin/hyperspace-env", "/cache/team/mcp/server.py"])
         self.assertIsNone(walk.server_command(entry("x@y"), "caelum-dev-team", project="/p", plugin_root="/r"))
+
+    def test_on_windows_the_command_is_the_cmd_file_beside_it(self):
+        found = walk.server_command(self.LISTED, "caelum-dev-team", project="/work/p", plugin_root="/cache/team",
+                                    windows=True, is_file=lambda path: path == "/cache/team/bin/hyperspace-env.cmd")
+        self.assertEqual(found, [os.path.normpath("/cache/team/bin/hyperspace-env.cmd"), "/cache/team/mcp/server.py"])
+        plain = walk.server_command(self.LISTED, "caelum-dev-team", project="/work/p", plugin_root="/cache/team",
+                                    windows=True, is_file=lambda path: False)
+        self.assertEqual(plain[0], "/cache/team/bin/hyperspace-env")
+
+    def test_the_shipped_mcp_json_names_the_entry_file_and_its_windows_twin_is_there(self):
+        team = REPO_ROOT / "plugins" / "technical-cofounder"
+        listed = entry("technical-cofounder@nova-caelum",
+                       mcpServers=json.loads((team / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"])
+        argv = walk.server_command(listed, "caelum-dev-team", project="/work/p", plugin_root=str(team), windows=True)
+        self.assertEqual(Path(argv[0]), team / "bin" / "hyperspace-env.cmd")
 
     def answers(self, *documents):
         return "".join(json.dumps(doc) + "\n" for doc in documents)
