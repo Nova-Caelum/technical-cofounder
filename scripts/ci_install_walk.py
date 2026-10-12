@@ -68,7 +68,7 @@ TEAM = "technical-cofounder@nova-caelum"
 ENGINE = "hyperspace-engine@nova-caelum"
 SETUP = "technical-cofounder-setup@nova-caelum"
 ENGINE_URL = "https://github.com/Nova-Caelum/hyperspace-engine.git"
-ENGINE_SHA = "ca400ada820615cf9efff2b902ddc4b2355c06dc"   # hyperspace-engine#26 head (1.0.3); re-pin to tag hyperspace-engine--v1.0.3 after merge
+ENGINE_SHA = "59085f6cfdb8273c0fc9962fc90032aa13f5d861"   # hyperspace-engine#26 head (1.0.3); re-pin to tag hyperspace-engine--v1.0.3 after merge
 ENGINE_VERSION = "1.0.3"
 # A real catalog reached by a Git address, for the one check that needs a clone.
 GIT_CATALOG = "https://github.com/Nova-Caelum/technical-cofounder.git"

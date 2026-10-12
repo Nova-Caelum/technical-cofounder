@@ -93,7 +93,9 @@ class HealthBriefingTests(unittest.TestCase):
         """Run the hook; it must exit 0 inside the time limit whatever it finds.
         An environment name given as None is left out altogether."""
         env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PROJECT_DIR", "NC_TOOLS_DIR")}
+        # Windows Pythons find the home folder (and the record) from USERPROFILE, not HOME.
         env.update({"CLAUDE_PROJECT_DIR": str(self.project), "CLAUDE_PLUGIN_ROOT": str(plugin), "HOME": str(self.home),
+                    "USERPROFILE": str(self.home),
                     "NC_TOOLS_DIR": str(self.tools), **env_extra})
         env = {k: v for k, v in env.items() if v is not None}
         started = time.monotonic()
