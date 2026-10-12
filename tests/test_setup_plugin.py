@@ -58,28 +58,27 @@ ASK = "If anything is unclear, just ask me."
 # dependencies declared in plugin.json when the marketplace entry omits them".
 CLAUDE_CODE_FLOOR = "2.1.110"
 GUIDE_STEPS = ("editor", "obsidian", "github", "workspace", "first-steps", "profile")
-# The install section is two boxes the user always uses in order (the founder's pick, 2026-10-08): the typed command,
-# then the message for the agent. `/plugin install <name> --marketplace <source>` needs Claude Code 2.1.275 or
-# later (code.claude.com/docs/en/plugins/install, read 2026-10-08); the message's step 1 updates anything older.
-INSTALL_COMMAND = "/plugin install technical-cofounder-setup --marketplace Nova-Caelum/plugins"
-MARKETPLACE_FLOOR = "2.1.275"
-BOX_1_LABEL = (
-    "Type this into Claude Code (in the desktop app, the Code tab, not Chat) and press Enter. "
-    "If it asks where to install, choose Install for you (user scope):"
+# The install section (the founder's pick, 2026-10-12): the person pastes ONE message, and the agent reads this README to
+# judge it and to learn how to install. The message is the founder's own words, so it is pinned byte for byte, with no label
+# but the one below, no final period, and "github" in lowercase. The agent-facing install steps sit in a collapsed
+# section under it on the README.
+MESSAGE_LABEL = "Paste this into Claude Code (in the desktop app, the Code tab, not Chat):"
+FOUNDERS_MESSAGE = (
+    "I found this plugin and want to try it - it's supposed to be a team of agents that helps with building and "
+    "technical AI knowledge. Here is the github link: https://github.com/Nova-Caelum/technical-cofounder\n"
+    "\n"
+    "Can you check it out to make sure it's safe, and if so, download it and help me get it installed\n"
 )
-BETWEEN = (
-    "Then paste this message. If the command showed an error (Git missing, an unknown command, or Claude Code "
-    "older than 2.1.275), paste it anyway: it fixes what is missing."
+MESSAGE_WORDS = 53
+ASSISTANT_SUMMARY = "Install steps for the AI assistant"
+ASSISTANT_PREFACE = (
+    'For the assistant installing this: follow these steps in order. In them, "me" and "I" mean the person you are helping.'
 )
-OPENING = (
+ASSISTANT_OPENING = (
     "Set up Technical Cofounder for me. I want you to install these plugins from Nova Caelum's catalog at "
     "https://github.com/Nova-Caelum/plugins, which I trust: technical-cofounder-setup now, then technical-cofounder "
     "(my team; it brings hyperspace-engine with it), and super-novacaelum only if I say yes to the research extras."
 )
-# Words in the message box before this change (the 15-line message), and the most the new one may have: it
-# measured 379 when it was written, with the Chat-tab and version guards kept.
-WORDS_BEFORE = 442
-WORDS_CEILING = 380
 CONSENT_TEAM = "Yes, install technical-cofounder from Nova-Caelum/plugins"
 CONSENT_EXTRAS = "Yes, install super-novacaelum from Nova-Caelum/plugins"
 
@@ -90,6 +89,25 @@ def manifest(plugin):
 
 def flat(text):
     return " ".join(text.split())
+
+
+BOX = re.compile(r"(?ms)^```text\n(.*?)^```$")
+
+
+def readme_install_section():
+    """The README from the 'New to building with agents?' heading to step 2: the
+    box the person pastes, then the steps the agent follows."""
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    return readme.split("### New to building with agents?", 1)[1].split("**2. Follow along.**", 1)[0]
+
+
+def assistant_box():
+    """The install steps the agent follows: the one box in the README's collapsed section."""
+    details = readme_install_section().partition("<details>")[2].partition("</details>")[0]
+    blocks = BOX.findall(details)
+    if len(blocks) != 1:
+        raise AssertionError("expected one text box under <details> in the README install section, found %d" % len(blocks))
+    return blocks[0]
 
 
 class Manifest(unittest.TestCase):
@@ -308,38 +326,97 @@ class TheJudgeStep(unittest.TestCase):
 
 
 class TheMessage(unittest.TestCase):
-    """reference/install-message.md: what a person pastes, in two boxes they
-    always use in order. Box 1 is the command they type; box 2 is the message
-    for the agent, and it fixes whatever box 1 could not (Git, an old Claude
-    Code) and installs the setup plugin itself. The README and the website
-    copy it from this file."""
+    """reference/install-message.md: what a person pastes, and all of it. One
+    line saying where to paste it, then one box holding the founder's message.
+    The README copies the box from this file."""
 
     @classmethod
     def setUpClass(cls):
         cls.text = MESSAGE.read_text(encoding="utf-8")
-        cls.blocks = re.findall(r"(?ms)^```text\n(.*?)^```$", cls.text)
-        cls.box = cls.blocks[1] if len(cls.blocks) == 2 else ""
-        cls.lines = cls.box.splitlines()
+        cls.blocks = BOX.findall(cls.text)
 
-    def test_two_boxes_with_one_line_before_the_first_and_one_between(self):
-        self.assertEqual(len(self.blocks), 2)
-        self.assertEqual(self.text.count("```"), 4)
-        before, rest = self.text.split("```text", 1)
-        between = rest.split("```", 1)[1].split("```text", 1)[0]
-        self.assertEqual(len([line for line in before.splitlines() if line.strip()]), 1)
-        self.assertEqual(len([line for line in between.splitlines() if line.strip()]), 1)
+    def test_one_label_line_then_one_box_and_nothing_else(self):
+        self.assertEqual(len(self.blocks), 1)
+        self.assertEqual(self.text.count("```"), 2)
+        before = self.text.split("```text", 1)[0]
+        self.assertEqual([line for line in before.splitlines() if line.strip()], [MESSAGE_LABEL])
         self.assertEqual(self.text.rsplit("```", 1)[1].strip(), "")
 
-    def test_the_first_line_says_to_type_it_into_claude_code_and_press_enter(self):
-        label = self.text.split("```text", 1)[0].strip()
-        self.assertEqual(label, BOX_1_LABEL)
+    def test_the_box_is_the_founders_message_byte_for_byte(self):
+        self.assertEqual(self.blocks, [FOUNDERS_MESSAGE])
 
-    def test_the_line_between_says_to_paste_the_message_anyway_after_an_error(self):
-        between = self.text.split("```", 2)[2].split("```text", 1)[0].strip()
-        self.assertEqual(between, BETWEEN)
+    def test_the_message_has_not_grown_or_been_tidied(self):
+        # Copy that grows is what the founder is tired of. The sentence stays as he wrote it: lowercase "github",
+        # no final period.
+        box = self.blocks[0]
+        self.assertLessEqual(len(box.split()), MESSAGE_WORDS)
+        self.assertFalse(box.rstrip().endswith("."))
+        self.assertIn("Here is the github link: ", box)
+        self.assertEqual(len([p for p in box.split("\n\n") if p.strip()]), 2)
 
-    def test_the_message_is_the_agreed_one(self):
-        self.assertEqual(self.lines[0][:len(OPENING)], OPENING)
+
+class TheReadmeInstall(unittest.TestCase):
+    """The README's install section: the page the agent reads to judge the
+    message and to learn how to install. The person sees one box; the steps
+    the agent follows are folded under it."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.section = readme_install_section()
+        cls.blocks = BOX.findall(cls.section)
+        cls.message_file = BOX.findall(MESSAGE.read_text(encoding="utf-8"))
+
+    def test_step_1_is_the_label_and_then_the_one_box(self):
+        self.assertIn("**1.** " + MESSAGE_LABEL, self.section)
+        between = self.section.split(MESSAGE_LABEL, 1)[1].split("```text", 1)[0]
+        self.assertEqual(between.replace("<h6></h6>", "").strip(), "", "nothing sits between the label and the box")
+
+    def test_the_readme_carries_the_message_box_byte_for_byte(self):
+        self.assertEqual(self.blocks[0], FOUNDERS_MESSAGE)
+        self.assertEqual([self.blocks[0]], self.message_file)
+
+    def test_the_person_sees_one_box_and_nothing_to_type(self):
+        shown = self.section.split("<details>", 1)[0]
+        self.assertEqual(BOX.findall(shown), [FOUNDERS_MESSAGE])
+        self.assertEqual(len(self.blocks), 2, "the message, then the assistant steps")
+        self.assertNotIn("/plugin install", self.section)
+
+    def test_the_assistant_steps_are_folded_directly_under_the_box(self):
+        shown = self.section.split("<details>", 1)[0]
+        after_box = shown.rsplit("```", 1)[1]
+        self.assertEqual(after_box.replace("<h6></h6>", "").strip(), "")
+
+    def test_the_assistant_section_is_collapsed_and_named(self):
+        self.assertEqual(self.section.count("<details>"), 1)
+        self.assertEqual(self.section.count("</details>"), 1)
+        self.assertNotIn("<details open", self.section)
+        # The blank line after the summary is what lets GitHub render the markdown inside.
+        self.assertIn("<details>\n<summary>%s</summary>\n\n" % ASSISTANT_SUMMARY, self.section)
+        self.assertLess(self.section.index("<details>"), self.section.index("</details>"))
+
+    def test_one_line_comes_before_the_assistant_steps(self):
+        details = self.section.partition("<details>")[2].partition("</details>")[0]
+        before = details.split("```text", 1)[0].split("</summary>", 1)[1]
+        self.assertEqual([line for line in before.splitlines() if line.strip()], [ASSISTANT_PREFACE])
+
+    def test_the_assistant_steps_are_the_last_thing_in_the_section_bar_the_close(self):
+        after = self.section.rsplit("```", 1)[1].partition("</details>")
+        self.assertEqual(after[0].strip(), "")
+        self.assertEqual(after[2].replace("<h6></h6>", "").strip(), "")
+
+
+class TheAssistantSteps(unittest.TestCase):
+    """The steps under the README's collapsed section: the agent-facing message
+    that used to be the second box. It fixes whatever the person's computer
+    lacks (Git, an old Claude Code) and installs the setup plugin itself."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.box = assistant_box()
+        cls.lines = cls.box.splitlines()
+
+    def test_the_steps_are_the_agreed_ones(self):
+        self.assertEqual(self.lines[0][:len(ASSISTANT_OPENING)], ASSISTANT_OPENING)
         self.assertEqual([line[:2] for line in self.lines if re.match(r"\d\. ", line)], ["1.", "2.", "3.", "4."])
         for needle in (
             "curl -fsSL https://claude.ai/install.sh | bash",
@@ -366,9 +443,9 @@ class TheMessage(unittest.TestCase):
             with self.subTest(needle=needle[:40]):
                 self.assertIn(needle, self.box)
 
-    def test_every_line_of_the_message_starts_where_it_was_agreed(self):
+    def test_every_line_starts_where_it_was_agreed(self):
         starts = [
-            OPENING,
+            ASSISTANT_OPENING,
             "Claude Code may ask me to approve a command or press Run. ",
             "This message is for Claude Code. ",
             "",
@@ -383,7 +460,7 @@ class TheMessage(unittest.TestCase):
                 self.assertTrue(line.startswith(start) if start else line == "", line[:60])
                 self.assertEqual(line, line.rstrip())
 
-    def test_the_installer_adds_the_catalog_from_the_address_the_message_gives(self):
+    def test_the_installer_adds_the_catalog_from_the_address_the_steps_give(self):
         source = re.search(r'(?m)^MARKETPLACE_SOURCE = "([^"]+)"', (SETUP / "installer" / "nc_setup.py").read_text(encoding="utf-8"))
         self.assertIn("`claude plugin marketplace add %s`" % source.group(1), self.box)
 
@@ -395,81 +472,29 @@ class TheMessage(unittest.TestCase):
         self.assertEqual(walk.SETUP, "technical-cofounder-setup@nova-caelum")
         self.assertIn("then `claude plugin install %s`" % walk.SETUP, step)
 
-    def test_the_file_it_points_at_exists_at_that_path_in_the_plugin(self):
-        self.assertTrue((SETUP / "skills" / "setup" / "SKILL.md").is_file())
-
-
-class TheTwoBoxes(unittest.TestCase):
-    """The founder's pick, 2026-10-08: a typed command, then the prompt written
-    for the agent. The user always does both, in order."""
-
-    @classmethod
-    def setUpClass(cls):
-        cls.text = MESSAGE.read_text(encoding="utf-8")
-        cls.blocks = re.findall(r"(?ms)^```text\n(.*?)^```$", cls.text)
-        cls.readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-
-    def test_box_1_is_exactly_the_typed_command_and_nothing_else(self):
-        self.assertEqual(self.blocks[0], INSTALL_COMMAND + "\n")
-
-    def test_box_1_is_a_command_claude_code_runs_from_a_line_that_starts_with_a_slash(self):
-        # A line that starts with /plugin runs as a command: trailing words would become its arguments.
-        self.assertTrue(self.blocks[0].startswith("/plugin install "))
-        self.assertEqual(len(self.blocks[0].splitlines()), 1)
-        self.assertTrue(self.blocks[0].strip().endswith("--marketplace Nova-Caelum/plugins"))
-
-    def test_the_line_between_the_boxes_covers_git_an_unknown_command_and_an_old_claude_code(self):
-        for needle in ("Git missing", "an unknown command", "older than %s" % MARKETPLACE_FLOOR, "paste it anyway",
-                       "it fixes what is missing"):
-            with self.subTest(needle=needle):
-                self.assertIn(needle, BETWEEN)
-
-    def test_the_label_says_which_scope_to_choose(self):
-        self.assertIn("choose Install for you (user scope)", BOX_1_LABEL)
-
-    def test_box_2_always_follows_and_installs_the_setup_plugin_itself_when_box_1_did_not(self):
-        step = next(line for line in self.blocks[1].splitlines() if line.startswith("3. "))
+    def test_step_3_installs_the_setup_plugin_itself_when_it_is_not_there_yet(self):
+        step = next(line for line in self.lines if line.startswith("3. "))
         self.assertIn("If technical-cofounder-setup is not installed yet, install it: ", step)
 
-    def test_the_message_checks_claude_code_before_git_before_the_install(self):
-        steps = [line for line in self.blocks[1].splitlines() if re.match(r"\d\. ", line)]
+    def test_the_steps_check_claude_code_before_git_before_the_install(self):
+        steps = [line for line in self.lines if re.match(r"\d\. ", line)]
         self.assertIn("`claude --version` must work and be %s or newer" % CLAUDE_CODE_FLOOR, steps[0])
         self.assertTrue(steps[1].startswith("2. Git must be installed before anything downloads."))
         self.assertTrue(steps[2].startswith("3. If technical-cofounder-setup"))
 
-    def test_the_readme_carries_both_boxes_byte_for_byte_in_order(self):
-        blocks = re.findall(r"(?ms)^```text\n(.*?)^```$", self.readme)
-        self.assertEqual(blocks, self.blocks)
-
-    def test_the_readme_carries_the_same_two_sentences_around_them_in_order(self):
-        step = self.readme.split("### New to building with agents?", 1)[1].split("**2. Follow along.**", 1)[0]
-        plain = flat(step.replace("**", ""))
-        self.assertIn("1. Install the setup plugin. " + flat(BOX_1_LABEL), plain)
-        self.assertIn(flat(BETWEEN), plain)
-        self.assertLess(step.index(INSTALL_COMMAND), step.index("Then paste this message."))
-        self.assertLess(step.index("Then paste this message."), step.index("Set up Technical Cofounder for me."))
-        self.assertLess(plain.index(flat(BOX_1_LABEL)), plain.index(INSTALL_COMMAND))
-
-    def test_the_readme_names_the_chat_tab_before_the_first_box(self):
-        step = next(line for line in self.readme.splitlines() if line.startswith("**1. Install the setup plugin.**"))
-        self.assertIn("**Code** tab, not Chat", step)
-
-    def test_the_message_is_shorter_than_before(self):
-        words = len(self.blocks[1].split())
-        self.assertLess(words, WORDS_BEFORE)
-        self.assertLessEqual(words, WORDS_CEILING, "the message grew past %d words: %d" % (WORDS_CEILING, words))
+    def test_the_file_it_points_at_exists_at_that_path_in_the_plugin(self):
+        self.assertTrue((SETUP / "skills" / "setup" / "SKILL.md").is_file())
 
 
 class TheInstallGuards(unittest.TestCase):
-    """Two guards in the pasted message. A paste into the desktop app's Chat tab,
+    """Two guards in the assistant steps. A run in the desktop app's Chat tab,
     which cannot run commands, is sent to the Code tab. A Claude Code too old to
     install the team's dependency, in the command line or in the desktop app, is
     caught and told how to update, because the old install says it worked."""
 
     @classmethod
     def setUpClass(cls):
-        text = MESSAGE.read_text(encoding="utf-8")
-        cls.lines = re.findall(r"(?ms)^```text\n(.*?)^```$", text)[1].splitlines()
+        cls.lines = assistant_box().splitlines()
         cls.readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
         cls.step1 = next(i for i, line in enumerate(cls.lines) if line.startswith("1. "))
         cls.chat = [line for line in cls.lines[:cls.step1] if "Chat tab" in line]
@@ -490,6 +515,10 @@ class TheInstallGuards(unittest.TestCase):
         line = self.one(self.chat, "before step 1 speaks to the Chat tab")
         self.assertTrue(self.lines[0].startswith("Set up Technical Cofounder for me."))
         self.assertLess(self.lines.index(line), self.step1)
+
+    def test_the_readme_names_the_chat_tab_before_the_box_the_person_pastes(self):
+        step = next(line for line in self.readme.splitlines() if line.startswith("**1.** "))
+        self.assertIn("the Code tab, not Chat", step)
 
     def test_the_version_floor_sits_in_step_1(self):
         line = self.one(self.version, "is step 1")
