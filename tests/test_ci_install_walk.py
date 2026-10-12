@@ -103,6 +103,20 @@ class TheFolderEverythingLivesIn(unittest.TestCase):
         self.assertFalse(walk.ROOT_PREFIX.isascii())
 
 
+class TheCatalogTheCloneCheckFetches(unittest.TestCase):
+    def test_a_pull_request_clones_its_own_branch_not_the_default_one(self):
+        env = {"GITHUB_HEAD_REF": "feat/directory-links", "GITHUB_REF_TYPE": "tag", "GITHUB_REF_NAME": "43/merge"}
+        self.assertEqual(walk.git_catalog(env), walk.GIT_CATALOG + "#feat/directory-links")
+
+    def test_a_push_clones_the_branch_pushed(self):
+        env = {"GITHUB_HEAD_REF": "", "GITHUB_REF_TYPE": "branch", "GITHUB_REF_NAME": "fix/windows-paths"}
+        self.assertEqual(walk.git_catalog(env), walk.GIT_CATALOG + "#fix/windows-paths")
+
+    def test_a_pushed_tag_or_a_local_run_clones_the_bare_address(self):
+        self.assertEqual(walk.git_catalog({"GITHUB_REF_TYPE": "tag", "GITHUB_REF_NAME": "v1"}), walk.GIT_CATALOG)
+        self.assertEqual(walk.git_catalog({}), walk.GIT_CATALOG)
+
+
 class FirstStepLastLine(unittest.TestCase):
     def test_ok_carries_the_python(self):
         out = "noise\nBOOTSTRAP=OK python=/home/me/.local/share/uv/python/cpython-3.12/bin/python3.12\n\n"
@@ -435,6 +449,26 @@ class WhatChanged(Temp):
         self.assertIn("removed: gone.txt", found)
         self.assertIn("added: sub/new.txt", found)
         self.assertIn("changed: kept.txt", found)
+
+
+class TheDeepestPathInTheRepo(unittest.TestCase):
+    """Git for Windows, without core.longpaths, refuses a path of 260
+    characters, and Claude Code clones a catalog into
+    `<config>\\plugins\\marketplaces\\temp_git_<13 digits>_<6>..clone\\` (36
+    characters, 2.1.296). The walk's root is 66 characters, and a user's
+    `C:\\Users\\<name>\\.claude` is 17 plus the name, so a file 115 characters
+    deep is the first to fail (it did: CLONE_WITH_GIT_OFF_PATH). The limit
+    leaves headroom for both."""
+
+    LIMIT = 100
+
+    def test_no_file_is_deeper_than_a_windows_clone_can_take(self):
+        listed = subprocess.run(["git", "ls-files", "-z"], cwd=str(REPO_ROOT), capture_output=True,
+                                encoding="utf-8", stdin=subprocess.DEVNULL, timeout=60)
+        if listed.returncode != 0:
+            self.skipTest("not a Git checkout")
+        too_deep = sorted((len(p), p) for p in listed.stdout.split("\0") if len(p) > self.LIMIT)
+        self.assertEqual(too_deep, [], "paths longer than %d characters; shorten them" % self.LIMIT)
 
 
 class ThePythonTheFirstStepProved(unittest.TestCase):

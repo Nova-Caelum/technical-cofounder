@@ -8,6 +8,10 @@
   },
   "homepage": "https://github.com/Nova-Caelum/technical-cofounder",
   "repository": "https://github.com/Nova-Caelum/technical-cofounder",
+  "documentationUrl": "https://github.com/Nova-Caelum/technical-cofounder#readme",
+  "supportUrl": "https://github.com/Nova-Caelum/technical-cofounder/issues",
+  "privacyPolicyUrl": "https://novacaelum.com/privacy",
+  "termsOfServiceUrl": "https://novacaelum.com/terms",
   "license": "Apache-2.0",
   "keywords": [
     "setup",
