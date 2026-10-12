@@ -87,7 +87,7 @@ import json, re, sys
 from datetime import datetime
 from pathlib import Path
 here = Path(__file__).resolve().parent
-verb = sys.argv[4]
+verb = sys.argv[5]  # -P -m hyperspace.cli worklog <verb>
 with open(here / "calls.jsonl", "a", encoding="utf-8") as fh:
     fh.write(json.dumps(sys.argv[1:]) + "\\n")
 body = here / (verb + ".json")
@@ -284,7 +284,7 @@ class HandshakeTests(_Tmp):
         self.assertIn('worklog_owner = "technical-cofounder"\n', config)
         self.assertIn('worklog_mirror_dir = "worklog/entries"\n', config)
         calls = fake.calls()
-        self.assertEqual([c[3] for c in calls], ["import", "mirror"])
+        self.assertEqual([c[4] for c in calls], ["import", "mirror"])
         self.assertIn("--from=worklog/entries", calls[0])
         self.assertIn("--rebuild", calls[1])
         for call in calls:
@@ -310,7 +310,7 @@ class HandshakeTests(_Tmp):
         self.assertIn("worklog_owner", fake.config())
         self.assertIn("worklog_mirror_dir", fake.config())
         self.assertIsNone(he_bridge.handshake(self.root))
-        self.assertEqual([c[3] for c in fake.calls()], ["import", "mirror"])
+        self.assertEqual([c[4] for c in fake.calls()], ["import", "mirror"])
 
     @unittest.skipIf(tomllib is None, "tomllib needs Python 3.11+")
     def test_written_config_parses_and_keeps_he_keys(self):
@@ -335,7 +335,7 @@ class HandshakeTests(_Tmp):
                     self.assertTrue(fake.config().startswith(HE_CONFIG), fake.config())
                     self.assertIn('worklog_owner = "technical-cofounder"\n', fake.config())
                     self.assertIn('worklog_mirror_dir = "worklog/entries"\n', fake.config())
-                    self.assertEqual([c[3] for c in fake.calls()], ["import", "mirror"])
+                    self.assertEqual([c[4] for c in fake.calls()], ["import", "mirror"])
                     self.assertEqual(he_bridge.mode(tmp), "tc-preload")
 
     def test_without_obsidian_an_appended_entry_is_a_file_in_the_worklog_folder(self):
@@ -364,7 +364,7 @@ class HandshakeTests(_Tmp):
         fake = FakeHE(self.root, view="obsidian")
         fake.respond("mirror", MIRROR_REBUILT)
         self.assertIsNone(he_bridge.handshake(self.root))
-        self.assertEqual([c[3] for c in fake.calls()], ["mirror"])
+        self.assertEqual([c[4] for c in fake.calls()], ["mirror"])
         self.assertIn("worklog_owner", fake.config())
 
     def test_owner_already_set_does_nothing(self):
@@ -385,7 +385,7 @@ class HandshakeTests(_Tmp):
         fake.respond("import", IMPORT_FIRST)
         fake.respond("mirror", MIRROR_REBUILT)
         self.assertIsNone(he_bridge.handshake(self.root))
-        self.assertEqual([c[3] for c in fake.calls()], ["import", "import", "mirror"])
+        self.assertEqual([c[4] for c in fake.calls()], ["import", "import", "mirror"])
         self.assertIn("worklog_owner", fake.config())
 
     def test_missing_cli_is_a_one_line_note(self):
@@ -414,7 +414,7 @@ class MirrorUpgradeTests(_Tmp):
         self.assertTrue(config.startswith(before), "every existing line stays byte-identical")
         self.assertEqual(config, before + 'worklog_mirror_dir = "worklog/entries"\n')
         calls = fake.calls()
-        self.assertEqual([c[3] for c in calls], ["mirror"], "no import: it would take the engine's own mirror files")
+        self.assertEqual([c[4] for c in calls], ["mirror"], "no import: it would take the engine's own mirror files")
         self.assertIn("--rebuild", calls[0])
         self.assertEqual(he_bridge.mode(self.root), "tc-preload")
 
@@ -444,7 +444,7 @@ class MirrorUpgradeTests(_Tmp):
         self.assertIn("hyperspace worklog mirror --rebuild", note)
         self.assertIn("worklog_mirror_dir", fake.config())
         self.assertIsNone(he_bridge.handshake(self.root))
-        self.assertEqual([c[3] for c in fake.calls()], ["mirror"])
+        self.assertEqual([c[4] for c in fake.calls()], ["mirror"])
 
     def test_an_existing_mirror_key_is_left_alone_and_nothing_is_rebuilt(self):
         for line in ('worklog_mirror_dir = "notes/log"\n', 'worklog_mirror_dir = ""\n'):
@@ -514,7 +514,7 @@ class ResponseMappingTests(_Tmp):
                                   author="engineer", tags=["hsp-v0.1.2", "worklog"])
         self.assertEqual(result, {"file": None, "row_id": ROW_ID})
         argv = self.fake.calls()[0]
-        self.assertEqual(argv[:4], ["-m", "hyperspace.cli", "worklog", "append"])
+        self.assertEqual(argv[:5], ["-P", "-m", "hyperspace.cli", "worklog", "append"])
         for arg in ("--author=engineer", "--summary=Shipped the worklog CLI.",
                     "--detail=Full detail body for the contract doc.", "--tags=hsp-v0.1.2,worklog",
                     f"--dir={self.root}", "--json"):
@@ -573,7 +573,7 @@ class ResponseMappingTests(_Tmp):
                                 ("nonexistent-xyz", [])):
             with self.subTest(query=query):
                 self.assertEqual([e["summary"] for e in he_bridge.search(self.root, query)], expected)
-        self.assertEqual(self.fake.calls()[0][:4], ["-m", "hyperspace.cli", "worklog", "search"])
+        self.assertEqual(self.fake.calls()[0][:5], ["-P", "-m", "hyperspace.cli", "worklog", "search"])
 
     def test_summary_limit_matches_tc_and_is_checked_before_the_cli(self):
         self.assertEqual(he_bridge.SUMMARY_MAX, worklog.MAX_SUMMARY_LEN)

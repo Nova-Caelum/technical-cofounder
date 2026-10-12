@@ -201,7 +201,7 @@ class World:
                 return nc.Result(4, "missing\n", "")
             return nc.Result(0, "ok\n", "") if str(project) in self.recorded else nc.Result(3, "unknown\n", "")
 
-        if rest == ["-c", "import hyperspace"]:
+        if rest == ["-P", "-c", "import hyperspace"]:   # -P: never the project's own hyperspace package
             project = argv[0].replace("\\", "/").split("/.hyperspace/")[0]
             state = self.env_state.get(str(Path(project)), "broken")
             if state == "ok":

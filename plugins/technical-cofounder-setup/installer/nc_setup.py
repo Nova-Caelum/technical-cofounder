@@ -802,7 +802,9 @@ def engine_env(ctx):
 
 
 def engine_loads(ctx, python):
-    return ctx.run([str(python), "-c", "import hyperspace"], timeout=60)
+    # -P: `-c` would put the current folder first on sys.path, and a project
+    # can ship a hyperspace package of its own.
+    return ctx.run([str(python), "-P", "-c", "import hyperspace"], timeout=60)
 
 
 def engine_installs(entries):

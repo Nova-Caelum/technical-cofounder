@@ -359,7 +359,7 @@ class HyperspacePreloadTests(unittest.TestCase):
         config = fake.config()
         self.preload()
         self.assertEqual(fake.config(), config)
-        verbs = [c[3] for c in fake.calls()]
+        verbs = [c[4] for c in fake.calls()]
         self.assertEqual((verbs.count("import"), verbs.count("mirror")), (1, 1))
 
     def test_a_first_preload_without_obsidian_also_turns_the_mirror_on(self):
@@ -370,7 +370,7 @@ class HyperspacePreloadTests(unittest.TestCase):
         self.preload()
         self.assertIn('worklog_owner = "technical-cofounder"', fake.config())
         self.assertIn('worklog_mirror_dir = "worklog/entries"', fake.config())
-        verbs = [c[3] for c in fake.calls()]
+        verbs = [c[4] for c in fake.calls()]
         self.assertEqual((verbs.count("import"), verbs.count("mirror")), (1, 1))
 
     def test_a_project_past_the_handshake_gets_the_mirror_at_its_next_session_start(self):
@@ -380,12 +380,12 @@ class HyperspacePreloadTests(unittest.TestCase):
         out = self.preload()
         self.assertIn('worklog_mirror_dir = "worklog/entries"', fake.config())
         self.assertIn("## Recent worklog — last 3", out)
-        verbs = [c[3] for c in fake.calls()]
+        verbs = [c[4] for c in fake.calls()]
         self.assertEqual((verbs.count("import"), verbs.count("mirror")), (0, 1))
         config = fake.config()
         self.preload()
         self.assertEqual(fake.config(), config)
-        self.assertEqual([c[3] for c in fake.calls()].count("mirror"), 1, "the rebuild runs once, not every session")
+        self.assertEqual([c[4] for c in fake.calls()].count("mirror"), 1, "the rebuild runs once, not every session")
 
     def test_he_owned_block_comes_from_the_cli(self):
         fake = self.set_up(owner="technical-cofounder", entries=2)

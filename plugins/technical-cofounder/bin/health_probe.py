@@ -92,7 +92,8 @@ def state(project, plugin):
     # PYTHONDONTWRITEBYTECODE: a probe leaves no file behind.
     env = dict(os.environ, CLAUDE_PROJECT_DIR=project, PYTHONDONTWRITEBYTECODE="1")
     launch = [sys.executable, "-I", str(Path(__file__).resolve().with_name("launch_env.py")), "run", "--"]
-    if not runs(launch + ["-S", "-c", ""], env):  # one that fails or hangs
+    # -P: nothing is imported from the current folder, which is the project.
+    if not runs(launch + ["-P", "-S", "-c", ""], env):  # one that fails or hangs
         return "engine"
     return "ok" if answers(launch + [os.path.join(plugin, "mcp", "server.py")], env) else "server"
 

@@ -267,7 +267,7 @@ class HyperspaceAdapterTests(unittest.TestCase):
         is_error, text = self.call("worklog_append", {"summary": "Shipped the worklog CLI.", "tags": ["a"]})
         self.assertFalse(is_error, text)
         self.assertEqual(json.loads(text)["row_id"], "55b3ae00-6664-4a10-a086-e33404c46b1a")
-        self.assertEqual(fake.calls()[0][3], "append")
+        self.assertEqual(fake.calls()[0][4], "append")
         self.assertEqual(self.markdown(), [])
 
     def test_he_owned_preload_still_uses_the_store(self):

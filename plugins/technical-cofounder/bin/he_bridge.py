@@ -27,7 +27,7 @@ command, not a retry. Keys are appended as scalar strings before any table,
 never rewriting a line.
 
 Reads and writes go through HE's CLI contract (v0.1.2):
-    <project>/.hyperspace/env/bin/python -m hyperspace.cli worklog <verb> ... --json
+    <project>/.hyperspace/env/bin/python -P -m hyperspace.cli worklog <verb> ... --json
 (env/Scripts/python.exe on Windows) and come back in the shape TC's own tools
 return, with `file` None (the store is the record; TC never guesses HE's
 mirror filenames). Any CLI failure raises BridgeError naming the fix. There is
@@ -207,7 +207,9 @@ def run_cli(root, verb, *args):
     BridgeError on anything else."""
     root = Path(root)
     python = interpreter(root)
-    cmd = [str(python), "-m", "hyperspace.cli", "worklog", verb, *args, f"--dir={root}", "--json"]
+    # -P: `-m` would put the current folder, the project, first on sys.path, and a
+    # project can ship a hyperspace package of its own.
+    cmd = [str(python), "-P", "-m", "hyperspace.cli", "worklog", verb, *args, f"--dir={root}", "--json"]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired) as exc:

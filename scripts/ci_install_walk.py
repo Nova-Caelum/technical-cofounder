@@ -915,7 +915,7 @@ class Install:
         env = dict(self.env, CLAUDE_PROJECT_DIR=str(project))
         code, out, _ = w.run([self.python, "-I", launcher, "check", project], env, timeout=300)
         w.expect(code == 0 and out.strip() == "ok", "setup recorded the workspace it built (the launcher says %r)" % out.strip())
-        code, _, _ = w.run([self.python, "-I", launcher, "run", "--", "-c",
+        code, _, _ = w.run([self.python, "-I", launcher, "run", "--", "-P", "-c",
                             "import hyperspace, sys; print(hyperspace.__file__); print(sys.version)"],
                            env, cwd=project, timeout=300)
         w.expect(code == 0, "the workspace's Python, started through the launcher, imports hyperspace")

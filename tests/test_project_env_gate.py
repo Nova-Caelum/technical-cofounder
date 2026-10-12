@@ -18,11 +18,17 @@ An environment that setup did build and recorded (launch_env.register, which
 the engine's setup calls) still starts, at each of the same places. HOME is a
 scratch folder throughout, so this machine's own record decides nothing.
 
+A recorded environment is started from the project folder, and the project can
+ship a `hyperspace` package of its own. `python -m` and `python -c` put the
+current folder first on sys.path, so every start that imports the engine
+passes -P: the installed package runs, never the project's.
+
 Last, what Anthropic's directory scanner reads: every server command is a file
 inside the plugin named from ${CLAUDE_PLUGIN_ROOT}, no hook feeds a heredoc to
 an interpreter held in a variable, and bin/launch_env.py is the engine's
 launcher byte for byte. Standard library only.
 """
+import contextlib
 import importlib.util
 import json
 import os
@@ -46,6 +52,7 @@ BRIDGE = PLUGIN_ROOT / "bin" / "he_bridge.py"
 POINTER = PLUGIN_ROOT / "bin" / "drive_map_pointer.py"
 PRELOAD = PLUGIN_ROOT / "hooks" / "session-preload.sh"
 SERVER = PLUGIN_ROOT / "mcp" / "server.py"
+SETUP_SCRIPT = REPO_ROOT / "plugins" / "technical-cofounder-setup" / "installer" / "nc_setup.py"
 ENTRY = PLUGIN_ROOT / "bin" / "hyperspace-env"
 ENGINE_LAUNCHER = REPO_ROOT.parent / "hyperspace-engine" / "hyperspace" / "provenance.py"
 TEAM_ID, ENGINE_ID = "technical-cofounder@nova-caelum", "hyperspace-engine@nova-caelum"
@@ -161,6 +168,18 @@ class Scratch:
 
     def planted_starts(self):
         return self.marker.read_text(encoding="utf-8").splitlines() if self.marker.exists() else []
+
+
+@contextlib.contextmanager
+def working_folder(folder):
+    """Run the block with `folder` as this process's current folder, as the server and the
+    setup script run in the project; a program started inside inherits it."""
+    before = os.getcwd()
+    os.chdir(folder)
+    try:
+        yield
+    finally:
+        os.chdir(before)
 
 
 def load_server():
@@ -310,6 +329,49 @@ class TheWorklogTools(_Gate):
         self.assertIn("exit 1", str(caught.exception), "the CLI was not reached (this venv has no hyperspace package)")
         self.assertNotIn(self.refused_line(), str(caught.exception))
         self.assertTrue(self.s.started.exists(), "the bridge never started the recorded environment")
+
+
+class TheProjectsOwnHyperspacePackage(_Gate):
+    """A recorded environment, started from a project that ships hyperspace/__init__.py and
+    hyperspace/cli.py of its own. The environment's installed `hyperspace` (a stand-in, added
+    to its site-packages through a .pth line) must be the one that runs."""
+
+    def setUp(self):
+        super().setUp()
+        self.s.recorded()
+        self.installed = self.s.base / "installed-ran.log"
+        self.shadow = self.s.base / "project-package-ran.log"
+        stand_in = self.s.base / "installed"
+        for folder, marker, row in ((stand_in, self.installed, "installed-row"),
+                                    (self.s.project, self.shadow, "project-row")):
+            package = folder / "hyperspace"
+            package.mkdir(parents=True)
+            note = "open(%r, 'a').write('ran\\n')\n" % str(marker)
+            (package / "__init__.py").write_text(note, encoding="utf-8")
+            (package / "cli.py").write_text(note + "import json\nprint(json.dumps({'ok': True, 'entry': {'id': %r}}))\n" % row,
+                                            encoding="utf-8")
+        site = next(path for path in self.s.env.rglob("site-packages") if path.is_dir())
+        (site / "zz_stand_in.pth").write_text(str(stand_in) + "\n", encoding="utf-8")
+
+    def assertInstalledRan(self):
+        self.assertFalse(self.shadow.exists(), "the project's own hyperspace package ran")
+        self.assertTrue(self.installed.exists(), "the environment's installed hyperspace never ran")
+
+    def test_the_bridges_worklog_append_runs_the_installed_engine(self):
+        server = load_server()
+        with self.s.in_process(), working_folder(self.s.project):
+            row = server.he_bridge.append(self.s.project, "x")
+        self.assertInstalledRan()
+        self.assertEqual(row["row_id"], "installed-row")
+
+    def test_setups_engine_check_loads_the_installed_engine(self):
+        spec = importlib.util.spec_from_file_location("env_gate_nc_setup", SETUP_SCRIPT)
+        setup = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(setup)
+        with self.s.in_process(), working_folder(self.s.project):
+            result = setup.engine_loads(setup.Ctx(self.s.project), launch_env().interpreter(str(self.s.env)))
+        self.assertEqual(result.code, 0, result.err)
+        self.assertInstalledRan()
 
 
 class WhatTheDirectoryScannerReads(unittest.TestCase):
