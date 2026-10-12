@@ -103,6 +103,14 @@ JQ_BUILDS = {
     ("windows", "arm64"): "jq-windows-amd64.exe",   # Windows on Arm runs the 64-bit Intel build
 }
 
+# What an engine from before the launcher (1.0.3) is answered with: the commands
+# are `claude plugin marketplace update` and `claude plugin update` (2.1.295).
+ENGINE_TOO_OLD = (
+    "the installed Hyperspace Engine is too old to check the workspace; in this folder run "
+    "`claude plugin marketplace update nova-caelum`, `claude plugin update technical-cofounder@nova-caelum` "
+    "and `claude plugin update hyperspace-engine@nova-caelum`, restart Claude Code, and run setup again"
+)
+
 # The verifier's judge. On Claude Code the default is Claude Code's own command
 # line, on the user's plan, with a modest model so a plan that runs Opus by
 # default does not spend Opus on every closure. `none` is always available.
@@ -797,12 +805,52 @@ def engine_loads(ctx, python):
     return ctx.run([str(python), "-c", "import hyperspace"], timeout=60)
 
 
+def engine_installs(entries):
+    """Hyperspace Engine's installs, the one switched on first."""
+    engines = [e for e in entries if e.get("id") == ENGINE_PLUGIN and e.get("installPath")]
+    engines.sort(key=lambda entry: not entry.get("enabled"))
+    return engines
+
+
+def env_record(ctx, install_path):
+    """What the installed engine's launcher says of the project's workspace,
+    without starting anything in it: "ok" (setup built it on this computer),
+    "unknown" (no record, or it changed since), "missing", "old" (an engine
+    from before the launcher, 1.0.3), or None when there was no answer."""
+    launcher = Path(install_path) / "hyperspace" / "provenance.py"
+    result = ctx.run([ctx.python, "-I", str(launcher), "check", ctx.project], timeout=60)
+    word = result.out.strip()
+    if (result.code, word) in ((0, "ok"), (3, "unknown"), (4, "missing")):
+        return word
+    if result.code == 2 and "can't open file" in result.err:
+        return "old"
+    return None
+
+
 def check_engine_env(ctx):
     env, python, served = engine_env(ctx)
     if not env.exists():
         return INSTALL, ("the workspace is not built yet" if ctx.project_dir.is_dir() else "waits for the project folder")
-    if not python.is_file():
-        return REPAIR, "the workspace folder is there but has no Python in it"
+    # A folder that came from somewhere else can ship a workspace: nothing in it
+    # is started until the engine's launcher says setup built it here.
+    if not working(ctx, "claude"):
+        return INSTALL, "waits for Claude Code's command line"
+    entries, problem = plugin_entries(ctx)
+    if problem:
+        return NEEDS_YOU, problem
+    engines = engine_installs(entries)
+    if not engines:
+        return INSTALL, "waits for Hyperspace Engine, which comes with your team"
+    record = env_record(ctx, engines[0]["installPath"])
+    if record == "old":
+        return NEEDS_YOU, ENGINE_TOO_OLD
+    if record == "missing":
+        return INSTALL, "the workspace is not built yet"
+    if record == "unknown":
+        return REPAIR, ("the workspace was built before setup kept a record of it, or not by setup on this "
+                        "computer; setup rebuilds it")
+    if record != "ok":
+        return NEEDS_YOU, "Hyperspace Engine could not check the workspace; run setup again"
     result = engine_loads(ctx, python)
     if result.code == 124:
         return NEEDS_YOU, "the workspace's Python did not answer within 60 seconds; run setup again"
@@ -971,21 +1019,24 @@ def judge_report(judge, why):
 
 def fix_engine_env(ctx, verdict):
     """Hand the build to the engine's own setup script, with this Python and
-    with uv's folder first on the child's PATH."""
+    with uv's folder first on the child's PATH. The engine's setup records the
+    workspace it builds. A workspace setup recorded is started once first, to
+    see whether signing it again is all it needs; any other is rebuilt, never
+    started."""
     env, python, _ = engine_env(ctx)
-    if python.is_file() and killed_on_launch(ctx, engine_loads(ctx, python)):
-        sign_again(ctx, python)
-        if engine_loads(ctx, python).code == 0:
-            return None
     if not working(ctx, "claude"):
         return "Claude Code's command line is not installed yet; install it first"
     entries, problem = plugin_entries(ctx)
     if problem:
         return problem
-    engines = [e for e in entries if e.get("id") == ENGINE_PLUGIN and e.get("installPath")]
-    engines.sort(key=lambda entry: not entry.get("enabled"))
+    engines = engine_installs(entries)
     if not engines:
         return "Hyperspace Engine is not installed yet; install your team first"
+    if (python.is_file() and env_record(ctx, engines[0]["installPath"]) == "ok"
+            and killed_on_launch(ctx, engine_loads(ctx, python))):
+        sign_again(ctx, python)
+        if engine_loads(ctx, python).code == 0:
+            return None
     child_env = dict(ctx.env)
     uv = working(ctx, "uv")
     if uv:
