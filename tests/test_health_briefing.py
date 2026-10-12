@@ -4,7 +4,8 @@ costs (plugins/technical-cofounder/hooks/session-preload.sh).
 Every test runs the real hook against a temp project and reads what it
 printed. The project's Hyperspace environment, where a test needs one, is a
 real virtual environment, so its interpreter starts the same way on every
-system. HOME and the tools folder are temp folders, so nothing on this machine
+system, recorded the way setup records one (bin/launch_env.py starts nothing
+else). HOME and the tools folder are temp folders, so nothing on this machine
 decides a result. Standard library only.
 """
 import json
@@ -20,16 +21,20 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
-from tests.test_plugin_hooks import BASH, PLUGIN_ROOT, PYTHON_NAMES, path_without, write_tool  # noqa: E402
+from tests.test_plugin_hooks import (  # noqa: E402
+    BASH, PLUGIN_ROOT, PYTHON_NAMES, path_without, plant_project_interpreters, register_env, write_tool)
 
 SETUP_RECORD = REPO_ROOT / "plugins" / "technical-cofounder-setup" / "bin" / "setup_record.py"
 
 ENGINE_LINE = ("Hyperspace Engine isn't set up in this project yet, so the task graph and the worklog tools are off. "
                'Fix: run /technical-cofounder-setup:start (or say "set up hyperspace").')
+UNKNOWN_LINE = ("This folder's Hyperspace environment was not built by setup on this computer, or was built before "
+                "setup kept a record of it, so the worklog server and the engine were not started. "
+                "Fix: run /technical-cofounder-setup:start and choose repair to rebuild it.")
 SERVER_LINE = "The team's worklog server could not start, so worklog tools are off. Fix: run /technical-cofounder-setup:start."
 JQ_LINE = "jq isn't installed, so the retry breaker and the word-budget checks are off. Fix: run /technical-cofounder-setup:start."
 PYTHON_LINE = "No Python was found, so the plugin overview could not be read. Fix: run /technical-cofounder-setup:start."
-HEALTH_LINES = (ENGINE_LINE, SERVER_LINE, JQ_LINE, PYTHON_LINE)
+HEALTH_LINES = (ENGINE_LINE, UNKNOWN_LINE, SERVER_LINE, JQ_LINE, PYTHON_LINE)
 HEADING = "## Health"
 CONTINUE_LINE = 'Say "continue setup" to pick any of these up.'
 TIME_LIMIT = 10  # seconds: the hook must be done by then, whatever is broken
@@ -53,11 +58,6 @@ class HealthBriefingTests(unittest.TestCase):
         cls.addClassCleanup(shutil.rmtree, cls.shared, ignore_errors=True)
         cls.env_template = cls.shared / "env"
         venv.EnvBuilder(with_pip=False, symlinks=os.name != "nt").create(cls.env_template)
-        if os.name == "nt":
-            # On Windows the engine keeps its interpreter in env\Scripts and
-            # links env\bin to it, because env/bin/python is what the team's
-            # server is started with.
-            shutil.copytree(cls.env_template / "Scripts", cls.env_template / "bin")
         cls.no_jq = path_without(cls.shared, "jq")
         cls.no_python = path_without(cls.shared, *PYTHON_NAMES, "py")
 
@@ -73,8 +73,9 @@ class HealthBriefingTests(unittest.TestCase):
 
     # ── fixtures ──────────────────────────────────────────────────────────
     def workspace(self):
-        """A Hyperspace environment whose interpreter really runs."""
+        """A Hyperspace environment whose interpreter really runs, recorded as setup records one."""
         shutil.copytree(self.env_template, self.project / ".hyperspace" / "env", symlinks=True)
+        register_env(self.project, self.home)
 
     def plugin_with_server(self, source):
         """A copy of the plugin whose server is `source`."""
@@ -114,10 +115,27 @@ class HealthBriefingTests(unittest.TestCase):
     def test_no_engine_workspace_is_named_once_and_alone(self):
         self.assert_faults(self.brief(), ENGINE_LINE)
 
-    def test_a_workspace_whose_interpreter_does_not_run_is_the_same_fault(self):
+    def test_a_recorded_workspace_whose_interpreter_does_not_run_is_the_same_fault(self):
         write_tool(self.project / ".hyperspace" / "env" / "bin" / "python", "#!/bin/bash\nexit 1\n")
         write_tool(self.project / ".hyperspace" / "env" / "Scripts" / "python.exe", "#!/bin/bash\nexit 1\n")
+        (self.project / ".hyperspace" / "env" / "pyvenv.cfg").write_text("home = /usr/bin\n", encoding="utf-8")
+        register_env(self.project, self.home)
         self.assert_faults(self.brief(), ENGINE_LINE)
+
+    def test_a_workspace_setup_has_no_record_of_is_named_and_never_started(self):
+        # What a folder from somewhere else ships, or one built before setup kept a record.
+        marker = self.tmp / "planted-started.log"
+        plant_project_interpreters(self.project, marker)
+        (self.project / ".hyperspace" / "env" / "pyvenv.cfg").write_text("home = /usr/bin\n", encoding="utf-8")
+        self.assert_faults(self.brief(), UNKNOWN_LINE)
+        self.assertFalse(marker.exists(), "the planted interpreter was started:\n" + (marker.read_text() if marker.exists() else ""))
+
+    def test_a_workspace_copied_from_another_folder_is_not_the_recorded_one(self):
+        self.workspace()
+        moved = self.tmp / "moved"
+        shutil.copytree(self.project, moved, symlinks=True)
+        self.project = moved
+        self.assert_faults(self.brief(), UNKNOWN_LINE)
 
     def test_a_server_that_exits_at_once_is_named(self):
         self.workspace()
@@ -150,19 +168,22 @@ class HealthBriefingTests(unittest.TestCase):
         self.assert_faults(out, ENGINE_LINE, PYTHON_LINE)
         self.assertNotIn("Tech primer", out, "a heading with nothing under it")
 
-    def test_with_no_python_on_path_the_workspace_interpreter_reads_the_overview(self):
-        # The last resort: nothing on PATH runs, the project's own interpreter
-        # does. Nothing is broken, so nothing is reported.
-        self.workspace()
+    def test_with_no_python_on_path_the_workspace_interpreter_is_never_the_stand_in(self):
+        # Not even as a last resort: a folder that came from somewhere else can
+        # ship a file there. With no Python of this computer's own, nothing is
+        # checked and nothing is started.
+        marker = self.tmp / "planted-started.log"
+        plant_project_interpreters(self.project, marker)
         out = self.brief(PATH=self.no_python)
-        self.assert_faults(out)
-        self.assertIn("- technical-cofounder: present", out)
+        self.assert_faults(out, ENGINE_LINE, PYTHON_LINE)
+        self.assertNotIn("Tech primer", out)
+        self.assertFalse(marker.exists(), "the planted interpreter was started:\n" + (marker.read_text() if marker.exists() else ""))
 
     def test_the_project_is_the_current_folder_when_claude_code_names_none(self):
-        # The hook falls back to the current folder; the search for an
-        # interpreter has to look in the same project the rest of it reads.
+        # The hook falls back to the current folder; the launcher has to check
+        # the same project the rest of it reads.
         self.workspace()
-        out = self.brief(cwd=self.project, CLAUDE_PROJECT_DIR=None, PATH=self.no_python)
+        out = self.brief(cwd=self.project, CLAUDE_PROJECT_DIR=None)
         self.assert_faults(out)
         self.assertIn("- technical-cofounder: present", out)
 
