@@ -11,6 +11,7 @@ what they printed: with jq on PATH, with jq only in the tools folder the
 install script uses, and with no jq anywhere.
 Standard library only.
 """
+import importlib.util
 import json
 import os
 import shutil
@@ -19,9 +20,27 @@ import tempfile
 import unittest
 import uuid
 from pathlib import Path
+from unittest import mock
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent / "plugins" / "technical-cofounder"
 HOOKS = json.loads((PLUGIN_ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
+LAUNCH_ENV = PLUGIN_ROOT / "bin" / "launch_env.py"
+
+
+def launch_env():
+    """bin/launch_env.py, the check every start of a project's .hyperspace/env goes through,
+    loaded from its file."""
+    spec = importlib.util.spec_from_file_location("launch_env_under_test", LAUNCH_ENV)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def register_env(project, home):
+    """Record the project's environment the way setup does (launch_env.register), in the
+    record under `home`: a scratch home, never this machine's."""
+    with mock.patch.dict(os.environ, {"HOME": str(home), "USERPROFILE": str(home)}):
+        return launch_env().register(str(project), by="tests")
 
 TOOL = {"tool_name": "Bash", "tool_input": {"command": "ls"}}
 EVENT_FIELDS = {

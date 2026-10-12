@@ -1,1 +1,3 @@
 * text=auto eol=lf
+# cmd.exe misreads a batch file with LF endings: keep .cmd files CRLF in every checkout.
+*.cmd text eol=crlf
