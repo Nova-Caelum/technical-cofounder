@@ -23,7 +23,11 @@ plugins folder is, in order:
 An install made for another project is not this project's engine.
 
 The script runs with `.hyperspace/env`'s Python, not the system python3: the
-engine needs 3.11 (tomllib) and the system one may be older.
+engine needs 3.11 (tomllib) and the system one may be older. That Python is
+started only when launch_env.py (beside this file) says setup built the
+environment on this computer. A folder that came from somewhere else can ship a
+file at .hyperspace/env/bin/python; for one with no record, nothing starts and
+the hook log gets the reason.
 
 The map must not show as modified in a user's git at every session start, and
 the engine stamps each run with the time. So once a map exists the engine writes
@@ -51,6 +55,11 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+_HERE = str(Path(__file__).resolve().parent)
+if _HERE not in sys.path:  # launch_env.py sits beside this file
+    sys.path.insert(0, _HERE)
+import launch_env  # noqa: E402
 
 MAP = "core_text/drive-map.md"
 ENGINE_PREFIX = "hyperspace-engine@"
@@ -118,12 +127,16 @@ def find_engine_script(project, folders):
 
 
 def engine_python(project):
-    """The project's own Hyperspace interpreter (Mac and Linux: bin/, Windows: Scripts/)."""
-    env = Path(project) / ".hyperspace" / "env"
-    for parts in (("bin", "python"), ("bin", "python.exe"), ("Scripts", "python.exe")):
-        if env.joinpath(*parts).is_file():
-            return env.joinpath(*parts)
-    return None
+    """The project's own Hyperspace interpreter (Mac and Linux: bin/, Windows: Scripts/), when
+    setup recorded its environment on this computer. Quiet, and nothing started, otherwise."""
+    status, python, reason = launch_env.verify(str(project))
+    if status == launch_env.MISSING:
+        raise Quiet("this project has no Hyperspace environment yet, so there is no drive map this session")
+    if status != launch_env.OK:
+        raise Quiet(f"this project's Hyperspace environment was not built by setup on this computer ({reason}), "
+                    "so nothing in it was started and there is no drive map this session; "
+                    "/technical-cofounder-setup:start and choose repair rebuilds it")
+    return Path(python)
 
 
 def same_apart_from_the_stamp(a, b):
@@ -153,8 +166,6 @@ def preload(project, seconds=RUN_SECONDS):
         if script is None:
             raise Quiet("Hyperspace Engine's drive_map.py was not found in the installed plugins, so there is no drive map this session")
         python = engine_python(project)
-        if python is None:
-            raise Quiet("this project has no Hyperspace environment yet, so there is no drive map this session")
         target = project / MAP
         with tempfile.TemporaryDirectory(prefix="drive-map-") as scratch:
             # The first map is written where it goes; later ones to a temporary file outside the project (a file

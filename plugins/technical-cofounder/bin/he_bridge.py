@@ -27,11 +27,19 @@ command, not a retry. Keys are appended as scalar strings before any table,
 never rewriting a line.
 
 Reads and writes go through HE's CLI contract (v0.1.2):
-    <project>/.hyperspace/env/bin/python -m hyperspace.cli worklog <verb> ... --json
+    <project>/.hyperspace/env/bin/python -P -m hyperspace.cli worklog <verb> ... --json
 (env/Scripts/python.exe on Windows) and come back in the shape TC's own tools
 return, with `file` None (the store is the record; TC never guesses HE's
 mirror filenames). Any CLI failure raises BridgeError naming the fix. There is
 no fallback to markdown: that would split the store.
+
+That interpreter is started only when launch_env.py (beside this file) says
+setup built the environment on this computer; otherwise the call raises
+BridgeError with the launcher's one line and starts nothing. A folder that came
+from somewhere else can ship a file at .hyperspace/env/bin/python, and `root`
+reaches the worklog tools from the model, so the check runs on every call. A
+project waiting for the handshake asks before anything else, so a refused
+folder also gets no key written.
 
 Standard library only; no tomllib (the hook runs on the user's python3).
 
@@ -39,12 +47,16 @@ CLI:
     python3 he_bridge.py preload <project>   the handshake + the worklog block
 """
 import json
-import os
 import re
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+_HERE = str(Path(__file__).resolve().parent)
+if _HERE not in sys.path:  # launch_env.py sits beside this file
+    sys.path.insert(0, _HERE)
+import launch_env  # noqa: E402
 
 OWNER_KEY = "worklog_owner"
 MIRROR_KEY = "worklog_mirror_dir"
@@ -56,9 +68,10 @@ PRELOAD_N = 3
 BODY_CAP = 400
 GEAR_LINE = "Hyperspace Engine is installed: use its gear* skills for the working loop."
 
-# The fix for a missing store or a missing interpreter: the setup command
-# first, then what to say when the setup plugin was never installed. The
-# session briefing's health lines name the same two, in the same order.
+# The fix for a missing store: the setup command first, then what to say when
+# the setup plugin was never installed. The session briefing's health lines
+# name the same two, in the same order. A missing or unrecorded environment is
+# named by launch_env's own line instead.
 SETUP_FIX = 'run /technical-cofounder-setup:start (or say "set up hyperspace")'
 FIXES = {
     2: "the hyperspace CLI refused the request as invalid; correct it and retry",
@@ -154,6 +167,7 @@ def handshake(root):
     try:
         current = mode(root)
         if current == "pending":
+            interpreter(root)  # an environment setup did not record: no key, no import
             if (root / ENTRIES).is_dir():
                 run_cli(root, "import", f"--from={ENTRIES}")
             _add_keys(root, {OWNER_KEY: TC_OWNER, MIRROR_KEY: ENTRIES})
@@ -175,16 +189,17 @@ def handshake(root):
 
 # ── the CLI ──────────────────────────────────────────────────────────────
 
-def _interpreters(root):
-    """HE's env interpreter layouts, this OS's own first."""
-    env = Path(root) / ".hyperspace" / "env"
-    posix, windows = env / "bin" / "python", env / "Scripts" / "python.exe"
-    return (windows, posix) if os.name == "nt" else (posix, windows)
-
-
 def interpreter(root):
-    """HE's interpreter for this project, or None when neither layout exists."""
-    return next((path for path in _interpreters(root) if path.exists()), None)
+    """HE's interpreter for this project, only when launch_env.verify says setup
+    built its environment on this computer. Otherwise BridgeError with the
+    launcher's one line, and nothing is started."""
+    status, python, reason = launch_env.verify(str(root))
+    if status != launch_env.OK:
+        raise BridgeError(
+            f"{launch_env.refusal(status, reason)} Nothing was written: while Hyperspace Engine holds this "
+            "project's worklog, TC never falls back to markdown."
+        )
+    return Path(python)
 
 
 def run_cli(root, verb, *args):
@@ -192,14 +207,9 @@ def run_cli(root, verb, *args):
     BridgeError on anything else."""
     root = Path(root)
     python = interpreter(root)
-    if python is None:
-        expected = _interpreters(root)[0].as_posix()
-        raise BridgeError(
-            f"the hyperspace CLI is missing ({expected} not found). Fix: {SETUP_FIX} to rebuild "
-            ".hyperspace/env. Nothing was written: while Hyperspace Engine holds this project's worklog, "
-            "TC never falls back to markdown."
-        )
-    cmd = [str(python), "-m", "hyperspace.cli", "worklog", verb, *args, f"--dir={root}", "--json"]
+    # -P: `-m` would put the current folder, the project, first on sys.path, and a
+    # project can ship a hyperspace package of its own.
+    cmd = [str(python), "-P", "-m", "hyperspace.cli", "worklog", verb, *args, f"--dir={root}", "--json"]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired) as exc:

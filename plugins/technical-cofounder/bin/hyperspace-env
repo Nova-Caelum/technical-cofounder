@@ -1,0 +1,39 @@
+#!/bin/sh
+# hyperspace-env: start this project's Hyperspace environment (.hyperspace/env)
+# only after launch_env.py, beside this file, has checked that setup built it
+# on this computer. The team's server starts here (.mcp.json). On Windows,
+# Claude Code runs hyperspace-env.cmd, beside this file, instead.
+#
+# Source: Nova Caelum (2026). License: MIT.
+#
+# The check runs on this computer's own Python, never one inside the project:
+# the first of these that starts (each is tried once, with nothing to read):
+#   python3, python, python3.13, python3.12, python3.11 on PATH
+#   ~/.local/bin/python3.13, .12, .11 (where uv puts the Pythons it installs)
+# Then: <that Python> -I launch_env.py run -- <the arguments given here>.
+
+project=${CLAUDE_PROJECT_DIR:-$PWD}
+here=${0%/*}
+[ "$here" != "$0" ] || here=.
+
+# True when a Python found this way lives in the project folder: a folder
+# that came from somewhere else can ship one, and PATH can lead to it.
+in_project() {
+    case $1 in /*) ;; *) return 0 ;; esac   # a relative path is relative to the project
+    folder=$(cd -P "${1%/*}" 2>/dev/null && pwd) || return 0
+    real=$(cd -P "$project" 2>/dev/null && pwd) || real=$project
+    case $folder/ in "$project"/* | "$real"/*) return 0 ;; esac
+    return 1
+}
+
+for name in python3 python python3.13 python3.12 python3.11 \
+    "$HOME/.local/bin/python3.13" "$HOME/.local/bin/python3.12" "$HOME/.local/bin/python3.11"; do
+    python=$(command -v "$name" 2>/dev/null) || continue
+    in_project "$python" && continue
+    if "$python" -S -c '' </dev/null >/dev/null 2>&1; then
+        exec "$python" -I "$here/launch_env.py" run -- "$@"
+    fi
+done
+
+echo "No Python was found on this computer, so Hyperspace could not start. Run /technical-cofounder-setup:start to install one." >&2
+exit 1

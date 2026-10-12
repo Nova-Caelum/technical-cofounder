@@ -1,6 +1,6 @@
 {
   "name": "technical-cofounder",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A technical team of four agents with guardrails and a worklog, working with Hyperspace Engine, which runs the loop and checks each task.",
   "author": {
     "name": "Nova Caelum",

@@ -214,6 +214,12 @@ Turn a goal into a plan, then carry it through with agents equipped to act. Foll
 - **Hooks, guidance, and a verifier** guide how the team works, keep claims grounded in evidence, and check that every i is dotted and every t is crossed before work is declared complete.
 - **A shared task graph** interface gives you and your agents a workspace to follow the plan together, see what needs attention, and move the work forward together.
 
+### A project's environment runs only if setup built it
+
+Hyperspace Engine keeps a private Python environment in each project, at `.hyperspace/env`. A folder you download or clone could ship its own file at that path, so the team never starts it directly: a small launcher first checks a record that setup keeps outside the project, in `~/.hyperspace/envs.json`, and starts the environment only if setup built it on this computer. Anything else is refused, and nothing in it runs.
+
+After updating from an earlier version, run `/technical-cofounder-setup:start` once and choose repair: it rebuilds each environment made before the record existed, and records it.
+
 <br>
 
 

@@ -70,6 +70,8 @@ class World:
         self.marketplaces = []
         self.plugins = []          # what `claude plugin list --json` prints
         self.env_state = {}        # project path -> "ok" | "broken" | "killed"
+        self.recorded = set()      # project paths whose workspace setup recorded (the engine's record)
+        self.old_engine = False    # the installed engine predates its launcher (hyperspace/provenance.py)
         self.network = (True, "HTTP 200")
         self.inert = set()         # installs that exit 0 and change nothing
         self.failing = set()       # installs that exit 1 and change nothing
@@ -151,6 +153,7 @@ class World:
             (env / "bin").mkdir(parents=True, exist_ok=True)
             (env / "bin" / "python").write_text("fake\n")
         self.env_state[str(project)] = "ok"
+        self.recorded.add(str(Path(project)))   # the engine's setup records what it builds
 
     def _land(self, name):
         exe = name + (".exe" if self.system == "windows" else "")
@@ -190,7 +193,15 @@ class World:
             project = rest[rest.index("--dir") + 1]
             return self._install("engine-env", lambda: self._build_env(project))
 
-        if rest == ["-c", "import hyperspace"]:
+        if len(rest) == 4 and rest[0] == "-I" and rest[1].endswith("provenance.py") and rest[2] == "check":
+            if self.old_engine:
+                return nc.Result(2, "", "%s: can't open file %r: [Errno 2] No such file or directory" % (name, rest[1]))
+            project = Path(rest[3])
+            if not (project / ".hyperspace" / "env").exists():
+                return nc.Result(4, "missing\n", "")
+            return nc.Result(0, "ok\n", "") if str(project) in self.recorded else nc.Result(3, "unknown\n", "")
+
+        if rest == ["-P", "-c", "import hyperspace"]:   # -P: never the project's own hyperspace package
             project = argv[0].replace("\\", "/").split("/.hyperspace/")[0]
             state = self.env_state.get(str(Path(project)), "broken")
             if state == "ok":
@@ -1166,8 +1177,45 @@ class EngineEnv(Case):
         self.assertEqual(self.verdict("engine-env"), "repair")
 
     def test_an_empty_environment_folder_is_repair(self):
-        (self.world.project / ".hyperspace" / "env").mkdir(parents=True)
+        self.world.finished()
+        env = self.world.project / ".hyperspace" / "env"
+        (env / "bin" / "python").unlink()
+        self.world.recorded.clear()   # what the engine's launcher says of a folder with no Python
         self.assertEqual(self.verdict("engine-env"), "repair")
+
+    def started_the_workspace(self):
+        """Every command that ran something inside the project's .hyperspace."""
+        inside = str(self.world.project / ".hyperspace")
+        return [c for c in self.world.calls if c[0].startswith(inside)]
+
+    def test_a_workspace_setup_has_no_record_of_is_repair_and_is_never_started(self):
+        # A folder from somewhere else, or one built before setup kept a record.
+        self.world.finished()
+        self.world.recorded.clear()
+        row = self.row("engine-env")
+        self.assertEqual(row["verdict"], "repair")
+        self.assertIn("before setup kept a record", row["detail"])
+        self.assertEqual(self.started_the_workspace(), [])
+        check = [c for c in self.world.calls if len(c) > 2 and c[2].endswith("provenance.py")]
+        self.assertTrue(check, "the engine's launcher was never asked")
+        self.assertEqual(check[0], [self.world.python, "-I", str(Path(ENGINE_PATH) / "hyperspace" / "provenance.py"),
+                                    "check", str(self.world.project)])
+
+    def test_an_engine_from_before_the_launcher_needs_you_to_update_the_plugins(self):
+        self.world.finished()
+        self.world.old_engine = True
+        row = self.row("engine-env")
+        self.assertEqual(row["verdict"], "needs-you")
+        for command in ("claude plugin marketplace update nova-caelum", "claude plugin update technical-cofounder@nova-caelum",
+                        "claude plugin update hyperspace-engine@nova-caelum"):
+            self.assertIn(command, row["detail"])
+        self.assertEqual(self.started_the_workspace(), [])
+
+    def test_a_workspace_is_not_checked_or_started_before_the_command_line_is_there(self):
+        (self.world.project / ".hyperspace" / "env" / "bin").mkdir(parents=True)
+        (self.world.project / ".hyperspace" / "env" / "bin" / "python").write_text("fake\n")
+        self.assertEqual(self.verdict("engine-env"), "install")
+        self.assertEqual(self.started_the_workspace(), [])
 
     def test_an_environment_that_never_answers_needs_you(self):
         self.world.finished()
@@ -1390,6 +1438,21 @@ class ApplyItem(Case):
         self.assertEqual(build[0][-2:], ["--judge", "openrouter"])
         child = self.world.child_envs[self.world.calls.index(build[0])]
         self.assertEqual(child.get("UV_VENV_CLEAR"), "1")   # uv will not build over an existing environment otherwise
+        self.assertEqual(doc["results"][0]["before"], "repair")
+        self.assertEqual(doc["results"][0]["after"], "ready")
+
+    def test_a_workspace_setup_has_no_record_of_is_rebuilt_and_never_started(self):
+        self.world.finished()
+        self.world.recorded.clear()
+        self.world.env_state[str(self.world.project)] = "killed"   # signing it again would have been tried before
+        code, doc = self.apply("engine-env")
+        self.assertEqual(code, 0)
+        self.assertEqual(self.world.installs, ["engine-env"])
+        build = [c for c in self.world.calls if len(c) > 1 and c[1].endswith("hyperspace_setup.py")]
+        before = self.world.calls[:self.world.calls.index(build[0])]
+        inside = str(self.world.project / ".hyperspace")
+        self.assertEqual([c for c in before if c[0].startswith(inside)], [], "the unrecorded workspace was started")
+        self.assertEqual(self.world.child_envs[self.world.calls.index(build[0])].get("UV_VENV_CLEAR"), "1")
         self.assertEqual(doc["results"][0]["before"], "repair")
         self.assertEqual(doc["results"][0]["after"], "ready")
 

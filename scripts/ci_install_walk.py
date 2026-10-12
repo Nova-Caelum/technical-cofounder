@@ -17,9 +17,12 @@ install script, and checks each result:
      `BOOTSTRAP=OK python=<path>`;
   4. with that Python: plan, apply --all into a project folder that does not
      exist yet, scan --record, and a second apply --all that changes nothing;
-  5. the team plugin as installed: its server started with the project's
-     workspace Python, one worklog entry written and read back, and its
-     session briefing run under bash;
+  5. the team plugin as installed: bin/launch_env.py is the pinned engine's
+     hyperspace/provenance.py byte for byte, setup recorded the workspace it
+     built, the team's server is started the way .mcp.json says (through
+     bin/hyperspace-env, or the .cmd beside it on Windows, which starts the
+     workspace only because of that record), one worklog entry is written and
+     read back, and the session briefing runs under bash;
   6. the guide's workspace step, then the briefing and the worklog again in
      the set-up project, where Hyperspace Engine's store takes the worklog.
 
@@ -65,8 +68,8 @@ TEAM = "technical-cofounder@nova-caelum"
 ENGINE = "hyperspace-engine@nova-caelum"
 SETUP = "technical-cofounder-setup@nova-caelum"
 ENGINE_URL = "https://github.com/Nova-Caelum/hyperspace-engine.git"
-ENGINE_SHA = "35263507143a5ed2a494d4ac977230eef8b0268e"   # tag hyperspace-engine--v1.0.0
-ENGINE_VERSION = "1.0.0"
+ENGINE_SHA = "59085f6cfdb8273c0fc9962fc90032aa13f5d861"   # hyperspace-engine#26 head (1.0.3); re-pin to tag hyperspace-engine--v1.0.3 after merge
+ENGINE_VERSION = "1.0.3"
 # A real catalog reached by a Git address, for the one check that needs a clone.
 GIT_CATALOG = "https://github.com/Nova-Caelum/technical-cofounder.git"
 
@@ -300,9 +303,10 @@ def install_path(entries, plugin_id):
     return entry["installPath"] if entry else None
 
 
-def server_command(entry, server, project, plugin_root):
+def server_command(entry, server, project, plugin_root, windows=False, is_file=os.path.isfile):
     """The command Claude Code starts for one of a plugin's servers, with the
-    two names it fills in filled in."""
+    two names it fills in filled in. On Windows a command with no extension is
+    the .cmd file beside it, which is what Claude Code runs there."""
     spec = (entry.get("mcpServers") or {}).get(server) if isinstance(entry, dict) else None
     if not isinstance(spec, dict) or not spec.get("command"):
         return None
@@ -310,7 +314,10 @@ def server_command(entry, server, project, plugin_root):
     def fill(text):
         return str(text).replace("${CLAUDE_PROJECT_DIR}", str(project)).replace("${CLAUDE_PLUGIN_ROOT}", str(plugin_root))
 
-    return [fill(spec["command"])] + [fill(arg) for arg in spec.get("args") or []]
+    argv = [fill(spec["command"])] + [fill(arg) for arg in spec.get("args") or []]
+    if windows and not os.path.splitext(argv[0])[1] and is_file(argv[0] + ".cmd"):
+        argv[0] = os.path.normpath(argv[0] + ".cmd")
+    return argv
 
 
 def server_requests(summary, project):
@@ -899,11 +906,19 @@ class Install:
         engine = plugin_entry(entries, ENGINE) or {}
         w.expect(engine.get("version") == ENGINE_VERSION,
                  "Hyperspace Engine is the pinned release %s (installed: %s)" % (ENGINE_VERSION, engine.get("version")))
-        env_dir = project / ".hyperspace" / "env"
-        python = env_dir / "Scripts" / "python.exe" if self.windows else env_dir / "bin" / "python"
-        code, _, _ = w.run([python, "-c", "import hyperspace, sys; print(hyperspace.__file__); print(sys.version)"],
-                           self.env, timeout=300)
-        w.expect(code == 0, "the workspace's Python runs and imports hyperspace")
+        ours = self.repo / "plugins" / "technical-cofounder" / "bin" / "launch_env.py"
+        theirs = Path(engine.get("installPath") or "") / "hyperspace" / "provenance.py"
+        w.expect(theirs.is_file() and ours.read_bytes() == theirs.read_bytes(),
+                 "the team's bin/launch_env.py is %s, byte for byte" % theirs)
+        # Through the team's launcher, the way everything in the team starts the workspace.
+        launcher = Path((plugin_entry(entries, TEAM) or {}).get("installPath") or "") / "bin" / "launch_env.py"
+        env = dict(self.env, CLAUDE_PROJECT_DIR=str(project))
+        code, out, _ = w.run([self.python, "-I", launcher, "check", project], env, timeout=300)
+        w.expect(code == 0 and out.strip() == "ok", "setup recorded the workspace it built (the launcher says %r)" % out.strip())
+        code, _, _ = w.run([self.python, "-I", launcher, "run", "--", "-P", "-c",
+                            "import hyperspace, sys; print(hyperspace.__file__); print(sys.version)"],
+                           env, cwd=project, timeout=300)
+        w.expect(code == 0, "the workspace's Python, started through the launcher, imports hyperspace")
         return entries
 
     def second_apply(self):
@@ -1001,12 +1016,12 @@ class Install:
         w = self.w
         project, root = self.project, team["installPath"]
         env = dict(self.env, CLAUDE_PROJECT_DIR=str(project), CLAUDE_PLUGIN_ROOT=str(root))
-        command = server_command(team, "caelum-dev-team", project=project, plugin_root=root)
+        command = server_command(team, "caelum-dev-team", project=project, plugin_root=root, windows=self.windows)
         if not w.expect(command is not None, "the team plugin declares its `caelum-dev-team` server: %s" % command):
             return None
         summary = "install walk %s" % uuid.uuid4().hex
         code, out, _ = w.run(command, env, cwd=project, timeout=300, text_in=server_requests(summary, project))
-        w.expect(code == 0, "the server, started with the project's workspace Python, ends cleanly when its input closes")
+        w.expect(code == 0, "the server, started the way .mcp.json says, ends cleanly when its input closes")
         w.none_of(server_problems(out, summary),
                   "it answers `initialize`, takes one worklog entry and gives the same entry back")
         if also:

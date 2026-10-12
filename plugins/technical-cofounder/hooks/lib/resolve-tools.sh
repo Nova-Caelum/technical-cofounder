@@ -19,24 +19,17 @@
 #                $HOME/.local/bin/python3.13, .12, .11 (the links uv leaves
 #                there, for a hook whose PATH lacks that folder)
 #              `py -3` is printed as the interpreter it starts, so the result
-#              is always one word a hook can run. A hook whose script needs
-#              only the standard library uses this one: it can never start a
-#              file the project folder ships.
-#   nc_resolve_python
-#              is defined, and not called. It prints what
-#              nc_resolve_system_python finds and, when that is nothing, the
-#              first of these that runs, or nothing:
-#                ${CLAUDE_PROJECT_DIR}/.hyperspace/env/bin/python
-#                ${CLAUDE_PROJECT_DIR}/.hyperspace/env/Scripts/python.exe
-#              The project's own interpreter is the last resort, never the
-#              first choice: a downloaded repository can ship a file at that
-#              path, and a hook must not start it while this machine has a
-#              Python of its own. Use it only where the script needs the
-#              project's environment.
+#              is always one word a hook can run. It never looks inside the
+#              project: a folder that came from somewhere else can ship a file
+#              at .hyperspace/env/bin/python, and a hook must not start it.
+#              A script that needs the project's environment starts it through
+#              bin/launch_env.py, which checks that setup built it on this
+#              computer.
 #
-# Python is looked for only by the hook that uses it (session-preload.sh):
-# finding it means starting it, and the guardrail hooks run on every prompt
-# and every tool call without needing it.
+# Python is looked for only by the hooks that use it (session-preload.sh,
+# cli-freshness.sh, run-system-python.sh): finding it means starting it, and
+# the guardrail hooks run on every prompt and every tool call without needing
+# it.
 #
 # Why "runs" and not just "exists": a file can be there and still not start
 # (the Windows Store alias named python3, a binary the system refuses to
@@ -75,23 +68,6 @@ nc_resolve_system_python() {
     for name in "${versioned[@]}"; do
         candidate="$HOME/.local/bin/$name"
         if { [ -f "$candidate" ] || [ -f "$candidate.exe" ]; } && "$candidate" -S -c '' </dev/null >/dev/null 2>&1; then
-            printf '%s' "$candidate"
-            return 0
-        fi
-    done
-    return 0
-}
-
-nc_resolve_python() {
-    local project="${CLAUDE_PROJECT_DIR:-}" candidate found
-    found="$(nc_resolve_system_python)"
-    if [ -n "$found" ]; then
-        printf '%s' "$found"
-        return 0
-    fi
-    [ -n "$project" ] || return 0
-    for candidate in "$project/.hyperspace/env/bin/python" "$project/.hyperspace/env/Scripts/python.exe"; do
-        if [ -f "$candidate" ] && "$candidate" -S -c '' </dev/null >/dev/null 2>&1; then
             printf '%s' "$candidate"
             return 0
         fi

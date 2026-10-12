@@ -114,7 +114,7 @@ class Manifest(unittest.TestCase):
     def test_name_version_and_description(self):
         m = manifest(SETUP)
         self.assertEqual(m["name"], "technical-cofounder-setup")
-        self.assertEqual(m["version"], "0.1.0")
+        self.assertEqual(m["version"], "0.1.1")
         self.assertTrue(m["description"].strip())
         self.assertEqual(m["description"].strip().count(". "), 0, "one sentence")
 
