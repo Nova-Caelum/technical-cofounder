@@ -94,7 +94,7 @@ Hyperspace Engine arrives with your team: it is the team plugin's dependency, so
 
 - **Used by:** Hyperspace Engine (the working loop, the task graph and the check that closes each task), and the team's `caelum-dev-team` worklog server, which runs on this environment's Python.
 - **Without it:** the loop can't run and the worklog tools don't appear.
-- **Check:** the environment's Python runs and can load Hyperspace Engine.
+- **Check:** the engine's launcher confirms setup built this workspace on this computer (it keeps a record in `~/.hyperspace/envs.json`), and only then is the environment's Python run, to see that it loads Hyperspace Engine. A workspace with no record (built before setup kept one, or one that came inside a downloaded folder) is never started: setup rebuilds it.
 - **Install:** run `/technical-cofounder-setup:start` inside the project. It rebuilds the workspace.
 
 ### Obsidian (optional)
