@@ -43,6 +43,8 @@ def run_hook(name, payload, env_extra=None, raw_input=None):
     env.pop("TC_CONCISION", None)
     if env_extra:
         env.update(env_extra)
+    # Supply the same plugin-root contract as the real hook loader.
+    env["CLAUDE_PLUGIN_ROOT"] = str(PLUGIN_ROOT)
     stdin_text = raw_input if raw_input is not None else json.dumps(payload)
     return subprocess.run(
         [BASH, str(HOOKS_DIR / name)],

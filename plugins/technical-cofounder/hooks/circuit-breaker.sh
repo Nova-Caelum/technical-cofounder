@@ -101,13 +101,7 @@ normalize_error_class() {
     fi
     local norm="$raw"
     norm="$(printf '%s' "$norm" | tr '[:upper:]' '[:lower:]' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/<uuid>/g' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E "s/'[^']*'/<lit>/g" 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's/"[^"]*"/<lit>/g' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's#(/[A-Za-z0-9._~-]+){2,}/?#<path>#g' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's/0x[0-9a-f]+/<hex>/g' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's/[0-9]+/<n>/g' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's/[A-Za-z0-9]{20,}/<token>/g' 2>/dev/null)" || :
+    norm="$(printf '%s' "$norm" | sed -E -f "${CLAUDE_PLUGIN_ROOT}/hooks/lib/normalize-error.sed" 2>/dev/null)" || :
     norm="$(printf '%s' "$norm" | tr -s '[:space:]' ' ' 2>/dev/null)" || :
     norm="${norm:0:500}"
     printf '%s' "$norm"
