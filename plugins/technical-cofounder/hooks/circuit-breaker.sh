@@ -165,13 +165,15 @@ handle_pretooluse() {
     [ -d "$session_dir" ] || return 0
 
     local f count
-    for f in "$session_dir/failclass-${tool_key}-"*.count; do
+    # find with a quoted -name pattern, not a shell glob: the plugin directory
+    # refuses globs in commands it follows (COMMAND_PATH_COMPUTED).
+    while IFS= read -r f; do
         [ -e "$f" ] || continue
         count="$(count_lines "$f")"
         if [ "$session_confident" -eq 1 ] && [ "$count" -ge "$BLOCK_THRESHOLD" ]; then
             block_and_exit "$tool_name" "$count"   # never returns
         fi
-    done
+    done < <(find "$session_dir" -maxdepth 1 -type f -name "failclass-${tool_key}-*.count" 2>/dev/null)
     return 0
 }
 
@@ -180,7 +182,10 @@ handle_posttooluse() {
     local session_key tool_key
     session_key="$(sanitize_key "${session_id:-}" "nosession")"
     tool_key="$(sanitize_key "$tool_name" "unknown-tool")"
-    rm -f "$(resolve_state_dir "$session_key" "$agent_id")/failclass-${tool_key}-"*.count 2>/dev/null || true
+    local state_dir
+    state_dir="$(resolve_state_dir "$session_key" "$agent_id")"
+    [ -d "$state_dir" ] || return 0
+    find "$state_dir" -maxdepth 1 -type f -name "failclass-${tool_key}-*.count" -delete 2>/dev/null || true
     return 0
 }
 

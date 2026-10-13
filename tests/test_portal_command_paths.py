@@ -7,6 +7,7 @@ from pathlib import Path
 
 HOOKS = Path(__file__).resolve().parents[1] / "plugins" / "technical-cofounder" / "hooks"
 INLINE = re.compile(r"""\b(awk\s+'|perl\s+-e|python3?\s+-c|node\s+-e)""")
+UNQUOTED_GLOB = re.compile(r'"\*|[^\s\'"]\*\.[A-Za-z]+(\s|;|$)')
 COMPUTED_EXEC = re.compile(r"""^\s*exec\s+"\$(?!\{CLAUDE_PLUGIN_ROOT\})""")
 
 
@@ -25,6 +26,15 @@ class PortalCommandPathTests(unittest.TestCase):
         for path in self.scripts():
             for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
                 self.assertIsNone(COMPUTED_EXEC.search(line), f"{path.name}:{n}: {line.strip()}")
+
+    def test_no_hook_script_uses_a_shell_glob_on_a_path(self):
+        # Portal probes i/j (2026-10-13): circuit-breaker's `"$dir/x-"*.count`
+        # globs blocked; quoted find -name patterns pass.
+        for path in self.scripts():
+            for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if line.lstrip().startswith("#") or "-name " in line:
+                    continue
+                self.assertIsNone(UNQUOTED_GLOB.search(line), f"{path.name}:{n}: {line.strip()}")
 
 
 if __name__ == "__main__":
