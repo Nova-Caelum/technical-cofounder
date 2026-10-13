@@ -46,8 +46,8 @@ continue or repair? Read **Repair and another project** first.
 
 ## Where the project goes
 
-1. Ask, in these words: "We're going to make a specific folder for your
-   agents to live and own. Where would you like it to be? And what would you
+1. Ask, in these words: "We're going to make a specific folder for your agents to live and own.
+   Where would you like it to be? And what would you
    like it to be called?" If they ask why, say: "It will make things more
    secure to confine your agents to one folder where they can work freely
    without having to touch everything else in your computer."
