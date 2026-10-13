@@ -813,6 +813,13 @@ class Install:
             fine = w.expect(branch in wanted, "about Git, the first step ruled: %s" % branch)
             fine = w.expect("\\" not in value and "\ufffd" not in out,
                             "the Python path is printed with forward slashes and as readable UTF-8: %s" % value) and fine
+            if not self.env.get("UV_PYTHON_INSTALL_DIR"):
+                # The product chooses the folder, never %APPDATA%: the desktop
+                # app redirects that one into a private copy (live test 2).
+                home = os.path.join(self.env.get("USERPROFILE", "~"), ".local\\share\\uv\\python")
+                under = _plain(value).startswith(_plain(home) + "\\")
+                fine = w.expect(under, "the first step had uv put Python under the profile, in %s: %s" % (home, value)) and fine
+                w.note("PYTHON_UNDER_PROFILE=%s" % ("PASS" if under else "FAIL"))
             if fine and self.powershell_version.startswith("5.1."):
                 w.note("WINDOWS_FIRST_STEP=PASS powershell=%s git_hidden=%s branch=%s" % (
                     self.powershell_version, "no (it was uninstalled, then installed by the first step)" if self.fresh_pc else "yes", branch))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sends a /technical-cofounder:contact message to Nova Caelum.
+"""Sends a /technical-cofounder:contact-nova-caelum message to Nova Caelum.
 
 Usage:
     python3 contact.py send <message-file> --email <reply-address>

@@ -1,6 +1,6 @@
 ---
 name: contact-nova-caelum
-description: Use when the user wants to get in touch with the founder or with Nova Caelum — they say "contact", "message the founder", "talk to someone", "I need help", "report a bug", "I have feedback" or "I have an idea", or they run /contact. Also offer it once yourself when something keeps failing. Do NOT use for questions you can answer yourself.
+description: Use when the user wants to get in touch with the founder or with Nova Caelum — they say "contact", "message the founder", "talk to someone", "I need help", "report a bug", "I have feedback" or "I have an idea", or they run /technical-cofounder:contact-nova-caelum. Also offer it once yourself when something keeps failing. Do NOT use for questions you can answer yourself.
 ---
 
 # Contact Nova Caelum

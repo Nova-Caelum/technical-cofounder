@@ -90,7 +90,7 @@
     {
       "id": "prerequisites",
       "title": "Quick questions and the basics",
-      "does": "Asks what to call your project and where it should live, then checks this computer, installs only what's missing, and creates your project folder with your team in it.",
+      "does": "Asks where your agents' own folder should live and what to call it, then checks this computer, installs only what's missing, and creates your project folder with your team in it.",
       "why": "Your team needs a folder of its own and a few free tools before it can start.",
       "skippable": false,
       "if_skipped": "Not skippable: without these your team can't start.",

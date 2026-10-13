@@ -337,10 +337,11 @@ class ShippedWiringTests(unittest.TestCase):
         self.assertRegex(cfg["endpoint"], r"^https://[a-z0-9.-]+/contact$")
 
     def test_command_and_skill(self):
+        # One contact entry in the slash menu: the skill. The bare /contact
+        # command did the same thing under a less telling name (live test 2).
         cmds = PLUGIN_ROOT / "commands"
-        self.assertTrue((cmds / "contact.md").is_file())
+        self.assertFalse((cmds / "contact.md").exists())
         self.assertFalse((cmds / "ask.md").exists())
-        self.assertIn("contact-nova-caelum", (cmds / "contact.md").read_text(encoding="utf-8"))
         skill = (PLUGIN_ROOT / "skills" / "contact-nova-caelum" / "SKILL.md").read_text(encoding="utf-8")
         flat = " ".join(skill.split())
         for needle in (

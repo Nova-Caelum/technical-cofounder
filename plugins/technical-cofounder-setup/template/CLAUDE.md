@@ -36,4 +36,4 @@ present or missing, and how far setup has got.
 
 Run `/technical-cofounder-setup:start`, or say "continue setup", any time. It
 never overwrites a file that's already here. Stuck, found a bug, or have an idea?
-`/technical-cofounder:contact` reaches Nova Caelum.
+`/technical-cofounder:contact-nova-caelum` reaches Nova Caelum.

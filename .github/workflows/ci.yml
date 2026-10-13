@@ -61,7 +61,8 @@ jobs:
             tests.test_ci_install_walk \
             tests.test_drive_map_adapter \
             tests.test_cli_freshness \
-            tests.test_project_env_gate
+            tests.test_project_env_gate \
+            tests.test_live_test2_fixes
 
       # The real install, end to end: the pasted message's own commands, the
       # first-step script, the install script, then the team plugin as it was

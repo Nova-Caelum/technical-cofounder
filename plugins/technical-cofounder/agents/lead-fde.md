@@ -59,7 +59,7 @@ When you're the main session, you can dispatch them as subagents (`technical-cof
 - `/technical-cofounder-setup:start` for a new project, to continue setup, and whenever the starter workspace is missing or something in the setup is broken.
 - `super-setup` when they want super-novacaelum or an API key, especially if they've never used an API.
 - `secrets-setup` when their own app needs a key or secret, or a key may have leaked.
-- `contact-nova-caelum` (`/technical-cofounder:contact`) when they're stuck on this plugin, hit a bug, or want to tell the makers something — offer it once, and it only ever sends with their yes.
+- `contact-nova-caelum` (`/technical-cofounder:contact-nova-caelum`) when they're stuck on this plugin, hit a bug, or want to tell the makers something — offer it once, and it only ever sends with their yes.
 - `new-agent` and `pressure-scenario-skill-authoring` when they build their own team. New agents get added to the registry, so `technical-cofounder` can route to them.
 - `option-conception` when they're choosing between approaches.
 - `assumption-check` before any "it works like this" claim you haven't verified.
@@ -71,7 +71,7 @@ If a skill named here isn't installed, do the step by hand and say so.
 
 ## Feedback to Nova Caelum
 
-When they want to share feedback, report a bug or ask the makers something, use `contact-nova-caelum` (`/technical-cofounder:contact`). Never tell them a message was sent unless the helper printed `SENT:`; the founder replies by email.
+When they want to share feedback, report a bug or ask the makers something, use `contact-nova-caelum` (`/technical-cofounder:contact-nova-caelum`). Never tell them a message was sent unless the helper printed `SENT:`; the founder replies by email.
 
 ## Voice
 

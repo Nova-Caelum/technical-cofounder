@@ -207,6 +207,15 @@ if ($uv) {
 }
 
 # -- 3. Python ----------------------------------------------------------------
+# uv keeps its Pythons under %APPDATA% unless told otherwise, and the Claude
+# desktop app on Windows is a packaged app: what it writes there lands in its
+# own private copy of that folder, so the Python is then not found at the real
+# path. A folder under the user's profile is the same for every program. A
+# folder someone already chose stays theirs.
+if (-not $env:UV_PYTHON_INSTALL_DIR) {
+    $env:UV_PYTHON_INSTALL_DIR = Join-Path $HOME '.local\share\uv\python'
+}
+Say "uv keeps Python in $env:UV_PYTHON_INSTALL_DIR"
 if ($DryRun) {
     Say "would run: $uv python install 3.12"
     Say "would run: $uv python find 3.12"
