@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/run-system-python.sh \"${CLAUDE_PLUGIN_ROOT}/hooks/drive_map_write.py\""
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/drive-map-write.sh"
           }
         ]
       }

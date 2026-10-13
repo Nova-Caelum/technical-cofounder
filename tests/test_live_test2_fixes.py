@@ -305,6 +305,45 @@ class F14bTheRealErrorLine(unittest.TestCase):
         self.assertNotIn("git restore", note)
 
 
+class DirectoryPortalOnePathPerCommand(unittest.TestCase):
+    """Anthropic's directory validator (COMMAND_PATH_COMPUTED) reads one path
+    per command. Every command the team plugin declares names exactly one file,
+    spelled from ${CLAUDE_PLUGIN_ROOT}, and passes no path as an argument."""
+
+    ROOT = "${CLAUDE_PLUGIN_ROOT}"
+
+    def assertOnePath(self, command, args=()):
+        self.assertEqual(command.count(self.ROOT), 1, command)
+        rest = command.replace('"%s"' % self.ROOT, self.ROOT, 1)
+        self.assertTrue(rest.startswith(self.ROOT + "/"), command)
+        relative = rest[len(self.ROOT) + 1:]
+        self.assertRegex(relative, r"^[A-Za-z0-9_./-]+$", "one literal path, nothing after it: %s" % command)
+        self.assertTrue((TEAM / relative).is_file(), "%s is not a file in the plugin" % relative)
+        for arg in args:
+            self.assertNotRegex(str(arg), r"[/\\]|\$\{", "a path-valued argument: %s" % arg)
+
+    def test_every_server_command(self):
+        servers = json.loads((TEAM / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"]
+        self.assertTrue(servers)
+        for name, spec in servers.items():
+            with self.subTest(server=name):
+                self.assertOnePath(spec["command"], spec.get("args") or ())
+
+    def test_every_hook_command(self):
+        events = json.loads((TEAM / "hooks" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
+        commands = [h["command"] for groups in events.values() for g in groups for h in g["hooks"]]
+        self.assertTrue(commands)
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertOnePath(command)
+
+    def test_each_extensionless_server_entry_has_a_windows_twin(self):
+        for spec in json.loads((TEAM / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"].values():
+            entry = TEAM / spec["command"].split("/", 1)[1]
+            if not entry.suffix:
+                self.assertTrue(entry.with_name(entry.name + ".cmd").is_file(), entry)
+
+
 class Versions(unittest.TestCase):
     def test_every_changed_plugin_was_bumped(self):
         for plugin, before in (("technical-cofounder", "0.2.1"), ("technical-cofounder-setup", "0.1.1"),

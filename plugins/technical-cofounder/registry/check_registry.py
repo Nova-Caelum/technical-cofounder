@@ -76,7 +76,10 @@ def served_mcp_tools(failures):
     for server, cfg in json.loads(mcp_json.read_text(encoding="utf-8")).get("mcpServers", {}).items():
         if "command" not in cfg:
             continue  # not a local stdio server
-        argv = [sys.executable, *(str(a).replace("${CLAUDE_PLUGIN_ROOT}", str(PLUGIN)) for a in cfg.get("args", []))]
+        # A command with no arguments is bin/team-server, which hands
+        # mcp/server.py to the launcher.
+        args = cfg.get("args") or ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"]
+        argv = [sys.executable, *(str(a).replace("${CLAUDE_PLUGIN_ROOT}", str(PLUGIN)) for a in args)]
         try:
             env = {**os.environ, "CLAUDE_PLUGIN_ROOT": str(PLUGIN), "PYTHONDONTWRITEBYTECODE": "1"}
             out = subprocess.run(argv, input=requests, capture_output=True, text=True, timeout=15, env=env).stdout

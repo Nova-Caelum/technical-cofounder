@@ -1,0 +1,12 @@
+#!/bin/sh
+# team-server: start the team's worklog server (mcp/server.py) through
+# hyperspace-env, beside this file, which starts it only in a Hyperspace
+# environment setup built on this computer. .mcp.json names this one file and
+# no arguments: Anthropic's plugin directory reads one path per command. On
+# Windows, Claude Code runs team-server.cmd, beside this file, instead.
+#
+# Source: Nova Caelum (2026). License: MIT.
+
+here=${0%/*}
+[ "$here" != "$0" ] || here=.
+exec "$here/hyperspace-env" "$here/../mcp/server.py" "$@"

@@ -75,7 +75,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           shellcheck plugins/technical-cofounder/hooks/*.sh plugins/technical-cofounder/hooks/lib/*.sh
-          shellcheck plugins/technical-cofounder/bin/hyperspace-env
+          shellcheck plugins/technical-cofounder/bin/hyperspace-env plugins/technical-cofounder/bin/team-server
           shellcheck plugins/technical-cofounder-setup/installer/bootstrap.sh
 
       - name: Leak scan (full history)

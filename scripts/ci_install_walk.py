@@ -20,8 +20,9 @@ install script, and checks each result:
   5. the team plugin as installed: bin/launch_env.py is the pinned engine's
      hyperspace/provenance.py byte for byte, setup recorded the workspace it
      built, the team's server is started the way .mcp.json says (through
-     bin/hyperspace-env, or the .cmd beside it on Windows, which starts the
-     workspace only because of that record), one worklog entry is written and
+     bin/team-server, which hands it to bin/hyperspace-env, or the .cmd files
+     beside them on Windows; the workspace starts only because of that
+     record), one worklog entry is written and
      read back, and the session briefing runs under bash;
   6. the guide's workspace step, then the briefing and the worklog again in
      the set-up project, where Hyperspace Engine's store takes the worklog.
@@ -995,7 +996,7 @@ class Install:
                  "the map %s written" % ("was" if has_tree else "was not (an engine without `tree` mode)"))
 
         declared = json_document((Path(root) / "hooks" / "hooks.json").read_text(encoding="utf-8"))
-        commands = [c for c in hook_commands(declared, "PreToolUse") if "drive_map_write.py" in c]
+        commands = [c for c in hook_commands(declared, "PreToolUse") if "drive-map-write.sh" in c]
         if not w.expect(len(commands) == 1, "the team plugin declares its Write hook for PreToolUse: %s" % commands):
             return
         stand_in = project / "core_text" / "drive-map.md"
