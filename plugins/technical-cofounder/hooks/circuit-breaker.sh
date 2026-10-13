@@ -75,13 +75,13 @@ BLOCK_THRESHOLD=5
 class_key_hash() {
     local norm="$1" out=""
     if command -v shasum >/dev/null 2>&1; then
-        out="$(printf '%s' "$norm" | shasum -a 256 2>/dev/null | awk '{print substr($1,1,16)}')" || out=""
+        out="$(printf '%s' "$norm" | shasum -a 256 2>/dev/null | cut -c1-16)" || out=""
     fi
     if [ -z "$out" ] && command -v md5 >/dev/null 2>&1; then
-        out="$(printf '%s' "$norm" | md5 2>/dev/null | awk '{print substr($1,1,16)}')" || out=""
+        out="$(printf '%s' "$norm" | md5 2>/dev/null | cut -c1-16)" || out=""
     fi
     if [ -z "$out" ] && command -v md5sum >/dev/null 2>&1; then
-        out="$(printf '%s' "$norm" | md5sum 2>/dev/null | awk '{print substr($1,1,16)}')" || out=""
+        out="$(printf '%s' "$norm" | md5sum 2>/dev/null | cut -c1-16)" || out=""
     fi
     if [ -z "$out" ]; then
         out="$(printf '%s' "$norm" | tr -cd 'a-z0-9' 2>/dev/null | cut -c1-40)" || out=""

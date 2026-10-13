@@ -515,7 +515,7 @@ class WriteHookRegistrationTests(unittest.TestCase):
         self.assertEqual(hook["type"], "command")
         self.assertEqual(hook["command"], '"${CLAUDE_PLUGIN_ROOT}"/hooks/drive-map-write.sh')
         wrapper = (PLUGIN / "hooks" / "drive-map-write.sh").read_text(encoding="utf-8")
-        self.assertIn('"$HERE/run-system-python.sh" "$HERE/drive_map_write.py"', wrapper)
+        self.assertIn('exec "${CLAUDE_PLUGIN_ROOT}/hooks/run-system-python.sh" "${CLAUDE_PLUGIN_ROOT}/hooks/drive_map_write.py"', wrapper)
         self.assertNotIn(".hyperspace", hook["command"])
         self.assertNotIn("CLAUDE_PROJECT_DIR", hook["command"])
         wildcard = [g for g in HOOKS["PreToolUse"] if g.get("matcher") == "*"]
@@ -524,12 +524,13 @@ class WriteHookRegistrationTests(unittest.TestCase):
     def test_the_hook_is_python_not_shell(self):
         self.assertTrue(WRITE_HOOK.is_file())
         self.assertTrue(WRITE_HOOK.read_text(encoding="utf-8").startswith("#!/usr/bin/env python3"))
-        # The one shell file is the two-line wrapper hooks.json names: it only
-        # hands drive_map_write.py to run-system-python.sh.
+        # The one shell file is the one-line wrapper hooks.json names: it only
+        # hands drive_map_write.py to run-system-python.sh, by literal
+        # ${CLAUDE_PLUGIN_ROOT} paths (the directory portal refuses computed ones).
         (wrapper,) = (PLUGIN / "hooks").glob("*write*.sh")
         code = [ln for ln in wrapper.read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")]
-        self.assertEqual(len(code), 2, code)
-        self.assertTrue(code[1].startswith("exec "), code)
+        self.assertEqual(len(code), 1, code)
+        self.assertTrue(code[0].startswith('exec "${CLAUDE_PLUGIN_ROOT}/hooks/'), code)
 
     def run_declared(self, m, path, **env):
         (command,) = [h["command"] for g in self.groups() for h in g["hooks"]]
