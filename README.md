@@ -138,6 +138,8 @@ This message is for Claude Code. If you cannot run commands here (for example, t
 
 Stuck at any point? Run `/technical-cofounder:contact-nova-caelum`, or email hello@novacaelum.com. The founder reads every message.
 
+**What leaves your computer.** Only `/technical-cofounder:contact-nova-caelum` sends anything to Nova Caelum: the message you write and the reply email you give, sent to our contact service (`tc-contact.novacaelum-ops.workers.dev`), which stores them and forwards them to the founder by Telegram and email so we can reply. We use your email only to reply to your feedback: never for marketing emails, and we never sell or share it. We keep the message until you ask us to delete it (hello@novacaelum.com). Nothing else in Technical Cofounder sends your data anywhere; your worklog, tasks and notes stay on your machine.
+
 <br>
 
 
