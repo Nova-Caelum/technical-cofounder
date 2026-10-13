@@ -7,10 +7,8 @@ name: DevOps-Lead PR Review
 # behaviour, PR + review in the devops-lead repo, then bump this pin in a
 # one-line PR here. Never re-point to @main.
 #
-# PINNED 0d1b16c — the last commit that touched the reusable workflow
-# (2026-07-31, "parameterize reusable workflow for multi-tenant callers").
-# Same pin as every other Nova-Caelum caller, so all callers execute identical
-# review logic.
+# PINNED 9bafb29 — canonical persona sync, repo policy deferral, Bot-only
+# author hold and separate review-failed infrastructure labels (devops-lead#4).
 #
 # Fork PRs: the `if:` below restricts this job to same-owner PRs. A PR from a
 # fork is SKIPPED, never run blind — GitHub withholds secrets from fork
@@ -32,7 +30,7 @@ jobs:
       issues: write
       actions: read
       id-token: write
-    uses: Nova-Caelum/devops-lead/.github/workflows/devops-lead-pr-review.yml@fd0398b73ae19513b378d8a558aa295b877763bb
+    uses: Nova-Caelum/devops-lead/.github/workflows/devops-lead-pr-review.yml@9bafb290bf2473beedfdcbd4cb7461ccdb82064b
     secrets: inherit
     with:
       persona_source_repo: 'Nova-Caelum/devops-lead'
@@ -41,6 +39,7 @@ jobs:
       auto_merge_paths: |
         EVERY path in this repo is AUTO-MERGE-SAFE when the diff trips none of the escalate conditions below. Path alone never decides: classify by what the diff DOES, per the numbered escalate list. Routine traffic for this repo — merge it confidently — is: prose edits to README.md, NOTICE, THIRD_PARTY_NOTICES.md and any skills/**/SKILL.md body or references/** file; agent-persona prose under plugins/*/agents/*.md that changes wording without changing tools, model, or allowed-tools frontmatter; command bodies under plugins/*/commands/*.md; added test cases under tests/** that only ADD assertions; .gitignore. A file DELETION that matches the PR's stated scope (a retirement, a fold, a supersede) is normal work and merges.
       escalate_paths: |
+        The numbered conditions below are this repo's authoritative escalate list; defer to them instead of the persona's default list, preserving its default-merge posture, security asymmetry and no additional path-only holds.
         (1) SECRET MATERIAL in the diff — a key, token, password, private key or OAuth/refresh token, a dollar-brace VAR in an .mcp.json secret field, a secret reaching hook stdout, `set -x`, or `curl -v`. Treat any credential-shaped string as escalate even when it looks like a placeholder, a sample or an example value.
         (2) A FETCH FROM AN UNTRUSTED SOURCE inside a hook, skill, installer, MCP module or agent persona — curl/wget/fetch/urllib/requests to a URL that is not ours or a known-trusted source, `pip install`/`npm install` from an unpinned or non-registry source, instructions embedded in fetched content, or anything else that puts untrusted text into agent context.
         (3) A NEW DOOR — a new MCP tool or verb in plugins/technical-cofounder/mcp/{server,worklog}.py, a new entry in any .mcp.json, a new endpoint, credential, identity or client_id, or any newly externally-reachable surface.
