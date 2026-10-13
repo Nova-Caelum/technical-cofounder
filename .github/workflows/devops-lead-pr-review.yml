@@ -32,7 +32,7 @@ jobs:
       issues: write
       actions: read
       id-token: write
-    uses: Nova-Caelum/devops-lead/.github/workflows/devops-lead-pr-review.yml@0d1b16cee071fcd8896c7dc5130a2644f0360a30
+    uses: Nova-Caelum/devops-lead/.github/workflows/devops-lead-pr-review.yml@fd0398b73ae19513b378d8a558aa295b877763bb
     secrets: inherit
     with:
       persona_source_repo: 'Nova-Caelum/devops-lead'
