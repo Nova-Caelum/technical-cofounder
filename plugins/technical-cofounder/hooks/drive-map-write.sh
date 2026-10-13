@@ -6,5 +6,4 @@
 #
 # Source: Nova Caelum (2026). License: Apache-2.0.
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || exit 0
-exec "$HERE/run-system-python.sh" "$HERE/drive_map_write.py"
+exec "${CLAUDE_PLUGIN_ROOT}/hooks/run-system-python.sh" "${CLAUDE_PLUGIN_ROOT}/hooks/drive_map_write.py"

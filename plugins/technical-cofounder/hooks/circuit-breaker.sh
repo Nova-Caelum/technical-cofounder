@@ -75,13 +75,13 @@ BLOCK_THRESHOLD=5
 class_key_hash() {
     local norm="$1" out=""
     if command -v shasum >/dev/null 2>&1; then
-        out="$(printf '%s' "$norm" | shasum -a 256 2>/dev/null | awk '{print substr($1,1,16)}')" || out=""
+        out="$(printf '%s' "$norm" | shasum -a 256 2>/dev/null | cut -c1-16)" || out=""
     fi
     if [ -z "$out" ] && command -v md5 >/dev/null 2>&1; then
-        out="$(printf '%s' "$norm" | md5 2>/dev/null | awk '{print substr($1,1,16)}')" || out=""
+        out="$(printf '%s' "$norm" | md5 2>/dev/null | cut -c1-16)" || out=""
     fi
     if [ -z "$out" ] && command -v md5sum >/dev/null 2>&1; then
-        out="$(printf '%s' "$norm" | md5sum 2>/dev/null | awk '{print substr($1,1,16)}')" || out=""
+        out="$(printf '%s' "$norm" | md5sum 2>/dev/null | cut -c1-16)" || out=""
     fi
     if [ -z "$out" ]; then
         out="$(printf '%s' "$norm" | tr -cd 'a-z0-9' 2>/dev/null | cut -c1-40)" || out=""
@@ -101,13 +101,7 @@ normalize_error_class() {
     fi
     local norm="$raw"
     norm="$(printf '%s' "$norm" | tr '[:upper:]' '[:lower:]' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/<uuid>/g' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E "s/'[^']*'/<lit>/g" 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's/"[^"]*"/<lit>/g' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's#(/[A-Za-z0-9._~-]+){2,}/?#<path>#g' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's/0x[0-9a-f]+/<hex>/g' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's/[0-9]+/<n>/g' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E 's/[A-Za-z0-9]{20,}/<token>/g' 2>/dev/null)" || :
+    norm="$(printf '%s' "$norm" | sed -E -f "${CLAUDE_PLUGIN_ROOT}/hooks/lib/normalize-error.sed" 2>/dev/null)" || :
     norm="$(printf '%s' "$norm" | tr -s '[:space:]' ' ' 2>/dev/null)" || :
     norm="${norm:0:500}"
     printf '%s' "$norm"
@@ -165,13 +159,15 @@ handle_pretooluse() {
     [ -d "$session_dir" ] || return 0
 
     local f count
-    for f in "$session_dir/failclass-${tool_key}-"*.count; do
+    # find with a quoted -name pattern, not a shell glob: the plugin directory
+    # refuses globs in commands it follows (COMMAND_PATH_COMPUTED).
+    while IFS= read -r f; do
         [ -e "$f" ] || continue
         count="$(count_lines "$f")"
         if [ "$session_confident" -eq 1 ] && [ "$count" -ge "$BLOCK_THRESHOLD" ]; then
             block_and_exit "$tool_name" "$count"   # never returns
         fi
-    done
+    done < <(find "$session_dir" -maxdepth 1 -type f -name "failclass-${tool_key}-*.count" 2>/dev/null)
     return 0
 }
 
@@ -180,7 +176,10 @@ handle_posttooluse() {
     local session_key tool_key
     session_key="$(sanitize_key "${session_id:-}" "nosession")"
     tool_key="$(sanitize_key "$tool_name" "unknown-tool")"
-    rm -f "$(resolve_state_dir "$session_key" "$agent_id")/failclass-${tool_key}-"*.count 2>/dev/null || true
+    local state_dir
+    state_dir="$(resolve_state_dir "$session_key" "$agent_id")"
+    [ -d "$state_dir" ] || return 0
+    find "$state_dir" -maxdepth 1 -type f -name "failclass-${tool_key}-*.count" -delete 2>/dev/null || true
     return 0
 }
 
