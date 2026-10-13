@@ -234,9 +234,15 @@ Every step below:
 3. **Keep them in this chat.** The chat walks every step, so don't open the
    guide for them. Give its link only when they ask where to see the steps,
    and once more at the end. The link is clickable Markdown to the `GUIDE:`
-   path with `file:///` in front and every backslash turned into a forward
-   slash: "You can view the setup guide here: [setup guide](file:///<GUIDE
-   path>)". Never print the HTML in the chat.
+   path as a `file:///` address, with every backslash turned into a forward
+   slash and every space turned into `%20`, so a folder name with a space
+   stays one link: "You can view the setup guide here: [setup
+   guide](file:///<GUIDE path>)". For example, `C:\Users\you\My
+   Projects\core_text\setup-guide.html` becomes
+   `file:///C:/Users/you/My%20Projects/core_text/setup-guide.html`, and
+   `/Users/you/Projects/core_text/setup-guide.html` becomes
+   `file:///Users/you/Projects/core_text/setup-guide.html`. Never print the
+   HTML in the chat.
 4. **Quick questions**, as pop-ups: "Ready for the rest?" (Yes / Show me the
    steps first: give the link and wait until they have read it / Explain the
    difference) and "How much time do you have?". Say: Part 1 takes about 20 minutes and the
@@ -464,7 +470,8 @@ drive". They can change it later by editing the file.
    their project uses (Context7); and a cloud browser for pages that need
    clicks or a login (Browserbase).
 3. Give the setup guide's link once, as a reference, the clickable
-   `file:///` form of the `GUIDE:` path from **Open the guide**.
+   `file:///` form of the `GUIDE:` path from **Open the guide** (forward
+   slashes, spaces as `%20`).
 4. Give the one next action, plainly: they open a NEW session in
    `<absolute project path>`; this one does not carry on there. Say why: the
    team, its memory and its hooks only load in a session started in that
@@ -500,8 +507,12 @@ this session is running:
   setup): `<project>` is the current folder. Run the
   **First step** again to get `<python>` (it is quick when everything is
   there), then `plan`, and fix what is not `ready` with the same protocol,
-  ending with `scan --record`. If everything is `ready`, say so, then offer to
-  continue setup if the guide has steps left.
+  ending with `scan --record`. Then run
+  `"<python>" "${CLAUDE_PLUGIN_ROOT}/bin/init_workspace.py" "<project>" --refresh-references`:
+  it brings names the team has since changed up to date in the project's
+  `CLAUDE.md` (today, the contact command) and touches nothing else. Say
+  what its `UPDATED:` or `UNCHANGED:` line says. If everything is `ready`,
+  say so, then offer to continue setup if the guide has steps left.
 - **Somewhere else:** ask whether they want a new project. On a yes, start
   from **Where the project goes**. "Start another project" is the same, from
   anywhere.

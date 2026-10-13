@@ -88,6 +88,12 @@ class L14GuideIsALinkNotAWindow(unittest.TestCase):
         self.assertIn("file:///", guide)
         self.assertIn("Never print the HTML in the chat.", guide)
 
+    def test_a_space_in_the_path_cannot_break_the_link(self):
+        # The folder name is the user's: "My Projects" must stay one link.
+        guide = section(skill(), "Open the guide")
+        self.assertIn("every space turned into `%20`", guide)
+        self.assertIn("file:///C:/Users/you/My%20Projects/", guide)
+
     def test_the_closing_gives_the_guide_link_once_as_a_reference(self):
         closing = section(skill(), "Closing")
         self.assertIn("GUIDE:", closing)
@@ -107,6 +113,16 @@ class L15OneObsidianViewerQuestion(unittest.TestCase):
         for kind in ("Word", "PowerPoint", "SQLite", "JSON", "HTML"):
             with self.subTest(kind=kind):
                 self.assertIn(kind, self.step)
+
+    def test_the_steps_json_text_describes_the_same_single_list(self):
+        # does renders in the guide page; explain is said on "Explain the difference".
+        step = next(s for s in json.loads(STEPS.read_text(encoding="utf-8"))["steps"] if s["id"] == "obsidian")
+        text = " ".join([step["does"]] + step["explain"])
+        for stale in ("yes to each", "asked separately"):
+            with self.subTest(stale=stale):
+                self.assertNotIn(stale, text)
+        self.assertIn("one list", step["does"])
+        self.assertIn("keep my usual apps", text.lower())
 
     def test_it_says_all_in_one_viewer_free_and_the_security_stance(self):
         lower = self.step.lower()
@@ -276,6 +292,45 @@ class L12OneContactCommand(unittest.TestCase):
         self.assertIn(CONTACT, PRELOAD.read_text(encoding="utf-8"))
 
 
+class L12AnExistingProjectsInstructions(unittest.TestCase):
+    """A project set up before this release has the template's CLAUDE.md, which
+    names the deleted bare command. Setup's repair path rewrites that one
+    string and nothing else, as often as it runs."""
+
+    INIT = SETUP / "bin" / "init_workspace.py"
+    OLD = "Stuck? `/technical-cofounder:contact` reaches Nova Caelum. Mine: /technical-cofounder:contacts stays.\n"
+
+    def refresh(self, project):
+        return subprocess.run([sys.executable, str(self.INIT), str(project), "--refresh-references"],
+                              capture_output=True, text=True, encoding="utf-8", timeout=60)
+
+    def project(self, text):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        (root / "CLAUDE.md").write_text(text, encoding="utf-8")
+        return root
+
+    def test_the_stale_reference_is_rewritten_once_and_only_it(self):
+        project = self.project(self.OLD)
+        first = self.refresh(project)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertIn("UPDATED: CLAUDE.md", first.stdout)
+        wanted = self.OLD.replace("`/technical-cofounder:contact`", "`%s`" % CONTACT)
+        self.assertEqual((project / "CLAUDE.md").read_text(encoding="utf-8"), wanted)
+        second = self.refresh(project)
+        self.assertIn("UNCHANGED: CLAUDE.md", second.stdout)
+        self.assertEqual((project / "CLAUDE.md").read_text(encoding="utf-8"), wanted)
+
+    def test_nothing_else_is_created_or_copied(self):
+        project = self.project("# mine\n")
+        self.refresh(project)
+        self.assertEqual(sorted(p.name for p in project.iterdir()), ["CLAUDE.md"])
+
+    def test_the_repair_path_runs_it(self):
+        repair = flat(skill().split("## Repair and another project", 1)[1].split("**Continue setup.**", 1)[0])
+        self.assertIn("init_workspace.py\" \"<project>\" --refresh-references", repair)
+
+
 class F14bTheRealErrorLine(unittest.TestCase):
     GIT = ("Cloning into 'x'...\n"
            "error: unable to create file a/b.md: Filename too long\n"
@@ -345,12 +400,12 @@ class DirectoryPortalOnePathPerCommand(unittest.TestCase):
 
 
 class Versions(unittest.TestCase):
-    def test_every_changed_plugin_was_bumped(self):
-        for plugin, before in (("technical-cofounder", "0.2.1"), ("technical-cofounder-setup", "0.1.1"),
-                               ("super-novacaelum", "0.1.0")):
+    def test_the_release_carrying_these_fixes(self):
+        for plugin, release in (("technical-cofounder", "0.2.2"), ("technical-cofounder-setup", "0.1.2"),
+                                ("super-novacaelum", "0.1.1")):
             with self.subTest(plugin=plugin):
                 manifest = json.loads((PLUGINS / plugin / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
-                self.assertNotEqual(manifest["version"], before)
+                self.assertEqual(manifest["version"], release)
 
 
 if __name__ == "__main__":
