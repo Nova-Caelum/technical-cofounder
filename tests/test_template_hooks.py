@@ -174,7 +174,7 @@ class SessionPreloadTests(unittest.TestCase):
         out = self.preload()
         self.assertIn("core-profile-marker", out)
         self.assertIn("## Tech primer (live)", out)
-        self.assertIn("/technical-cofounder:contact", out)
+        self.assertIn("/technical-cofounder:contact-nova-caelum", out)
 
     def test_core_text_wins_over_legacy(self):
         self.write("core_text/user.md", "# core-profile-marker\n")
@@ -189,13 +189,13 @@ class SessionPreloadTests(unittest.TestCase):
         self.assertIn("legacy-profile-marker", out)
         notes = [ln for ln in out.splitlines() if "core_text/" in ln and "move" in ln.lower()]
         self.assertEqual(len(notes), 1, out)
-        self.assertIn("/technical-cofounder:contact", out)
+        self.assertIn("/technical-cofounder:contact-nova-caelum", out)
 
     def test_no_profile_points_to_setup(self):
         out = self.preload()
         self.assertIn(SETUP_COMMAND, out)
         self.assertNotIn("quick-start", out)
-        self.assertIn("/technical-cofounder:contact", out)
+        self.assertIn("/technical-cofounder:contact-nova-caelum", out)
         self.assertIn("## Tech primer (live)", out)
 
     def test_setup_progress_line(self):
@@ -314,7 +314,7 @@ class SessionPreloadTests(unittest.TestCase):
         self.write("core_text/setup.json", "{not json")
         out = self.preload()
         self.assertEqual(self.stack(out)["technical-cofounder"], "present")
-        self.assertIn("/technical-cofounder:contact", out)
+        self.assertIn("/technical-cofounder:contact-nova-caelum", out)
 
     def test_size_budget(self):
         self.write("core_text/user.md", (TEMPLATE_DIR / "core_text" / "user.md").read_text(encoding="utf-8"))

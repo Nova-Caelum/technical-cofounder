@@ -367,7 +367,7 @@ class TheTeamsServer(unittest.TestCase):
         listed = entry("technical-cofounder@nova-caelum",
                        mcpServers=json.loads((team / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"])
         argv = walk.server_command(listed, "caelum-dev-team", project="/work/p", plugin_root=str(team), windows=True)
-        self.assertEqual(Path(argv[0]), team / "bin" / "hyperspace-env.cmd")
+        self.assertEqual(Path(argv[0]), team / "bin" / "team-server.cmd")
 
     def answers(self, *documents):
         return "".join(json.dumps(doc) + "\n" for doc in documents)

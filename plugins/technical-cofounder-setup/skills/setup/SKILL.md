@@ -46,7 +46,11 @@ continue or repair? Read **Repair and another project** first.
 
 ## Where the project goes
 
-1. Ask what they want to call the project.
+1. Ask, in these words: "We're going to make a specific folder for your agents to live and own.
+   Where would you like it to be? And what would you
+   like it to be called?" If they ask why, say: "It will make things more
+   secure to confine your agents to one folder where they can work freely
+   without having to touch everything else in your computer."
 2. Offer where it will live, and let them change it: a folder with that name
    in `Projects` inside their home folder, on every system. Not Documents:
    on Windows that is usually a OneDrive folder, and a workspace with
@@ -227,14 +231,21 @@ Every step below:
    `"<python>" "${CLAUDE_PLUGIN_ROOT}/bin/setup_record.py" render "<project>"`.
    It writes the two pages and prints `GUIDE: <absolute path>` and
    `EXTRAS: <absolute path>`. Keep both.
-3. **Open the guide as a page, never as text.** Straight away, with no yes
-   needed, run `open` (Mac), `start ""` (Windows) or `xdg-open` (Linux) on the
-   `GUIDE:` path. Never print the HTML in the chat. If the command fails or
-   there is no desktop, say "You can view the setup guide here:" and the
-   absolute `GUIDE:` path.
+3. **Keep them in this chat.** The chat walks every step, so don't open the
+   guide for them. Give its link only when they ask where to see the steps,
+   and once more at the end. The link is clickable Markdown to the `GUIDE:`
+   path as a `file:///` address, with every backslash turned into a forward
+   slash and every space turned into `%20`, so a folder name with a space
+   stays one link: "You can view the setup guide here: [setup
+   guide](file:///<GUIDE path>)". For example, `C:\Users\you\My
+   Projects\core_text\setup-guide.html` becomes
+   `file:///C:/Users/you/My%20Projects/core_text/setup-guide.html`, and
+   `/Users/you/Projects/core_text/setup-guide.html` becomes
+   `file:///Users/you/Projects/core_text/setup-guide.html`. Never print the
+   HTML in the chat.
 4. **Quick questions**, as pop-ups: "Ready for the rest?" (Yes / Show me the
-   guide first: wait until they have read it / Explain the difference) and
-   "How much time do you have?". Say: Part 1 takes about 20 minutes and the
+   steps first: give the link and wait until they have read it / Explain the
+   difference) and "How much time do you have?". Say: Part 1 takes about 20 minutes and the
    install is already behind them. Part 2 (research extras) is optional and
    lives in `setup-extras.html`, at the absolute `EXTRAS:` path. Steps they don't
    reach stay `pending` for "continue setup".
@@ -297,12 +308,19 @@ file comes from its author's GitHub page and must match the checked copy.
 
 1. `"<python>" "${CLAUDE_PLUGIN_ROOT}/bin/obsidian_plugins.py" list` prints
    them, each with a `name` and a `for` line.
-2. Ask about each one, one at a time, with its `name` and `for` line: Yes / No /
-   **Explain the difference**. A viewer is optional; with No those files keep
-   opening in their own apps. Install a plugin only after a yes to that
-   plugin, in their own words: a yes to Obsidian is not a yes to a plugin.
-   Never install one that is not on that list.
-3. On a yes, run
+2. Ask one question for all of them, in the chat (a pop-up holds only four
+   choices). First say: Obsidian can be their all-in-one viewer for this
+   project; these add-ons are free; they are made by independent authors,
+   not by Obsidian or us, and Obsidian asks them to trust the add-ons before
+   any of them run. Then list the file types, one numbered line each, from
+   the `for` lines: Word (`.docx`), PowerPoint (`.pptx`), SQLite databases,
+   JSON and HTML pages, then **Keep my usual apps** and **Explain the
+   difference**. They type the ones they want: numbers, names, "all", or
+   "keep my usual apps". A viewer is optional; with Keep my usual apps those
+   files keep opening in their own apps. The types they name are their yes
+   to that plugin, in their own words: a yes to Obsidian is not a yes to a
+   plugin. Never install one that is not on that list.
+3. For each type they named, run
    `"<python>" "${CLAUDE_PLUGIN_ROOT}/bin/obsidian_plugins.py" install --project "<project>" --plugin <id>`
    and say its `detail`. When its `result` is `failed`, say the `detail`:
    nothing was left half-installed, so offer to try again.
@@ -310,7 +328,7 @@ file comes from its author's GitHub page and must match the checked copy.
    folder as vault" and pick the project folder, and Obsidian asks "Do you
    trust the author of this vault?" with two buttons: **Trust author and
    enable plugins** and "Browse vault in Restricted Mode". They choose Trust
-   author and enable plugins, because they said yes to each one. If they chose
+   author and enable plugins, because they chose these viewers. If they chose
    Restricted Mode, or a viewer does nothing: Settings → Community plugins →
    **Turn on community plugins**. Say that the HTML viewer opens pages with its
    scripts off, and that they leave that switch off for any page they did not
@@ -356,8 +374,8 @@ On a yes, walk them through it. They run every command:
    - **Homebrew at <path>**: it is there. In Terminal they run
      `brew install gh`.
 3. **Log in:** in a terminal window (Terminal on a Mac, PowerShell on
-   Windows), `gh auth login`. It asks four questions; give them every answer
-   before they start. Arrow keys move, Enter picks.
+   Windows), `gh auth login --clipboard`. It asks four questions; give them
+   every answer before they start. Arrow keys move, Enter picks.
    1. "Where do you use GitHub?" **GitHub.com**
    2. "What is your preferred protocol for Git operations on this host?"
       **HTTPS**
@@ -365,9 +383,16 @@ On a yes, walk them through it. They run every command:
    4. "How would you like to authenticate GitHub CLI?" **Login with a web
       browser**
 
-   Then it prints a one-time code, like `ABCD-1234`: they copy it, press
-   Enter, paste it on the page that opens (github.com/login/device), and
-   authorize GitHub CLI. No token or password goes in the chat.
+   Then it shows a one-time code, like `ABCD-1234`, and `--clipboard` has
+   already copied it. They press Enter, paste it on the page that opens
+   (github.com/login/device), and authorize GitHub CLI. No token or password
+   goes in the chat. Say before they start: pressing Ctrl-C in that terminal
+   cancels the login, and the web page still says they're all set while
+   nothing was saved. If the code was not copied, they select it and
+   right-click → Copy (or press Ctrl-Shift-C), or just type it. They wait
+   for "Logged in as …" in the terminal before closing anything. If `gh`
+   says it does not know `--clipboard`, they run `gh auth login` and do the
+   same.
 
 **`gh` on Windows, just installed.** This session's PATH was fixed when Claude
 Code started, so a `gh` installed since is not found here even though it
@@ -444,25 +469,33 @@ drive". They can change it later by editing the file.
    sources (Exa); live library docs, today's documentation for the tools
    their project uses (Context7); and a cloud browser for pages that need
    clicks or a login (Browserbase).
-3. Give the one next action: "Open Claude Code in `<absolute project path>`.
-   Your technical cofounder will be there." Then how, for the app their
-   profile names (both if it names neither):
-   - Desktop app: the Code tab, then new session, then choose the project
+3. Give the setup guide's link once, as a reference, the clickable
+   `file:///` form of the `GUIDE:` path from **Open the guide** (forward
+   slashes, spaces as `%20`).
+4. Give the one next action, plainly: they open a NEW session in
+   `<absolute project path>`; this one does not carry on there. Say why: the
+   team, its memory and its hooks only load in a session started in that
+   folder. Then how, for the app their profile names (both if it names
+   neither):
+   - Desktop app: the Code tab, then New session, then choose the project
      folder, `<absolute project path>`.
    - Command line (CLI): `cd` into `<absolute project path>`, then run
      `claude`.
-4. The first time Claude Code opens that folder it asks whether they trust it
+5. The first time Claude Code opens that folder it asks whether they trust it
    (it may read "Is this a project you created or one you trust?"). Say what
    that means: Claude Code is asking whether the settings saved in this
    folder may take effect, and here they are the team's. It is their own
    project, so they choose to trust this folder (the option reads something
    like "Yes, I trust this folder").
-5. Say where work starts: no run is open yet, and the first step of any piece
-   of work is Understand. If they chose a test drive, that is where they
-   start.
-6. If a restart is required, say that this new session is that restart:
+6. Say: "Your team is already active there: no special command or /goal
+   needed, just describe what you want." No run is open yet, and the
+   first step of any piece of work is Understand. If they chose a test
+   drive, that is where they start.
+7. If a restart is required, say that this new session is that restart:
    nothing else needs closing or reopening.
-7. Say it once more: "If anything is unclear, just ask me."
+8. Say how to reach us: `/technical-cofounder:contact-nova-caelum` sends a
+   message to the founder. Then once more: "If anything is unclear, just ask
+   me."
 
 ## Repair and another project
 
@@ -474,8 +507,12 @@ this session is running:
   setup): `<project>` is the current folder. Run the
   **First step** again to get `<python>` (it is quick when everything is
   there), then `plan`, and fix what is not `ready` with the same protocol,
-  ending with `scan --record`. If everything is `ready`, say so, then offer to
-  continue setup if the guide has steps left.
+  ending with `scan --record`. Then run
+  `"<python>" "${CLAUDE_PLUGIN_ROOT}/bin/init_workspace.py" "<project>" --refresh-references`:
+  it brings names the team has since changed up to date in the project's
+  `CLAUDE.md` (today, the contact command) and touches nothing else. Say
+  what its `UPDATED:` or `UNCHANGED:` line says. If everything is `ready`,
+  say so, then offer to continue setup if the guide has steps left.
 - **Somewhere else:** ask whether they want a new project. On a yes, start
   from **Where the project goes**. "Start another project" is the same, from
   anywhere.

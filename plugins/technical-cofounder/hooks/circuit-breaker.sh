@@ -142,7 +142,7 @@ resolve_state_dir() {
 
 block_and_exit() {
     local tool_name="$1" count="$2"
-    printf '⚠️ CIRCUIT BREAKER — BLOCKED: tool "%s" has failed the same way %s times in a row this session with no intervening success. Two options: (1) stop and change approach entirely — a different tool, a different method, or question whether the frame itself is wrong; or (2) escalate to the user/caller now and describe what failed and why. A success on any other tool does not clear this — "%s" itself has to succeed once to reset. If the problem is this plugin itself, /technical-cofounder:contact reaches its makers.\n' \
+    printf '⚠️ CIRCUIT BREAKER — BLOCKED: tool "%s" has failed the same way %s times in a row this session with no intervening success. Two options: (1) stop and change approach entirely — a different tool, a different method, or question whether the frame itself is wrong; or (2) escalate to the user/caller now and describe what failed and why. A success on any other tool does not clear this — "%s" itself has to succeed once to reset. If the problem is this plugin itself, /technical-cofounder:contact-nova-caelum reaches its makers.\n' \
         "$tool_name" "$count" "$tool_name" >&2
     exit 2
 }

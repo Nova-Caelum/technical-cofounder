@@ -532,8 +532,14 @@ def first_line(text):
     return lines[0] if lines else ""
 
 
-def last_line(text):
+def failure_line(text):
+    """The line that says why a command failed: the first that starts with
+    `error:` or `fatal:` (git's own reason; what follows is advice), else the
+    last line."""
     lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
+    for line in lines:
+        if line.lower().startswith(("error:", "fatal:")):
+            return line
     return lines[-1] if lines else ""
 
 
@@ -726,7 +732,7 @@ def claude_json(ctx, args, cwd=None):
     shown = "claude " + " ".join(args)
     result = ctx.run([working(ctx, "claude")] + args, cwd=cwd, timeout=120)
     if result.code != 0:
-        return None, "`%s` exited %s: %s" % (shown, result.code, last_line(result.err or result.out))
+        return None, "`%s` exited %s: %s" % (shown, result.code, failure_line(result.err or result.out))
     try:
         data = json.loads(result.out)
     except ValueError:
@@ -877,7 +883,7 @@ def run_install(ctx, argv, **options):
     if result.code == 0:
         return None
     shown = " ".join(str(part) for part in argv)
-    return "`%s` exited %s: %s" % (shown, result.code, last_line(result.err or result.out) or "no message")
+    return "`%s` exited %s: %s" % (shown, result.code, failure_line(result.err or result.out) or "no message")
 
 
 def sign_again(ctx, path):

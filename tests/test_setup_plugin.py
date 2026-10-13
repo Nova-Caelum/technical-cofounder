@@ -114,7 +114,7 @@ class Manifest(unittest.TestCase):
     def test_name_version_and_description(self):
         m = manifest(SETUP)
         self.assertEqual(m["name"], "technical-cofounder-setup")
-        self.assertEqual(m["version"], "0.1.1")
+        self.assertEqual(m["version"], "0.1.2")
         self.assertTrue(m["description"].strip())
         self.assertEqual(m["description"].strip().count(". "), 0, "one sentence")
 
@@ -265,11 +265,12 @@ class TheSkill(unittest.TestCase):
 
     def test_the_closing_gives_the_one_next_action(self):
         closing = flat(self.text.split("\n## Closing", 1)[1].split("\n## ", 1)[0])
-        self.assertIn("Open Claude Code in `<absolute project path>`. Your technical cofounder will be there.", closing)
+        self.assertIn("they open a NEW session in `<absolute project path>`", closing)
         self.assertIn("EXTRAS:", closing)
 
-    def test_the_guide_opens_as_a_page_with_the_path_as_the_fallback(self):
-        self.assertIn("You can view the setup guide here:", self.flat)
+    def test_the_guide_is_a_clickable_link_never_opened_for_them(self):
+        self.assertIn("You can view the setup guide here: [setup guide](file:///", self.flat)
+        self.assertIn("don't open the guide for them", self.flat)
         self.assertIn("Never print the HTML in the chat.", self.flat)
         self.assertIn("about 20 minutes", self.flat)
 
@@ -752,7 +753,7 @@ class ClosingText(unittest.TestCase):
         cls.closing = flat(heading_body(SKILL.read_text(encoding="utf-8"), "Closing"))
 
     def test_it_says_how_to_open_a_session_in_the_project_folder(self):
-        for needle in ("Code tab", "new session", "choose the project folder", "`cd`", "`claude`"):
+        for needle in ("Code tab", "New session", "choose the project folder", "`cd`", "`claude`"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, self.closing)
 

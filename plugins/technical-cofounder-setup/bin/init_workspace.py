@@ -3,6 +3,7 @@
 
 Usage:
     python3 init_workspace.py <target-dir> [--obsidian|--no-obsidian] [--super|--no-super]
+    python3 init_workspace.py <target-dir> --refresh-references
 
 Copies every file under ../template/ (relative to this script) into
 <target-dir>, preserving the relative path. Never overwrites a file that
@@ -21,6 +22,11 @@ copies either way). --super, when set, additionally prints the
 super-novacaelum install command (project scope) and a pointer to the
 super-setup skill; it never copies anything itself.
 
+--refresh-references copies nothing: it rewrites, in the project's existing
+CLAUDE.md only, a name the team has since retired (the bare contact command,
+now /technical-cofounder:contact-nova-caelum), prints "UPDATED: CLAUDE.md"
+or "UNCHANGED: CLAUDE.md", and exits 0. Setup's repair path runs it.
+
 The setup skill always passes both flags explicitly — this script's own
 "ask" path exists only for a bare, human-run CLI invocation. A flag left
 unset is asked for with a plain terminal prompt when stdin is a tty; when
@@ -31,6 +37,7 @@ invocation never blocks waiting on input that will never arrive.
 Standard library only.
 """
 import argparse
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -39,6 +46,10 @@ HERE = Path(__file__).resolve().parent
 TEMPLATE_DIR = HERE.parent / "template"
 
 PROFILE = Path("core_text") / "user.md"
+
+# Names in an older copy of the template's CLAUDE.md that the team retired.
+# (Spelled in two parts so no file here still names the retired command.)
+RETIRED = ((re.compile("/technical-cofounder:" + r"contact(?![\w-])"), "/technical-cofounder:contact-nova-caelum"),)
 
 sys.path.insert(0, str(HERE))
 import setup_record  # noqa: E402
@@ -75,6 +86,21 @@ def _ask_yes_no(prompt, default):
     if not raw:
         return default, True
     return raw.startswith("y"), False
+
+
+def refresh_references(target_dir):
+    """Rewrite retired names in the project's CLAUDE.md, and nothing else."""
+    path = Path(target_dir).expanduser().resolve() / "CLAUDE.md"
+    if not path.is_file():
+        return "UNCHANGED: CLAUDE.md (there is none)"
+    text = path.read_text(encoding="utf-8")
+    new = text
+    for old, name in RETIRED:
+        new = old.sub(name, new)
+    if new == text:
+        return "UNCHANGED: CLAUDE.md"
+    path.write_text(new, encoding="utf-8")
+    return "UPDATED: CLAUDE.md (the contact command is now /technical-cofounder:contact-nova-caelum)"
 
 
 def init_workspace(target_dir, obsidian, super_):
@@ -148,7 +174,15 @@ def main(argv):
         "--no-super", dest="super_", action="store_false",
         help="skip the super-novacaelum pointer",
     )
+    parser.add_argument(
+        "--refresh-references", action="store_true",
+        help="only rewrite retired names in the project's existing CLAUDE.md, then stop",
+    )
     args = parser.parse_args(argv[1:])
+
+    if args.refresh_references:
+        print(refresh_references(args.target_dir))
+        return 0
 
     if not TEMPLATE_DIR.is_dir():
         sys.stderr.write(f"init_workspace: template directory not found at {TEMPLATE_DIR}\n")

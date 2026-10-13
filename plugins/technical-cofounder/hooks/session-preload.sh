@@ -74,13 +74,14 @@ if source "$(dirname "${BASH_SOURCE[0]}")/lib/resolve-tools.sh" 2>/dev/null; the
 else
     NC_JQ=""
 fi
-ASK_LINE="Stuck, found a bug, or have an idea? /technical-cofounder:contact reaches Nova Caelum."
+ASK_LINE="Stuck, found a bug, or have an idea? /technical-cofounder:contact-nova-caelum reaches Nova Caelum."
 FIX="Fix: run /technical-cofounder-setup:start"
 ENGINE_FAULT="Hyperspace Engine isn't set up in this project yet, so the task graph and the worklog tools are off. $FIX (or say \"set up hyperspace\")."
 UNKNOWN_FAULT="This folder's Hyperspace environment was not built by setup on this computer, or was built before setup kept a record of it, so the worklog server and the engine were not started. $FIX and choose repair to rebuild it."
 SERVER_FAULT="The team's worklog server could not start, so worklog tools are off. $FIX."
 JQ_FAULT="jq isn't installed, so the retry breaker and the word-budget checks are off. $FIX."
 PYTHON_FAULT="No Python was found, so the plugin overview could not be read. $FIX."
+FIRST_SESSION="First session in this project: tell the user their team is already active here. No special command or /goal is needed; they just describe what they want."
 
 USER_MD="$PROJECT_DIR/core_text/user.md"
 LEGACY=0
@@ -172,6 +173,12 @@ else
     fi
 fi
 echo
+# Every worklog entry is a file in worklog/entries/, with or without the
+# engine, so none there means no work has been logged yet.
+if [ -z "$(find "$ENTRIES_DIR" -maxdepth 1 -type f -name '*.md' 2>/dev/null | head -1)" ]; then
+    echo "$FIRST_SESSION"
+    echo
+fi
 # The project's drive map: written fresh, then one pointer line (or a log line on stderr).
 [ -z "$NC_PYTHON" ] || "$NC_PYTHON" "$PLUGIN_ROOT/bin/drive_map_pointer.py" preload "$PROJECT_DIR" || true
 tech_primer

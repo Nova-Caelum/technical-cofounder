@@ -132,11 +132,11 @@ This message is for Claude Code. If you cannot run commands here (for example, t
 
 <h6></h6>
 
-**2. Follow along.** Your agent says what each step is for and how long it takes before it runs it. It asks what to call your project and where it should live, then creates that folder with your team and Hyperspace Engine in it. On a new Windows PC or a new Mac it may ask you to restart Claude Code once, or to click Install in one window. The whole thing takes about 20 minutes, and it never asks for a key or password in the chat. Skip any step you like, then say "continue setup" whenever you want to pick it back up.
+**2. Follow along.** Your agent says what each step is for and how long it takes before it runs it. It asks where your agents' own folder should live and what to call it, then creates that folder with your team and Hyperspace Engine in it. On a new Windows PC or a new Mac it may ask you to restart Claude Code once, or to click Install in one window. The whole thing takes about 20 minutes, and it never asks for a key or password in the chat. Skip any step you like, then say "continue setup" whenever you want to pick it back up.
 
 **3. Say what you want to build.** Open Claude Code in your new project folder. Your technical cofounder is there, and takes it from there.
 
-Stuck at any point? Run `/technical-cofounder:contact`, or email hello@novacaelum.com. The founder reads every message.
+Stuck at any point? Run `/technical-cofounder:contact-nova-caelum`, or email hello@novacaelum.com. The founder reads every message.
 
 <br>
 

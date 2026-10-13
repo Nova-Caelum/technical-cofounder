@@ -68,7 +68,7 @@ Python is installed for you: setup's first step has uv fetch Python 3.12 into uv
   - the `caelum-dev-team` worklog server, which gives your team its memory across sessions
   - the session-start briefing (`hooks/session-preload.sh`)
   - the setup scripts
-  - `/technical-cofounder:contact`
+  - `/technical-cofounder:contact-nova-caelum`
   - Hyperspace Engine, which runs the working loop and checks each task before it is called done
 - **Without it:**
   - the worklog tools don't appear
