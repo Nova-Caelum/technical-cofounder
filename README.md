@@ -47,6 +47,10 @@ For solo builders and the build-curious.
 
 <h6></h6>
 
+### Trying Codex?
+
+The local macOS/Linux preview has a [five-step install and friend test](docs/codex-friend-test.md). It generates the team from the same shared sources, with project-scoped Codex roles, skills, hooks and MCP configuration. Live friend validation is still pending.
+
 ### Already know your way around?
 
 Run these from a dedicated project folder. The team installs for that project only, and Hyperspace Engine installs with it. Claude Code has to be 2.1.110 or newer (`claude update`); on an older one the team installs without Hyperspace Engine, without an error.
