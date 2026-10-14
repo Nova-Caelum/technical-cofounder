@@ -101,7 +101,7 @@ normalize_error_class() {
     fi
     local norm="$raw"
     norm="$(printf '%s' "$norm" | tr '[:upper:]' '[:lower:]' 2>/dev/null)" || :
-    norm="$(printf '%s' "$norm" | sed -E -f "${CLAUDE_PLUGIN_ROOT}/hooks/lib/normalize-error.sed" 2>/dev/null)" || :
+    if n="$(printf '%s' "$norm" | sed -E -f "${CLAUDE_PLUGIN_ROOT}/hooks/lib/normalize-error.sed" 2>/dev/null)"; then norm="$n"; fi
     norm="$(printf '%s' "$norm" | tr -s '[:space:]' ' ' 2>/dev/null)" || :
     norm="${norm:0:500}"
     printf '%s' "$norm"

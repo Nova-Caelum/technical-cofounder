@@ -211,6 +211,27 @@ def real_jq_into(tools):
     return False
 
 
+class NormalizationFailOpenTests(unittest.TestCase):
+    def test_a_missing_rules_file_keeps_different_errors_in_different_classes(self):
+        # When sed cannot read hooks/lib/normalize-error.sed the text must come through
+        # as it was, not blank: a blank turns every error into one class.
+        script = (PLUGIN_ROOT / "hooks" / "circuit-breaker.sh").read_text(encoding="utf-8")
+        body = script.split("normalize_error_class() {", 1)[1].split("\n}\n", 1)[0]
+        program = "set -euo pipefail\nnormalize_error_class() {" + body + "\n}\n"
+        program += 'for sample in "$@"; do normalize_error_class "$sample"; printf "\\0"; done\n'
+        samples = ["Error: thing 1", "Error: other  failure", "Error: thing 3"]
+        with tempfile.TemporaryDirectory(prefix="no rules ") as root:
+            result = subprocess.run(
+                [BASH, "-c", program, "normalization-test", *samples],
+                env={**os.environ, "CLAUDE_PLUGIN_ROOT": Path(root).as_posix()},
+                capture_output=True, text=True, encoding="utf-8",
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout.split("\0")[:-1], ["error: thing 1", "error: other failure", "error: thing 3"]
+        )
+
+
 class GuardrailsActTests(unittest.TestCase):
     """The retry breaker and the word-budget hook, run through their hooks.json
     commands and judged on what they print. Hook state (TMPDIR), HOME and the
