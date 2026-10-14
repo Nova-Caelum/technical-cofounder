@@ -99,9 +99,23 @@ normalize_error_class() {
         printf '%s' "<no-error-text>"
         return 0
     fi
-    local norm="$raw"
+    local norm="$raw" n
     norm="$(printf '%s' "$norm" | tr '[:upper:]' '[:lower:]' 2>/dev/null)" || :
-    if n="$(printf '%s' "$norm" | sed -E -f "${CLAUDE_PLUGIN_ROOT}/hooks/lib/normalize-error.sed" 2>/dev/null)"; then norm="$n"; fi
+    if n="$(printf '%s' "$norm" | sed -E -f "${CLAUDE_PLUGIN_ROOT}/hooks/lib/normalize-error.sed" 2>/dev/null)"; then
+        norm="$n"
+    else
+        # sed unavailable: nothing was scrubbed, so the text must not survive. A
+        # hash keeps different errors in different classes without keeping any
+        # of the text. Not class_key_hash: its last tier returns raw characters.
+        n=""
+        if command -v shasum >/dev/null 2>&1; then n="$(printf '%s' "$norm" | shasum -a 256 2>/dev/null | cut -c1-16)" || n=""; fi
+        if [ -z "$n" ] && command -v md5sum >/dev/null 2>&1; then n="$(printf '%s' "$norm" | md5sum 2>/dev/null | cut -c1-16)" || n=""; fi
+        if [ -z "$n" ] && command -v md5 >/dev/null 2>&1; then n="$(printf '%s' "$norm" | md5 2>/dev/null | cut -c1-16)" || n=""; fi
+        case "$n" in
+            ""|*[!0-9a-f]*) norm="<unnormalized>" ;;
+            *) norm="<unnormalized:$n>" ;;
+        esac
+    fi
     norm="$(printf '%s' "$norm" | tr -s '[:space:]' ' ' 2>/dev/null)" || :
     norm="${norm:0:500}"
     printf '%s' "$norm"
