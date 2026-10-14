@@ -401,7 +401,7 @@ class DirectoryPortalOnePathPerCommand(unittest.TestCase):
 
 class Versions(unittest.TestCase):
     def test_the_release_carrying_these_fixes(self):
-        for plugin, release in (("technical-cofounder", "0.2.2"), ("technical-cofounder-setup", "0.1.2"),
+        for plugin, release in (("technical-cofounder", "0.2.3"), ("technical-cofounder-setup", "0.1.2"),
                                 ("super-novacaelum", "0.1.1")):
             with self.subTest(plugin=plugin):
                 manifest = json.loads((PLUGINS / plugin / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))

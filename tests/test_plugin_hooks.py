@@ -211,6 +211,54 @@ def real_jq_into(tools):
     return False
 
 
+class NormalizationFailOpenTests(unittest.TestCase):
+    """When sed cannot read hooks/lib/normalize-error.sed the text must not be blanked (one class
+    for every error) and must not be kept either (the token scrubbing lives in that file)."""
+
+    TOKEN = "ghp" + "aB3dE5fG7hJ9kL1mN3pQ5rS7tU9vW1xY3zA5"  # 40 characters, credential-shaped
+
+    @staticmethod
+    def classify(samples, path=None):
+        script = (PLUGIN_ROOT / "hooks" / "circuit-breaker.sh").read_text(encoding="utf-8")
+        body = script.split("normalize_error_class() {", 1)[1].split("\n}\n", 1)[0]
+        program = "set -euo pipefail\nnormalize_error_class() {" + body + "\n}\n"
+        program += 'for sample in "$@"; do normalize_error_class "$sample"; printf "\\0"; done\n'
+        env = {**os.environ}
+        if path is not None:
+            env["PATH"] = path
+        with tempfile.TemporaryDirectory(prefix="no rules ") as root:
+            env["CLAUDE_PLUGIN_ROOT"] = Path(root).as_posix()
+            return subprocess.run(
+                [BASH, "-c", program, "normalization-test", *samples],
+                env=env, capture_output=True, text=True, encoding="utf-8",
+            )
+
+    def test_a_missing_rules_file_keeps_different_errors_in_different_classes_without_their_text(self):
+        samples = ["Error: thing 1", "Error: other  failure", f"Error: bad token {self.TOKEN}", "Error: thing 1"]
+        result = self.classify(samples)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        classes = result.stdout.split("\0")[:-1]
+        self.assertEqual(len(classes), len(samples))
+        for cls in classes:
+            self.assertRegex(cls, r"^<unnormalized:[0-9a-f]{16}>$")
+            for fragment in ("error", "thing", "failure", "bad", self.TOKEN.lower(), self.TOKEN.lower()[:12]):
+                self.assertNotIn(fragment, cls)
+        self.assertEqual(len(set(classes[:3])), 3)  # different text, different class
+        self.assertEqual(classes[0], classes[3])    # same text, same class
+
+    def test_with_no_hash_tool_the_class_is_a_constant_never_the_text(self):
+        if os.name == "nt":
+            self.skipTest("the PATH here is built from symlinks")
+        with tempfile.TemporaryDirectory(prefix="no hash ") as tools:
+            for name in ("bash", "tr", "cut"):
+                found = shutil.which(name)
+                if found:
+                    (Path(tools) / name).symlink_to(found)
+            result = self.classify([f"Error {self.TOKEN}"], path=tools)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "<unnormalized>\0")
+
+
 class GuardrailsActTests(unittest.TestCase):
     """The retry breaker and the word-budget hook, run through their hooks.json
     commands and judged on what they print. Hook state (TMPDIR), HOME and the
