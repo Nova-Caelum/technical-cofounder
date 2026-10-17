@@ -66,6 +66,10 @@ jobs:
             tests.test_portal_command_paths \
             tests.test_codex
 
+      - name: Codex native-result and rehearsal regressions
+        if: runner.os != 'Windows'
+        run: python3 -m unittest tests.test_codex_native_result tests.test_codex_rehearsal
+
       # The real install, end to end: the pasted message's own commands, the
       # first-step script, the install script, then the team plugin as it was
       # installed. On Windows it runs with Git taken off PATH.
