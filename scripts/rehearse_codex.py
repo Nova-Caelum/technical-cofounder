@@ -114,11 +114,8 @@ def deterministic(project, out):
     if counters(tmp):
         raise ValueError('Success did not clear counter')
     hook('breaker-unblocked', 'PreToolUse', **event)
-    drive = project / 'work/drive-map.md'
-    if not drive.exists():
-        drive.write_text('# Rehearsal work drive map\n')
     patch = hook('drive-context', 'PreToolUse', tool_name='apply_patch', tool_input={'input': '*** Add File: work/rehearsal-not-created.py\n+pass'})
-    if 'drive-map' not in patch.stdout:
+    if 'New file: check core_text/drive-map.md for where it belongs.' not in patch.stdout:
         raise ValueError('Drive context missing')
     return {'status': 'pass', 'breaker_counts': counts, 'session_start_bytes': len(session.stdout.encode()),
             'session_start_estimated_tokens': (len(session.stdout.encode()) + 3) // 4,
@@ -167,6 +164,50 @@ def turn(rpc, thread_id, prompt, seconds=600):
         rpc.receive(deadline)
 
 
+def instruction_samples(text):
+    """Sample actual byte positions, including wrapped rules beyond 32 KiB."""
+    total = len(text.encode())
+    candidates = []
+    offset = 0
+    fenced = False
+    for number, raw in enumerate(text.splitlines(keepends=True), 1):
+        line = raw.rstrip('\r\n')
+        if line.lstrip().startswith('```'):
+            fenced = not fenced
+        if (not fenced and 50 <= len(line) <= 700 and
+                not line.lstrip().startswith(('```', '|', '#'))):
+            candidates.append({'line': number, 'byte_offset': offset, 'expected': line})
+        offset += len(raw.encode())
+    chosen = []
+    for region, target in enumerate((0.05, 0.5, 0.95)):
+        options = [c for c in candidates if region * total / 3 <= c['byte_offset'] < (region + 1) * total / 3
+                   and sum(x['expected'].startswith(c['expected'][:24]) for x in candidates) == 1]
+        if not options:
+            raise ValueError('Cannot sample a unique instruction from each third of AGENTS.md')
+        chosen.append(min(options, key=lambda c: abs(c['byte_offset'] - total * target)))
+    return chosen
+
+
+def start_native_thread(rpc, project):
+    # Review MCP requests individually; never grant sandbox escapes or fabricate
+    # user approval. Unhandled interactive requests still fail closed in RPC.
+    policy = {'granular': {'sandbox_approval': False, 'rules': False,
+                          'mcp_elicitations': True, 'request_permissions': False,
+                          'skill_approval': False}}
+    result = rpc.call('thread/start', {
+        'cwd': str(project), 'model': 'gpt-6.1-sol',
+        'approvalPolicy': policy, 'approvalsReviewer': 'auto_review',
+        'sandbox': 'workspace-write'}, seconds=120)
+    sandbox = result.get('sandbox', {})
+    if (result.get('approvalPolicy') != policy or
+            result.get('approvalsReviewer') != 'auto_review' or
+            sandbox.get('type') != 'workspaceWrite' or
+            sandbox.get('networkAccess') is not False or
+            sandbox.get('writableRoots')):
+        raise ValueError('Native thread did not retain the requested review/sandbox boundary')
+    return result
+
+
 def live(project, second, out):
     tmp = out / 'live-tmp'; tmp.mkdir()
     trace = out / 'native-hooks.jsonl'
@@ -193,7 +234,8 @@ def live(project, second, out):
                 data['action'] = 'Review project and six generated definitions in codex /hooks, then rerun; no trust was changed.'
                 return data
             data['second_project_trusted'] = trusted_hooks(data['hooks'], second)
-            thread = rpc.call('thread/start', {'cwd': str(project), 'model': 'gpt-6.1-sol', 'approvalPolicy': 'never', 'sandbox': 'workspace-write'}, seconds=120)
+            thread = start_native_thread(rpc, project)
+            data['native_policy'] = {k: thread[k] for k in ('approvalPolicy', 'approvalsReviewer', 'sandbox')}
             tid = thread['thread']['id']; data['thread_id'] = tid
             for command in ('false', 'true'):
                 prompt = ('R1 hook probe. Make exactly ONE exec_command shell call with command ' + repr(command) +
@@ -202,7 +244,7 @@ def live(project, second, out):
                 result.update(label=command, counters_after=counters(tmp))
                 data['turns'].append(result)
             patch_prompt = ('Use apply_patch to add work/r1-drive-probe.py containing probe = True. '
-                            'This new file is under work/drive-map.md. Do not use a shell to create it. '
+                            'Use the project drive map to place this file. Do not use a shell to create it. '
                             'Report any drive-map context supplied by the hook, then stop.')
             data['turns'].append(dict(label='apply-patch-drive', **turn(rpc, tid, patch_prompt)))
             stop_prompt = ('Controlled Stop-hook test in a disposable project. For this test only, '
@@ -212,12 +254,12 @@ def live(project, second, out):
                            'Do not disable or edit any hook.')
             data['turns'].append(dict(label='stop-retry', **turn(rpc, tid, stop_prompt)))
             # Quote actual generated instructions, not a substitute AGENTS fixture.
-            lines = [(i, line) for i, line in enumerate((project / 'AGENTS.md').read_text().splitlines())
-                     if 90 < len(line) < 700 and not line.startswith(('```', '|', '#'))]
-            chosen = [lines[i] for i in (0, len(lines)//2, len(lines)-1)]
-            data['instruction_samples'] = [{'line': i+1, 'expected': line} for i, line in chosen]
+            instructions = (project / 'AGENTS.md').read_text()
+            chosen = instruction_samples(instructions)
+            data['instruction_bytes'] = len(instructions.encode())
+            data['instruction_samples'] = chosen
             quote_prompt = ('Without reading any file or using any tool, quote the complete original instruction line beginning with each of these prefixes: ' +
-                            json.dumps([line[:45] for _, line in chosen]) + '. If unavailable say so; do not guess.')
+                            json.dumps([sample['expected'][:24] for sample in chosen]) + '. If unavailable say so; do not guess.')
             data['turns'].append(dict(label='instructions-before-compact', **turn(rpc, tid, quote_prompt)))
             offset = len(rpc.messages)
             rpc.call('thread/compact/start', {'threadId': tid})
@@ -228,7 +270,7 @@ def live(project, second, out):
             data['compaction_observed'] = True
             data['turns'].append(dict(label='instructions-after-compact', **turn(rpc, tid, quote_prompt)))
             if data['second_project_trusted']:
-                other = rpc.call('thread/start', {'cwd': str(second), 'model': 'gpt-6.1-sol', 'approvalPolicy': 'never', 'sandbox': 'workspace-write'}, seconds=120)
+                other = start_native_thread(rpc, second)
                 data['turns'].append(dict(label='second-project', **turn(rpc, other['thread']['id'], 'Make one exec_command call with command true, then reply done. No other tools.')))
             # The source-controlled prompt is shared verbatim with friend-test step 4.
             friend_path = project.parent / 'sources/tc/docs/codex-friend-task.txt'

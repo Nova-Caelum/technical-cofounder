@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('rehearse_codex', ROOT / 'scripts/rehearse_codex.py')
@@ -81,6 +81,48 @@ class Rehearsal(unittest.TestCase):
             result = json.loads(next(Path(d).glob('evidence/*/results.json')).read_text())
             self.assertEqual(result['status'], 'collection_error')
             self.assertFalse(result['verifier_closed'])
+
+    def test_native_review_boundary_is_checked_before_turns(self):
+        import copy
+        policy = {'granular': {'sandbox_approval': False, 'rules': False,
+                              'mcp_elicitations': True, 'request_permissions': False,
+                              'skill_approval': False}}
+        expected = {'approvalPolicy': policy, 'approvalsReviewer': 'auto_review',
+                    'sandbox': {'type': 'workspaceWrite', 'networkAccess': False, 'writableRoots': []},
+                    'thread': {'id': 'fixture'}}
+        rpc = Mock()
+        rpc.call.return_value = expected
+        self.assertEqual(runner.start_native_thread(rpc, Path('/tmp/project')), expected)
+        requested = rpc.call.call_args.args[1]
+        self.assertEqual(requested['approvalPolicy'], policy)
+        self.assertEqual(requested['approvalsReviewer'], 'auto_review')
+        self.assertEqual(requested['sandbox'], 'workspace-write')
+        cases = [dict(approvalPolicy='never'), dict(approvalsReviewer='user'),
+                 dict(sandbox={'type': 'dangerFullAccess'}),
+                 dict(sandbox={'type': 'workspaceWrite', 'networkAccess': True, 'writableRoots': []}),
+                 dict(sandbox={'type': 'workspaceWrite', 'networkAccess': False, 'writableRoots': ['/other']})]
+        for change in cases:
+            with self.subTest(change=change):
+                result = copy.deepcopy(expected); result.update(change)
+                rpc.call.return_value = result
+                with self.assertRaisesRegex(ValueError, 'boundary'):
+                    runner.start_native_thread(rpc, Path('/tmp/project'))
+
+    def test_instruction_samples_cover_bytes_not_long_line_subset(self):
+        # Persona paragraphs are long; workspace rules are wrapped to 70 columns.
+        # The old >90-character filter silently selected only the persona.
+        text = 'Persona paragraph ' + 'x' * 150 + '\n'
+        text += ''.join(f'Rule {i:04d}: ' + 'wrapped instruction content ' * 2 + '\n' for i in range(650))
+        samples = runner.instruction_samples(text)
+        size = len(text.encode())
+        self.assertGreater(size, 40000)
+        for region, sample in enumerate(samples):
+            self.assertGreaterEqual(sample['byte_offset'], region * size / 3)
+            self.assertLess(sample['byte_offset'], (region + 1) * size / 3)
+            self.assertEqual(text.splitlines()[sample['line'] - 1], sample['expected'])
+        self.assertGreater(samples[-1]['byte_offset'], 32768)
+        with self.assertRaisesRegex(ValueError, 'each third'):
+            runner.instruction_samples('too short')
 
     def test_friend_prompt_is_the_documented_task(self):
         prompt = (ROOT / 'docs/codex-friend-task.txt').read_text().strip()
