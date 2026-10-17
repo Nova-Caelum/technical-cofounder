@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate a project-scoped Codex installation from shared TC + pinned HSE sources.
 
-Standard library only, Python >=3.11. Does not download, provision, grant trust,
+Standard library only, Python >=3.11. Fetches the pinned engine source when omitted. Does not provision, grant trust,
 change global configuration, or overwrite local edits. Run --help for inputs.
 """
 import argparse
@@ -23,6 +23,10 @@ MANIFEST = '.codex/technical-cofounder-install.json'
 RUNTIME = '.codex/technical-cofounder'
 BEGIN = '# BEGIN TECHNICAL COFOUNDER (generated)'
 END = '# END TECHNICAL COFOUNDER'
+BUDGET_BEGIN = '# BEGIN TC DOCUMENT BUDGET (generated)'
+BUDGET_END = '# END TC DOCUMENT BUDGET'
+DOCUMENT_BUDGET = 131072
+ENGINE_URL = 'https://github.com/Nova-Caelum/hyperspace-engine.git'
 
 
 def git(root, *args):
@@ -99,7 +103,8 @@ def build(project, engine, python):
             add(destination + '/' + short, src.read_bytes(), 0o755 if os.access(src, os.X_OK) else 0o644)
     snapshot(REPO, 'plugins/technical-cofounder', RUNTIME + '/technical-cofounder')
     snapshot(engine, '', RUNTIME + '/hyperspace-engine')
-    add(RUNTIME + '/adapter.py', (REPO / 'codex/adapter.py').read_bytes())
+    for filename in ('adapter.py', 'native_result.py'):
+        add(RUNTIME + '/' + filename, (REPO / 'codex' / filename).read_bytes())
     contract = (REPO / 'codex/host-contract.md').read_text()
     add(RUNTIME + '/host-contract.md', contract)
     tc = project / RUNTIME / 'technical-cofounder'
@@ -149,9 +154,9 @@ def build(project, engine, python):
     for rule in sorted((template / '.claude/rules').glob('*.md')):
         rules.append(re.sub(r'^---\n.*?\n---\n', '', rule.read_text(), flags=re.S))
     add(RUNTIME + '/workspace-rules.md', '\n\n'.join(rules))
-    merged_agents = block(agents, personas['technical-cofounder'])
-    if len(merged_agents.encode()) > 32768:
-        raise ValueError('Combined AGENTS.md exceeds the default Codex 32768-byte budget; move detailed rules into explicitly referenced files before installing')
+    merged_agents = block(agents, personas['technical-cofounder'] + '\n\n' + '\n\n'.join(rules))
+    if len(merged_agents.encode()) > DOCUMENT_BUDGET:
+        raise ValueError('Combined AGENTS.md exceeds the managed 131072-byte budget')
     add('AGENTS.md', merged_agents)
     adapter = project / RUNTIME / 'adapter.py'
     command = [str(python), '-I', str(adapter)]
@@ -159,6 +164,11 @@ def build(project, engine, python):
     parsed = tomllib.loads(config)
     if BEGIN not in config and any(n in parsed.get('mcp_servers', {}) for n in ('caelum-dev-team', 'hyperspace')):
         raise ValueError('MCP server name collision in .codex/config.toml')
+    budget = parsed.get('project_doc_max_bytes')
+    if budget is not None and (type(budget) is not int or budget < DOCUMENT_BUDGET):
+        raise ValueError('Existing project_doc_max_bytes is below the required 131072-byte budget; reconcile it before installing')
+    if budget is None:
+        config = BUDGET_BEGIN + '\nproject_doc_max_bytes = 131072\n' + BUDGET_END + '\n\n' + config
     entries = []
     for name, server in [('caelum-dev-team', 'team'), ('hyperspace', 'hyperspace')]:
         entries.append('\n'.join(['[mcp_servers.' + name + ']', 'command = ' + json.dumps(str(python)),
@@ -169,15 +179,19 @@ def build(project, engine, python):
     hooks = json.loads(hooks_text) if hooks_text else {'hooks': {}}
     if not isinstance(hooks.get('hooks'), dict):
         raise ValueError('Expected hooks object in .codex/hooks.json')
-    # Previous installation's exact commands are identified by this fixed adapter path.
+    # Stable definitions permit comparing trust across projects. They do not grant trust.
+    stable = shlex.quote(str(python)) + ' -I "$(git rev-parse --show-toplevel)/' + RUNTIME + '/adapter.py" '
+    owned = {shlex.join(command + [a, '--project', str(project)]) for a in ('hook', 'freshness')}
+    owned.update(stable + a for a in ('hook', 'freshness'))
+    # Remove only our exact current/legacy commands; preserve unrelated user hooks.
     for event in ('SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop'):
         groups = hooks['hooks'].setdefault(event, [])
         for group in groups:
-            group['hooks'] = [h for h in group['hooks'] if str(adapter) not in shlex.split(h.get('command', ''))]
+            group['hooks'] = [h for h in group['hooks'] if h.get('command', '') not in owned]
         hooks['hooks'][event] = [g for g in groups if g['hooks']]
         actions = ['hook', 'freshness'] if event == 'SessionStart' else ['hook']
         for action in actions:
-            group = {'hooks': [{'type': 'command', 'command': shlex.join(command + [action, '--project', str(project)]), 'timeout': 60}]}
+            group = {'hooks': [{'type': 'command', 'command': stable + action, 'timeout': 60}]}
             if event in ('PreToolUse', 'PostToolUse'):
                 group['matcher'] = '*'
             hooks['hooks'][event].append(group)
@@ -227,7 +241,7 @@ def install(project, engine, python):
     if not manifest_path.exists():
         for rel in ('AGENTS.md', '.codex/config.toml'):
             path = safe_target(project, rel)
-            if path.exists() and (BEGIN in path.read_text() or END in path.read_text()):
+            if path.exists() and any(marker in path.read_text() for marker in (BEGIN, END, BUDGET_BEGIN, BUDGET_END)):
                 raise ValueError('Managed block without installation manifest: ' + rel)
     for rel, entry in old['files'].items():
         path = safe_target(project, rel)
@@ -259,13 +273,34 @@ def install(project, engine, python):
     return manifest
 
 
+def cached_engine():
+    """Fetch exactly the pin into an external cache, atomically; never pull main."""
+    cache = Path.home() / '.cache/tc-codex'
+    cache.mkdir(parents=True, exist_ok=True)
+    target = cache / ('engine-' + ENGINE_REV)
+    if target.exists():
+        if target.is_symlink() or git(target, 'rev-parse', 'HEAD') != ENGINE_REV or git(target, 'status', '--porcelain', '--untracked-files=no'):
+            raise ValueError('Engine cache is not clean at the pin: ' + str(target))
+        return target
+    with tempfile.TemporaryDirectory(prefix='.fetch-', dir=cache) as scratch:
+        clone = Path(scratch) / 'engine'
+        subprocess.run(['git', 'init', '-q', str(clone)], check=True)
+        git(clone, 'remote', 'add', 'origin', ENGINE_URL)
+        git(clone, 'fetch', '--depth=1', 'origin', ENGINE_REV)
+        git(clone, 'checkout', '--detach', 'FETCH_HEAD')
+        if git(clone, 'rev-parse', 'HEAD') != ENGINE_REV:
+            raise ValueError('Fetched engine does not match the pin')
+        clone.rename(target)
+    return target
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project', type=Path, required=True)
-    parser.add_argument('--engine-source', type=Path, required=True, help='clean HSE checkout at ' + ENGINE_REV)
+    parser.add_argument('--engine-source', type=Path, help='clean HSE checkout at ' + ENGINE_REV + '; omitted: fetch into ~/.cache/tc-codex')
     args = parser.parse_args()
     try:
-        manifest = install(args.project, args.engine_source, Path(sys.executable))
+        manifest = install(args.project, args.engine_source or cached_engine(), Path(sys.executable))
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:
         parser.exit(1, 'Install refused: ' + str(exc) + '\n')
     print('Installed %d managed files. Next: review project configuration, run $tc-setup, and review /hooks.' % len(manifest['files']))

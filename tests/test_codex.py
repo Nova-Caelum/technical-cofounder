@@ -27,17 +27,17 @@ adapter = load('codex_adapter', ROOT / 'codex/adapter.py')
 
 class ResultBoundary(unittest.TestCase):
     def test_explicit_process_results(self):
-        for value in ({'exit_code': 1, 'output': 'failure'}, '{"exit_code": 2, "output": "failure"}', 'Process exited with code 1\nfailure', 'Exit code: 2\nfailure'):
+        for value in ({'exit_code': 1, 'output': 'failure'},):
             self.assertEqual(adapter.result_status(value)[0], 'failure')
         self.assertEqual(adapter.result_status({'exit_code': 0})[0], 'success')
-        self.assertEqual(adapter.result_status('Process exit code: 0\nOutput:\nok')[0], 'success')
+        self.assertEqual(adapter.result_status('Process exit code: 0\nOutput:\nok')[0], 'unknown')
 
     def test_mcp_errors(self):
         self.assertEqual(adapter.result_status({'isError': True, 'content': [{'text': 'failed'}]})[0], 'failure')
         self.assertEqual(adapter.result_status({'isError': False, 'content': []})[0], 'success')
 
     def test_ambiguous_results_are_not_success(self):
-        for value in (None, {}, {'exit_code': None}, {'exit_code': False}, 'apparently successful', {'output': 'failure'}, {'isError': 'false'}):
+        for value in (None, {}, {'exit_code': None}, {'exit_code': False}, 'apparently successful', 'Exit code: 0', '{"exit_code": 0}', {'output': 'failure'}, {'isError': 'false'}):
             self.assertEqual(adapter.result_status(value)[0], 'unknown')
 
     def test_thread_scope_does_not_forge_session_authority(self):
@@ -85,9 +85,37 @@ class Install(unittest.TestCase):
         return p
 
     def invoke(self, name, **extra):
-        event = dict(hook_event_name=name, cwd=str(self.project), session_id='test-session', tool_name='Bash', **extra)
+        event = dict(hook_event_name=name, cwd=str(self.project), session_id='test-session', tool_name=extra.pop('tool_name', 'fixture_command'), **extra)
         return subprocess.run([sys.executable, '-I', str(self.project / installer.RUNTIME / 'adapter.py'), 'hook', '--project', str(self.project)],
                               input=json.dumps(event), text=True, capture_output=True, env=self.env, timeout=30)
+
+    def test_host_engine_lookup_uses_pinned_snapshot(self):
+        engine_script = self.engine / 'bin/drive_map.py'
+        engine_script.parent.mkdir()
+        engine_script.write_text('# fixture generator\n')
+        subprocess.run(['git', '-C', str(self.engine), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(self.engine), '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'generator'], check=True)
+        with patch.object(installer, 'ENGINE_REV', installer.git(self.engine, 'rev-parse', 'HEAD')):
+            self.install()
+        installed = self.project / installer.RUNTIME
+        with patch.object(adapter, 'ENGINE', installed / 'hyperspace-engine'):
+            env = adapter.environment(self.project)
+        command = [sys.executable, '-I', str(installed / 'technical-cofounder/bin/drive_map_pointer.py'), 'locate', str(self.project)]
+        result = subprocess.run(command, env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), str(installed / 'hyperspace-engine/bin/drive_map.py'))
+        env['TC_ENGINE_PLUGIN_ROOT'] = str(self.base / 'missing')
+        self.assertEqual(subprocess.run(command, env=env, capture_output=True).returncode, 1)
+
+    def test_pinned_engine_cache_fetch_reuse_and_dirty_refusal(self):
+        with patch.object(Path, 'home', return_value=self.base / 'cache-home'), patch.object(installer, 'ENGINE_URL', str(self.engine)):
+            cached = installer.cached_engine()
+            self.assertEqual(installer.git(cached, 'rev-parse', 'HEAD'), self.rev)
+            with patch.object(installer, 'ENGINE_URL', str(self.base / 'nonexistent-remote')):
+                self.assertEqual(installer.cached_engine(), cached)
+            (cached / 'pyproject.toml').write_text('changed')
+            with self.assertRaisesRegex(ValueError, 'not clean'):
+                installer.cached_engine()
 
     def test_install_preserves_existing_content_and_is_idempotent(self):
         self.file('AGENTS.md', 'User rule: keep tests concise.\n')
@@ -108,7 +136,73 @@ class Install(unittest.TestCase):
             self.assertEqual(data['name'], role)
             self.assertNotIn('model', data)
             self.assertIn('Codex host contract', data['developer_instructions'])
-        self.assertLess((self.project / 'AGENTS.md').stat().st_size, 32768)
+        self.assertLess((self.project / 'AGENTS.md').stat().st_size, 131072)
+        self.assertEqual(config['project_doc_max_bytes'], 131072)
+        rules = (self.project / installer.RUNTIME / 'workspace-rules.md').read_text()
+        self.assertIn(rules, (self.project / 'AGENTS.md').read_text())
+
+    def test_existing_40k_instructions_are_preserved(self):
+        original = 'User instructions.\n' * 2300
+        self.file('AGENTS.md', original)
+        self.install()
+        self.assertTrue((self.project / 'AGENTS.md').read_text().startswith(original.rstrip()))
+
+    def test_budget_conflict_refuses_before_writes(self):
+        self.file('.codex/config.toml', 'project_doc_max_bytes = 32768\n')
+        with self.assertRaisesRegex(ValueError, 'reconcile'):
+            self.install()
+        self.assertFalse((self.project / installer.RUNTIME).exists())
+
+    def test_larger_user_budget_is_preserved(self):
+        self.file('.codex/config.toml', 'project_doc_max_bytes = 262144\n')
+        self.install()
+        self.assertEqual(tomllib.loads((self.project / '.codex/config.toml').read_text())['project_doc_max_bytes'], 262144)
+
+    def test_hook_definitions_stable_and_execute_from_subdirectory(self):
+        self.install()
+        first = (self.project / '.codex/hooks.json').read_bytes()
+        original = self.project
+        self.project = self.base / 'second project'
+        self.install()
+        self.assertEqual(first, (self.project / '.codex/hooks.json').read_bytes())
+        subprocess.run(['git', 'init', '-q', str(original)], check=True)
+        sub = original / 'work/nested'
+        sub.mkdir(parents=True)
+        hooks = json.loads(first)['hooks']['UserPromptSubmit']
+        command = hooks[0]['hooks'][0]['command']
+        result = subprocess.run(command, shell=True, cwd=sub, env=self.env, text=True,
+                                input=json.dumps(dict(hook_event_name='UserPromptSubmit', cwd=str(sub), session_id='stable', prompt='Be brief')),
+                                capture_output=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('OUTPUT CONTRACT', result.stdout)
+
+    def test_wrong_project_cwd_is_refused(self):
+        self.install()
+        other = self.base / 'unrelated'
+        subprocess.run(['git', 'init', '-q', str(other)], check=True)
+        result = subprocess.run([sys.executable, '-I', str(self.project / installer.RUNTIME / 'adapter.py'), 'hook'],
+                                input=json.dumps(dict(cwd=str(other), hook_event_name='UserPromptSubmit')),
+                                text=True, capture_output=True, env=self.env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('does not resolve to this installation', result.stderr)
+
+    def test_trace_is_opt_in_and_contains_no_prompt(self):
+        self.install()
+        target = self.base / 'trace.jsonl'
+        self.invoke('UserPromptSubmit', prompt='PRIVATE-CONTENT')
+        self.assertFalse(target.exists())
+        self.env['TC_HOOK_TRACE'] = str(target)
+        result = self.invoke('UserPromptSubmit', prompt='PRIVATE-CONTENT', source='startup')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rows = [json.loads(line) for line in target.read_text().splitlines()]
+        self.assertEqual(rows[0]['event'], 'UserPromptSubmit')
+        self.assertEqual(rows[0]['source'], 'startup')
+        self.assertIsInstance(rows[0]['timestamp'], float)
+        self.assertNotIn('PRIVATE-CONTENT', target.read_text())
+        target.unlink()
+        target.symlink_to(self.base / 'must-not-write')
+        self.assertEqual(self.invoke('UserPromptSubmit', prompt='brief').returncode, 0)
+        self.assertFalse((self.base / 'must-not-write').exists())
 
     def test_shared_guards_and_trust_gate_are_byte_identical(self):
         self.install()
@@ -163,9 +257,9 @@ class Install(unittest.TestCase):
         self.assertFalse((self.project / '.agents/skills/acing-hyperspace/private.txt').exists())
 
     def test_existing_instruction_budget_overflow_refuses_before_writes(self):
-        original = 'Existing detailed rule.\n' * 1500
+        original = 'Existing detailed rule.\n' * 6500
         self.file('AGENTS.md', original)
-        with self.assertRaisesRegex(ValueError, '32768-byte budget'):
+        with self.assertRaisesRegex(ValueError, '131072-byte budget'):
             self.install()
         self.assertEqual((self.project / 'AGENTS.md').read_text(), original)
         self.assertFalse((self.project / installer.RUNTIME).exists())

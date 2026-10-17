@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 
 ROOT = Path(__file__).resolve().parent
 TC = ROOT / 'technical-cofounder'
@@ -32,6 +33,7 @@ def host_text(text):
 def environment(project, root=TC):
     env = dict(os.environ, CLAUDE_PROJECT_DIR=str(project), CLAUDE_PLUGIN_ROOT=str(root))
     # Never put Codex telemetry/stamps into the Claude user's directories.
+    env['TC_ENGINE_PLUGIN_ROOT'] = str(ENGINE)
     env['CLAUDE_PLUGIN_DATA'] = str(Path(env.get('CODEX_HOME', Path.home() / '.codex')) / 'technical-cofounder')
     return env
 
@@ -49,18 +51,39 @@ def result_status(value):
         if isinstance(code, int) and not isinstance(code, bool):
             return ('failure', str(value.get('output', value.get('stderr', 'process failed')))) if code else ('success', '')
         return 'unknown', ''
-    if isinstance(value, str):
-        try:
-            parsed = json.loads(value)
-        except ValueError:
-            parsed = None
-        if isinstance(parsed, dict):
-            return result_status(parsed)
-        # These are anchored host envelope lines, not arbitrary mentions in prose.
-        found = re.search(r'(?m)^(?:Process exited with code |Process exit code: |Exit code: )(-?\d+)\s*$', value)
-        if found:
-            return ('failure', value) if int(found.group(1)) else ('success', '')
     return 'unknown', ''
+
+
+def trace(event, phase, **metadata):
+    """Opt-in metadata only: never prompts, command text, output or credentials."""
+    target = os.environ.get('TC_HOOK_TRACE')
+    if not target:
+        return
+    entry = dict(timestamp=time.time(), event=event.get('hook_event_name'),
+                 source=event.get('source'), phase=phase,
+                 session_id=event.get('session_id'), turn_id=event.get('turn_id'),
+                 tool_use_id=event.get('tool_use_id'), **metadata)
+    try:
+        fd = os.open(target, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        try:
+            import stat
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise OSError('trace destination is not a regular file')
+            os.write(fd, (json.dumps(entry) + '\n').encode())
+        finally:
+            os.close(fd)
+    except OSError as exc:
+        print('TC hook trace unavailable: ' + type(exc).__name__, file=sys.stderr)
+
+
+def project_root(explicit, event=None):
+    if explicit:
+        return explicit.resolve()
+    cwd = (event or {}).get('cwd') or os.getcwd()
+    root = Path(subprocess.check_output(['git', '-C', cwd, 'rev-parse', '--show-toplevel'], text=True).strip()).resolve()
+    if root != ROOT.parent.parent:
+        raise ValueError('Hook cwd does not resolve to this installation')
+    return root
 
 
 def scoped(event):
@@ -98,11 +121,20 @@ def drive_context(event, project):
 
 def hook(event, project):
     event = scoped(event)
+    trace(event, 'entered', **({'stop_hook_active': event.get('stop_hook_active'),
+          'response_words': len(event['last_assistant_message'].split()) if isinstance(event.get('last_assistant_message'), str) else None}
+          if event.get('hook_event_name') == 'Stop' else {}))
     name = event.get('hook_event_name')
     scripts = {'SessionStart': ['session-preload.sh'], 'UserPromptSubmit': ['concision-budget.sh', 'concision-contract.sh'],
                'Stop': ['concision-stop.sh'], 'PreToolUse': ['circuit-breaker.sh'], 'PostToolUse': ['circuit-breaker.sh']}.get(name, [])
     if name == 'PostToolUse':
-        status, error = result_status(event.get('tool_response'))
+        if event.get('tool_name') == 'Bash':
+            native = module('tc_native_result', ROOT / 'native_result.py')
+            (status, error), details = native.bash_result_status(event)
+            trace(event, 'result', status=status, **details)
+        else:
+            status, error = result_status(event.get('tool_response'))
+            trace(event, 'result', status=status, reason='structured_response')
         if status == 'unknown':
             print('TC circuit breaker: unrecognized tool result; counters retained.', file=sys.stderr)
             return 0
@@ -114,6 +146,7 @@ def hook(event, project):
     outputs = []
     for script in scripts:
         code, out, err = run_hook(script, event, project)
+        trace(event, 'handler_finished', handler=script, exit_code=code)
         if err:
             print(host_text(err), file=sys.stderr, end='')
         if code == 2:
@@ -124,6 +157,7 @@ def hook(event, project):
             outputs.append(host_text(out.strip()))
     if name == 'SessionStart':
         code, out, err = run_hook('session-start.sh', event, project, ENGINE)
+        trace(event, 'handler_finished', handler='session-start.sh', exit_code=code)
         if out.strip():
             outputs.append(host_text(out.strip()).replace('${CLAUDE_PLUGIN_ROOT}', str(ENGINE)))
         if err:
@@ -131,6 +165,7 @@ def hook(event, project):
     if name == 'PreToolUse':
         context = drive_context(event, project)
         if context:
+            trace(event, 'drive_context', injected=True)
             outputs.append(json.dumps({'hookSpecificOutput': {'hookEventName': name, 'additionalContext': context}}))
     # Prompt/session hooks accept plain text. Tool hooks require one JSON object.
     if name in ('SessionStart', 'UserPromptSubmit'):
@@ -140,6 +175,7 @@ def hook(event, project):
         for out in outputs:
             obj = json.loads(out)
             if obj.get('decision') == 'block':
+                trace(event, 'decision', decision='block')
                 print(json.dumps(obj))
                 return 0
             context = obj.get('hookSpecificOutput', {}).get('additionalContext')
@@ -163,14 +199,15 @@ def freshness(project):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['hook', 'freshness', 'mcp', 'provision'])
-    parser.add_argument('--project', required=True, type=Path)
+    parser.add_argument('--project', type=Path)
     parser.add_argument('--server', choices=['team', 'hyperspace'])
     parser.add_argument('--judge', choices=['none', 'codex'], default='none')
     args = parser.parse_args()
-    project = args.project.resolve()
+    event = json.load(sys.stdin) if args.action == 'hook' else None
+    project = project_root(args.project, event)
     os.chdir(project)
     if args.action == 'hook':
-        return hook(json.load(sys.stdin), project)
+        return hook(event, project)
     if args.action == 'freshness':
         return freshness(project)
     if args.action == 'mcp':
@@ -188,7 +225,7 @@ def main():
 if __name__ == '__main__':
     try:
         code = main()
-    except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
         print('TC Codex adapter: ' + type(exc).__name__ + ': ' + str(exc), file=sys.stderr)
         code = 1
     sys.stdout.flush()
