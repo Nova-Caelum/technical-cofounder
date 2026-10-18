@@ -71,3 +71,11 @@ Expected at readiness: setup guide/progress are visible; the existing profile su
 Record OS, CLI version, TC commit (`git -C ../tc-source rev-parse HEAD`), install/provision/doctor results, skills, actual role/model execution, MCP calls, hook trust and execution, test result, graph state and worklog readback. Include exact errors and the step where they occurred. Remove secrets before sharing.
 
 Keep the disposable project until review. Reinstall with the same source/project paths; the installer refuses edited managed files. Moving a project or removing its system Python requires regenerating installation configuration. Automatic update and removal are deferred to parity.
+
+## Known limits
+
+Native Stop continuation and its retry flag are awaiting the rehearsal's temporary
+20-word threshold probe. The production threshold remains 700 words, above the
+binding response budget (at most 650); deterministic block/guard tests pass, but
+ordinary native Stop dispatch does not prove continuation. Per CTO review this
+verbosity backstop is a documented limitation rather than a readiness blocker.

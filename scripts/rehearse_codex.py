@@ -7,6 +7,7 @@ and collect native hook/trust/command/compaction evidence. Live turns must run
 from the user's Terminal or a Claude Code shell (plan A4). No trust mutation.
 """
 import argparse
+from contextlib import contextmanager
 import datetime as dt
 import hashlib
 import importlib.util
@@ -272,6 +273,80 @@ def prepare_checks(project, out):
     return check_runtime(project, out)
 
 
+@contextmanager
+def stop_candidate(project, out, evidence):
+    """CTO-approved disposable install probe; never edits source or trust."""
+    relative = RUNTIME + '/technical-cofounder/hooks/concision-stop.sh'
+    path = project / relative
+    part = path
+    while part != project.parent:
+        if part.is_symlink():
+            raise ValueError('Stop candidate refuses symlink paths')
+        part = part.parent
+    if not path.resolve().is_relative_to(project.resolve()):
+        raise ValueError('Stop candidate escaped project')
+    before = managed(project)
+    if relative not in before:
+        raise ValueError('Stop handler is not managed')
+    original = path.read_bytes()
+    needle = b'if [ "$RESPONSE_WORDS" -gt 700 ]'
+    if original.count(needle) != 1:
+        raise ValueError('Stop threshold template changed')
+    candidate = original.replace(needle, b'if [ "$RESPONSE_WORDS" -gt 20 ]')
+    backup = out / 'stop-original.sh'
+    with backup.open('xb') as stream:
+        stream.write(original)
+    evidence.update(original_sha256=before[relative], backup=str(backup),
+                    candidate_sha256=hashlib.sha256(candidate).hexdigest(),
+                    threshold=20, restored=False)
+    write(out / 'stop-candidate.json', evidence)
+    try:
+        path.write_bytes(candidate)
+        yield
+    finally:
+        # Preserve unrelated edits rather than silently overwriting them.
+        if path.is_symlink() or path.read_bytes() not in (original, candidate):
+            evidence['restore_error'] = 'Concurrent handler edit; original retained in backup'
+            write(out / 'stop-candidate.json', evidence)
+            raise ValueError(evidence['restore_error'])
+        path.write_bytes(original)
+        evidence['restored'] = sha(path) == before[relative]
+        try:
+            evidence['all_managed_unchanged'] = managed(project) == before
+        finally:
+            write(out / 'stop-candidate.json', evidence)
+        if not evidence['restored'] or not evidence['all_managed_unchanged']:
+            raise ValueError('Stop candidate restoration failed')
+
+
+def review_stop_retry(messages, trace, thread_id, turn_id):
+    """Fail closed: ordinary dispatch or a narrated retry never passes."""
+    events = [v for v in trace if v.get('event') == 'Stop'
+              and v.get('session_id') == thread_id and v.get('turn_id') == turn_id]
+    entered = [(i, v) for i, v in enumerate(events) if v.get('phase') == 'entered']
+    if len(entered) != 2:
+        return {'status': 'unproven', 'reason': 'Expected exactly two Stop invocations'}
+    (a, first), (b, second) = entered
+    blocks = [i for i, v in enumerate(events) if v.get('phase') == 'decision' and v.get('decision') == 'block']
+    finished = [v for v in events[b+1:] if v.get('phase') == 'handler_finished'
+                and v.get('handler') == 'concision-stop.sh' and v.get('exit_code') == 0]
+    scoped = [v for v in messages if v.get('params', {}).get('threadId') == thread_id
+              and (v['params'].get('turnId') == turn_id or v['params'].get('turn', {}).get('id') == turn_id)]
+    replies = [v for v in scoped if v.get('method') == 'item/completed'
+               and v['params'].get('item', {}).get('type') == 'agentMessage']
+    completed = any(v.get('method') == 'turn/completed' and
+                    v['params'].get('turn', {}).get('status') == 'completed' for v in scoped)
+    block_time = events[blocks[0]].get('timestamp', 0) if len(blocks) == 1 else 0
+    continuation = any(block_time < v.get('emittedAtMs', 0) / 1000 < second.get('timestamp', 0) for v in replies)
+    first_reply = any(v.get('emittedAtMs', 0) / 1000 < first.get('timestamp', 0) for v in replies)
+    passed = (first.get('stop_hook_active') is False and second.get('stop_hook_active') is True
+              and len(blocks) == 1 and a < blocks[0] < b and bool(finished)
+              and first_reply and continuation and completed)
+    return {'status': 'pass' if passed else 'unproven', 'turn_id': turn_id,
+            'reason': 'Native block, same-turn continuation, active retry guard and completed turn observed' if passed
+            else 'Native trace did not prove all continuation and retry-guard requirements'}
+
+
 def live(project, second, out):
     checks = check_runtime(project, out)
     scope = fixture_scope(project, out.name)
@@ -316,11 +391,13 @@ def live(project, second, out):
                             'Use the project drive map to place this file. Do not use a shell to create it. '
                             'Report any drive-map context supplied by the hook, then stop.')
             data['turns'].append(dict(label='apply-patch-drive', **turn(rpc, tid, patch_prompt)))
-            # The binding prompt budget tops out at 650 words, below Stop's 700.
-            # A compliant model cannot reliably trigger this defensive branch.
-            # Do not request a policy violation or count ordinary Stop as retry proof.
-            data['stop_retry'] = {'status': 'unproven',
-                                  'reason': 'Native oversized-response continuation requires a separately reviewed test design; synthetic guard tests are not native proof.'}
+            # Lower only the disposable installed threshold; restore even on failure.
+            data['stop_retry'] = {'status': 'collecting'}
+            with stop_candidate(project, out, data['stop_retry']):
+                probe = turn(rpc, tid, 'R1 Stop mechanism probe. Without tools, write approximately 60 words explaining why keeping test evidence helps debugging. Stay within your response budget.')
+                data['turns'].append(dict(label='stop-retry-candidate', **probe))
+                native_trace = [json.loads(line) for line in trace.read_text().splitlines()]
+                data['stop_retry'].update(review_stop_retry(rpc.messages, native_trace, tid, probe['turn_id']))
             # Quote actual generated instructions, not a substitute AGENTS fixture.
             instructions = (project / 'AGENTS.md').read_text()
             chosen = instruction_samples(instructions)

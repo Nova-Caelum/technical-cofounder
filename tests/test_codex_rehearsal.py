@@ -233,5 +233,82 @@ class Rehearsal(unittest.TestCase):
         self.assertIn('> ' + prompt, (ROOT / 'docs/codex-friend-test.md').read_text())
 
 
+class StopCandidate(unittest.TestCase):
+    def fixture(self, root):
+        project = root / 'project'; out = root / 'out'; out.mkdir()
+        relative = runner.RUNTIME + '/technical-cofounder/hooks/concision-stop.sh'
+        handler = project / relative; handler.parent.mkdir(parents=True)
+        handler.write_text('if [ "$RESPONSE_WORDS" -gt 700 ] && [ "$STOP_HOOK_ACTIVE" != "true" ]; then\n echo block\nfi\n')
+        runner.write(project / '.codex/technical-cofounder-install.json', {'files': {relative: {'sha256': runner.sha(handler)}}})
+        return project, out, handler
+
+    def test_restore_on_success_and_interruption(self):
+        for failure in (None, RuntimeError, KeyboardInterrupt):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as d:
+                project, out, handler = self.fixture(Path(d))
+                original = handler.read_bytes(); evidence = {}
+                def probe():
+                    with runner.stop_candidate(project, out, evidence):
+                        self.assertEqual(handler.read_bytes(), original.replace(b'-gt 700', b'-gt 20'))
+                        if failure:
+                            raise failure()
+                if failure:
+                    with self.assertRaises(failure): probe()
+                else: probe()
+                self.assertEqual(handler.read_bytes(), original)
+                self.assertTrue(evidence['restored'])
+                self.assertTrue(evidence['all_managed_unchanged'])
+                self.assertEqual((out / 'stop-original.sh').read_bytes(), original)
+
+    def test_refuses_drift_template_and_symlink(self):
+        for mode in ('drift', 'template', 'symlink'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as d:
+                project, out, handler = self.fixture(Path(d))
+                if mode == 'symlink':
+                    actual = Path(d) / 'actual'; handler.rename(actual); handler.symlink_to(actual)
+                else:
+                    handler.write_text('different template')
+                    if mode == 'template':
+                        runner.write(project / '.codex/technical-cofounder-install.json', {'files': {str(handler.relative_to(project)): {'sha256': runner.sha(handler)}}})
+                with self.assertRaises(ValueError):
+                    with runner.stop_candidate(project, out, {}): self.fail('must not run')
+                self.assertFalse((out / 'stop-original.sh').exists())
+
+    def test_preserves_concurrent_edits_and_backup(self):
+        with tempfile.TemporaryDirectory() as d:
+            project, out, handler = self.fixture(Path(d)); original = handler.read_bytes()
+            with self.assertRaisesRegex(ValueError, 'Concurrent'):
+                with runner.stop_candidate(project, out, {}): handler.write_text('external edit')
+            self.assertEqual(handler.read_text(), 'external edit')
+            self.assertEqual((out / 'stop-original.sh').read_bytes(), original)
+
+    def trace(self):
+        common = {'event': 'Stop', 'session_id': 'thread', 'turn_id': 'turn'}
+        events = [dict(common, phase='entered', stop_hook_active=False, timestamp=2),
+                  dict(common, phase='decision', decision='block', timestamp=3),
+                  dict(common, phase='entered', stop_hook_active=True, timestamp=5),
+                  dict(common, phase='handler_finished', handler='concision-stop.sh', exit_code=0, timestamp=6)]
+        messages = [{'method': 'item/completed', 'emittedAtMs': t * 1000,
+                     'params': {'threadId': 'thread', 'turnId': 'turn', 'item': {'type': 'agentMessage'}}} for t in (1, 4)]
+        messages.append({'method': 'turn/completed', 'params': {'threadId': 'thread', 'turn': {'id': 'turn', 'status': 'completed'}}})
+        return messages, events
+
+    def test_native_continuation_requirements(self):
+        messages, events = self.trace()
+        self.assertEqual(runner.review_stop_retry(messages, events, 'thread', 'turn')['status'], 'pass')
+        for mode in ('ordinary', 'missing_active', 'other_turn', 'reblock', 'no_continuation', 'not_completed', 'failed_handler', 'message_before_block'):
+            with self.subTest(mode=mode):
+                messages, events = self.trace()
+                if mode == 'ordinary': events = events[:1]
+                elif mode == 'missing_active': events[2]['stop_hook_active'] = False
+                elif mode == 'other_turn': messages[1]['params']['turnId'] = 'other'
+                elif mode == 'reblock': events.append(dict(events[1], timestamp=7))
+                elif mode == 'no_continuation': messages.pop(1)
+                elif mode == 'not_completed': messages.pop()
+                elif mode == 'failed_handler': events[3]['exit_code'] = 1
+                elif mode == 'message_before_block': messages[1]['emittedAtMs'] = 2500
+                self.assertEqual(runner.review_stop_retry(messages, events, 'thread', 'turn')['status'], 'unproven')
+
+
 if __name__ == '__main__':
     unittest.main()
