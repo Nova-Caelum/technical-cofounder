@@ -132,10 +132,11 @@ class Rehearsal(unittest.TestCase):
                 patch.object(runner, 'check_runtime', return_value={}), \
                 patch.object(runner, 'turn', side_effect=RuntimeError('stop before model turn')):
             root = Path(d)
+            out = root / 'R1-fixture'; out.mkdir()
             with self.assertRaisesRegex(RuntimeError, 'stop before model turn'):
-                runner.live(root / 'project', root / 'second', root)
+                runner.live(root / 'project', root / 'second', out)
             self.assertEqual(events, ['initialize', 'initialized', 'hooks/list', 'thread/start'])
-            saved = json.loads((root / 'live-collection.json').read_text())
+            saved = json.loads((out / 'live-collection.json').read_text())
             self.assertEqual(saved['turns'], [])
             rpc.close.assert_called_once()
 
