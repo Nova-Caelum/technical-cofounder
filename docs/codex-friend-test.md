@@ -1,10 +1,16 @@
 # Try Technical Cofounder in Codex
 
-This preview installs the core team in one **local macOS or Linux project**. Use a disposable project for this first test. Windows, hosted cloud tasks, marketplace distribution and optional super connectors are outside this preview. The native integration check used Codex CLI **0.162.0**; your friend test establishes actual conversational behavior on your machine.
+**Draft for the planned `codex-rc.1` release; not a readiness signoff.** R1 supplies the harness and hook/context changes. R2–R5 still supply model routing, default judge isolation, full setup, and research. R6 must validate the final tag twice before this guide is handed to a friend. The tag is a planned release target, not a claim that it exists today.
 
-## 1. Get the two sources and check prerequisites
+The acceptance surface is **macOS, local Codex CLI**. Desktop is optional and needs separate evidence. Windows, marketplace packaging, Hyperspace standalone packaging, relocation/removal and optional super connectors are tracked in the parity phase.
 
-Use a normal code folder outside a synced notes vault. You need Git, Bash, jq, system Python 3.11+ and a local Codex installation with hooks and custom roles. Sign in to Codex using your own account. Do not paste credentials into chat.
+## 1. Get one source and check prerequisites
+
+Use a normal code folder outside a synced notes vault. You need Git, Bash, jq, system Python 3.11+, and Codex CLI. The native shell-result reader currently supports **Codex 0.162.0**; other versions retain breaker state with a diagnostic until verified. Sign in with `codex login` using your own account. Never paste credentials into chat.
+
+The planned role mapping uses Terra, Sol and Astra. Use a Plus-or-higher account with access to those tiers. Tier fallback and its disclosure are an R2/R4 acceptance check; they are not yet implemented in R1.
+
+After R6 publishes the readiness tag:
 
 ```sh
 git --version
@@ -12,51 +18,64 @@ bash --version
 jq --version
 python3 --version
 codex --version
-mkdir -p "$HOME/Code/tc-codex-preview"
-cd "$HOME/Code/tc-codex-preview"
-git clone --branch codex/tc-codex-compat https://github.com/Nova-Caelum/technical-cofounder.git tc-source
-git clone https://github.com/Nova-Caelum/hyperspace-engine.git engine-source
-git -C engine-source checkout --detach 45472d4260b65ecec1f194bdd044fba9880f42e4
-mkdir friend-project
+mkdir -p "$HOME/NovaCaelum_code/tc-codex-friend"
+cd "$HOME/NovaCaelum_code/tc-codex-friend"
+git clone --branch codex-rc.1 https://github.com/Nova-Caelum/technical-cofounder.git tc-source
+git init friend-project
 ```
 
-Keep using the same shell for the commands below. If a prerequisite is missing, install it using its official instructions before continuing. Do not use a Python virtualenv for the installer. The engine revision is intentionally pinned; do not substitute its latest main.
+Keep using this shell. Resolve any missing prerequisite using its official instructions. Do not use a project virtualenv for the installer. The installer fetches the exact engine pin into `~/.cache/tc-codex`; a second clone is unnecessary. `--engine-source` remains available for an existing clean checkout at the exact pin.
 
-## 2. Generate the project installation, then provision the engine
+## 2. Install, provision and check the engine
 
 ```sh
-python3 tc-source/scripts/install_codex.py \
-  --project "$PWD/friend-project" --engine-source "$PWD/engine-source"
+python3 tc-source/scripts/install_codex.py --project "$PWD/friend-project"
 cd friend-project
-python3 -I .codex/technical-cofounder/adapter.py provision \
-  --project "$PWD" --judge none
-.hyperspace/env/bin/hyperspace doctor
+python3 -I .codex/technical-cofounder/adapter.py provision --project "$PWD" --judge codex
+.hyperspace/env/bin/hyperspace doctor --dir "$PWD"
 ```
 
-Expected: the installer reports its managed-file count; provisioning creates `.hyperspace/env`, initializes the graph, records environment provenance and writes the launcher. It downloads Python packages into this project. No model call is made with `judge=none`; file/command criteria can verify, but semantic/model judging is unavailable. A doctor result that reports the judge as `none` is consistent with this choice. Investigate any other failed check.
+The target release enables the Codex judge by default. This draft selects it explicitly because the R1 adapter still defaults to `none`; R3 changes the default and verifies isolation before release. Provisioning downloads Python packages into `.hyperspace/env`. The judge uses your signed-in Codex account for model-based verification. A small closure ordinarily needs one small judge request, but multiple criteria, retries or review stages can use more; this is not a fixed dollar estimate. To disable it, rerun provisioning with `--judge none`. File/command criteria remain available; semantic judge verification does not.
 
-Installation generates 20 skills in `.agents/skills`, four roles in `.codex/agents`, the TC persona in `AGENTS.md`, and project hooks/MCP configuration. Shared policies and runtime sources are snapshotted with source revisions in `.codex/technical-cofounder-install.json`. It preserves pre-existing user content and refuses collisions or edited managed files. The installer does not grant project or hook trust.
+Expected: installation reports its managed-file count, provisioning records environment provenance, and doctor reports no failures. Generated files include skills in `.agents/skills`, four roles in `.codex/agents`, persona plus all five workspace rules in `AGENTS.md`, and project MCP/hook configuration. The managed project config raises the instruction budget to 131072 bytes. Trust the project before testing those instructions.
 
-## 3. Open a fresh local Codex session and review trust
+The greeting acceptance check uses the engine's registered `tests` check, which
+runs pytest even when the tests use standard-library unittest. Prepare a project
+test environment (separate from the engine runtime) in this shell before opening Codex:
 
-Open `friend-project` in Codex Desktop as a **local** project, or run `codex` from this directory. Review the generated `AGENTS.md`, `.codex/config.toml` and `.codex/hooks.json`; trust this project only after that review. In `/hooks`, review and enable the six generated command definitions. Project trust and hook-definition trust are separate. Start a fresh session after accepting them.
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r ../tc-source/docs/codex-rehearsal-requirements.txt
+```
 
-Check the skill picker for `tc-setup`, `assumption-check`, `hyperspace-setup` and the other team skills. Check MCP status for **caelum-dev-team** and **hyperspace**; both must connect. `codex mcp list` shows their configuration but is not itself proof of connectivity. Ask for a `worklog_recent` call and a Hyperspace `list_projects` call. If either fails, run the doctor from step 2 and retain the diagnostic. Do not bypass an environment-provenance refusal.
+## 3. Review trust in the CLI
+
+```sh
+codex
+```
+
+Review `AGENTS.md`, `.codex/config.toml` and `.codex/hooks.json`. Accept project trust after that review. In `/hooks`, review and trust the six generated command definitions, then start a fresh session. Project trust and hook-definition trust are separate. The installer grants neither. Expect to review each fresh project; cross-project reuse is recorded by the rehearsal rather than assumed. Identical reinstall preserves definitions. Do not bypass hook trust.
+
+Check the skill picker for `tc-setup`, `assumption-check` and `hyperspace-setup`. Both **caelum-dev-team** and **hyperspace** must connect. Ask for `worklog_recent` and Hyperspace `list_projects`; a configured server list alone is not proof. Retain any failure and rerun doctor. Do not bypass a provenance refusal.
 
 ## 4. Ask the team to do one small, verifiable task
 
-Paste this into the fresh session:
+Paste the contents of [`codex-friend-task.txt`](codex-friend-task.txt) into this fresh session. The rehearsal reads that same file, so the running acceptance task and this guide stay in sync:
 
-> Run $tc-setup, preserving my existing profile. Keep judge=none for this test. Then build a tiny Python greeting function and a meaningful unittest in this disposable project. Record a project graph row with an observable file or command acceptance criterion. You may delegate implementation to engineer and an independent review to devops-lead using the installed roles; inherit my configured model. Show me the verification result and append a short local worklog entry. Do not mark the row done if verification fails. Tell me if a role, skill, hook or MCP tool is unavailable.
+> Run $tc-setup, preserving my existing profile. Then build a tiny Python greeting function and a meaningful unittest in this disposable project. Use a fresh task directory and unique graph external ID for each attempt; never reuse completed files from an earlier attempt. Record the project graph row before creating implementation or test files. Include a file_state criterion for the new greeting function and a command_check with check_id=tests targeting the fresh task directory. The registered tests check runs pytest; ensure the project .venv has pytest and run the unittest through that same pytest runner. Delegate implementation to engineer and an independent review to devops-lead using the installed roles. Show me the verification result, append a short local worklog entry and read back that entry. Do not mark the row done if verification fails. Tell me if a role, skill, hook or MCP tool is unavailable. Do not change hook trust or bypass a guard.
 
-Expected: the team follows the Codex host instructions, uses the project graph/worklog, runs the test and records actual verification. The reviewer must be a separate agent if your host supports delegation; a self-review does not establish independent-audit acceptance. Confirm all four role files exist (`technical-cofounder`, `engineer`, `devops-lead`, `lead-fde`), and that the requested two roles can actually be selected. You can open the graph with `.hyperspace/env/bin/hyperspace serve --open`.
+Expected at readiness: setup guide/progress are visible; the existing profile survives; engineer and devops-lead run in separate threads on their configured tiers; the test passes; the graph verifier closes the row only after its criteria pass; the worklog entry reads back. A self-review is not independent audit evidence. Open the graph with `.hyperspace/env/bin/hyperspace serve --open`. R1's staged harness keeps `judge=none` and records later-row gaps; that staged run does not satisfy final readiness.
 
-This conversation uses your configured Codex model/account. Enabling the optional Codex **judge** is a separate choice: authenticate the CLI, then rerun the step 2 provision command with `--judge codex`. Its model calls use your account. Do not report model-judge verification from a `none` run.
+## 5. Send a compact result
 
-## 5. Send the reviewer a compact result
+Record OS, CLI version, TC commit (`git -C ../tc-source rev-parse HEAD`), install/provision/doctor results, skills, actual role/model execution, MCP calls, hook trust and execution, test result, graph state and worklog readback. Include exact errors and the step where they occurred. Remove secrets before sharing.
 
-Report OS, `codex --version`, the TC source commit (`git -C ../tc-source rev-parse HEAD`), install/provision/doctor outcomes, discovered skills, role selection, both MCP statuses, hook trust/status, test result, graph state and worklog readback. Include any exact error and the step where it occurred; remove secrets and private paths before sharing.
+Keep the disposable project until review. Reinstall with the same source/project paths; the installer refuses edited managed files. Moving a project or removing its system Python requires regenerating installation configuration. Automatic update and removal are deferred to parity.
 
-For host-guard regressions, the source checkout provides `python3 -m unittest tests.test_codex -v` (run from `tc-source`). Those tests cover the third-failure warning, fifth-failure block, success reset, ambiguous results, thread isolation, Stop retry and the provenance gate. They do not replace this live session test. In particular, Codex has no separate failure event: failures that produce no PostToolUse event cannot be counted, and unknown result formats retain counters with a diagnostic.
+## Known limits
 
-If reinstalling, use the exact same source/project paths and command from step 2. The installer refuses locally edited managed files; preserve and reconcile those edits before an update. It will not silently merge them. Moving the project or upgrading/removing its system Python requires regenerating its absolute command paths. There is no automatic updater or uninstaller in this preview; keep the disposable project until the result has been reviewed.
+Native Stop continuation and its retry flag are awaiting the rehearsal's temporary
+20-word threshold probe. The production threshold remains 700 words, above the
+binding response budget (at most 650); deterministic block/guard tests pass, but
+ordinary native Stop dispatch does not prove continuation. Per CTO review this
+verbosity backstop is a documented limitation rather than a readiness blocker.

@@ -8,7 +8,11 @@ project's own Hyperspace interpreter, and prints ONE line pointing at the map.
 The map itself is never printed: a SessionStart hook's output has a size cap and
 becomes model context.
 
-Finding the engine. he_bridge.py reaches the engine through the project's
+Finding the engine. Codex supplies TC_ENGINE_PLUGIN_ROOT for its pinned project
+snapshot; when set, that location is authoritative (no Claude registry fallback).
+The same interpreter provenance gate applies on both hosts.
+
+he_bridge.py reaches the engine through the project's
 Hyperspace environment (`.hyperspace/env`, which has the `hyperspace` package).
 The environment does not have bin/drive_map.py: bin/ is part of the engine
 plugin, not of the installed package. So the script is found where Claude Code
@@ -100,6 +104,10 @@ def _same_folder(a, b):
 
 def find_engine_script(project, folders):
     """The engine's bin/drive_map.py recorded for this project (or for the user), else None."""
+    explicit = os.environ.get('TC_ENGINE_PLUGIN_ROOT')
+    if explicit:
+        script = Path(explicit) / 'bin' / 'drive_map.py'
+        return script if script.is_file() else None
     for folder in folders:
         try:
             plugins = json.loads((folder / "installed_plugins.json").read_text(encoding="utf-8")).get("plugins", {})

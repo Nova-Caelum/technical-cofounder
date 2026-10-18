@@ -1,0 +1,2 @@
+# Test-only dependency for the registered Hyperspace tests check.
+pytest==8.4.2
