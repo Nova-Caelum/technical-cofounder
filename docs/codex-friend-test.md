@@ -39,6 +39,15 @@ The target release enables the Codex judge by default. This draft selects it exp
 
 Expected: installation reports its managed-file count, provisioning records environment provenance, and doctor reports no failures. Generated files include skills in `.agents/skills`, four roles in `.codex/agents`, persona plus all five workspace rules in `AGENTS.md`, and project MCP/hook configuration. The managed project config raises the instruction budget to 131072 bytes. Trust the project before testing those instructions.
 
+The greeting acceptance check uses the engine's registered `tests` check, which
+runs pytest even when the tests use standard-library unittest. Prepare a project
+test environment (separate from the engine runtime) in this shell before opening Codex:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r ../tc-source/docs/codex-rehearsal-requirements.txt
+```
+
 ## 3. Review trust in the CLI
 
 ```sh
@@ -53,7 +62,7 @@ Check the skill picker for `tc-setup`, `assumption-check` and `hyperspace-setup`
 
 Paste the contents of [`codex-friend-task.txt`](codex-friend-task.txt) into this fresh session. The rehearsal reads that same file, so the running acceptance task and this guide stay in sync:
 
-> Run $tc-setup, preserving my existing profile. Then build a tiny Python greeting function and a meaningful unittest in this disposable project. Record a project graph row with an observable file or command acceptance criterion. Delegate implementation to engineer and an independent review to devops-lead using the installed roles. Show me the verification result and append a short local worklog entry. Do not mark the row done if verification fails. Tell me if a role, skill, hook or MCP tool is unavailable. Do not change hook trust or bypass a guard.
+> Run $tc-setup, preserving my existing profile. Then build a tiny Python greeting function and a meaningful unittest in this disposable project. Use a fresh task directory and unique graph external ID for each attempt; never reuse completed files from an earlier attempt. Record the project graph row before creating implementation or test files. Include a file_state criterion for the new greeting function and a command_check with check_id=tests targeting the fresh task directory. The registered tests check runs pytest; ensure the project .venv has pytest and run the unittest through that same pytest runner. Delegate implementation to engineer and an independent review to devops-lead using the installed roles. Show me the verification result, append a short local worklog entry and read back that entry. Do not mark the row done if verification fails. Tell me if a role, skill, hook or MCP tool is unavailable. Do not change hook trust or bypass a guard.
 
 Expected at readiness: setup guide/progress are visible; the existing profile survives; engineer and devops-lead run in separate threads on their configured tiers; the test passes; the graph verifier closes the row only after its criteria pass; the worklog entry reads back. A self-review is not independent audit evidence. Open the graph with `.hyperspace/env/bin/hyperspace serve --open`. R1's staged harness keeps `judge=none` and records later-row gaps; that staged run does not satisfy final readiness.
 

@@ -12,6 +12,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -208,11 +209,77 @@ def start_native_thread(rpc, project):
     return result
 
 
+def fixture_scope(project, run_id):
+    """Reserve names in the prompt, never erase or repurpose prior evidence."""
+    if not re.fullmatch(r'[A-Za-z0-9-]+', run_id):
+        raise ValueError('Invalid rehearsal run id')
+    base = 'work/r1-' + run_id
+    path = project / base
+    if path.exists() or path.is_symlink():
+        raise ValueError('Rehearsal fixture already exists: ' + str(path))
+    if not path.resolve().is_relative_to(project.resolve()):
+        raise ValueError('Rehearsal fixture escapes project')
+    return {'drive_path': base + '/drive-probe.py', 'friend_dir': base + '/greeting',
+            'external_id': 'R1-GREETING-' + run_id}
+
+
+def friend_prompt(scope):
+    task = (HERE.parent / 'docs/codex-friend-task.txt').read_text()
+    return ('This is the R1 staged rehearsal. The engine is already provisioned with judge=none; '
+            'preserve that setting in this row. Judge, tier routing and complete setup are later '
+            'rows, so record those gaps explicitly. Stay inside this disposable project. '
+            'Use exactly this fresh task directory: ' + scope['friend_dir'] +
+            ' and graph external ID: ' + scope['external_id'] +
+            '. Do not reuse any earlier greeting task, copy its completed implementation, '
+            'delete old evidence, or alter timestamps to satisfy verification.\n\n' +
+            task.removeprefix('Run $tc-setup, preserving my existing profile. Then '))
+
+
+def check_runtime(project, out):
+    """Ask the installed verifier which interpreter it actually uses."""
+    code = ('import json; from pathlib import Path; '
+            'from hyperspace.verify.landing import _resolve_interpreter; '
+            'from hyperspace.verify.predicates import _COMMANDS; '
+            'print(json.dumps({"python": _resolve_interpreter(Path.cwd(), Path.cwd()/"work/probe"), '
+            '"tests": _COMMANDS["tests"][1:]}))')
+    engine_python = project / '.hyperspace/env/bin/python'
+    selected = json.loads(run([str(engine_python), '-I', '-c', code], project, out, 'check-interpreter').stdout)
+    if selected['tests'] != ['-m', 'pytest', '-q']:
+        raise ValueError('Registered tests command changed; review the rehearsal')
+    result = run([selected['python'], '-I', '-m', 'pytest', '--version'], project, out, 'check-pytest')
+    selected['pytest_version'] = result.stdout.strip()
+    if selected['pytest_version'] != 'pytest 8.4.2':
+        raise ValueError('Prepare pinned rehearsal checks with --prepare-checks before --turns')
+    return selected
+
+
+def prepare_checks(project, out):
+    """Install test-only dependencies in the disposable project's own venv."""
+    venv = project / '.venv'
+    if venv.is_symlink() or not venv.resolve().is_relative_to(project.resolve()):
+        raise ValueError('Refusing symlink or escaped rehearsal .venv')
+    if any((parent / '.obsidian').is_dir() for parent in (project.resolve(), *project.resolve().parents)):
+        raise ValueError('Test dependencies must stay outside the synced vault')
+    marker = venv / 'tc-rehearsal-owned'
+    if venv.exists() and (not marker.is_file() or marker.is_symlink()):
+        raise ValueError('Refusing to modify an unowned .venv; use a new rehearsal root')
+    if not venv.exists():
+        run([sys.executable, '-m', 'venv', str(venv)], project, out, 'checks-venv')
+        marker.write_text('Technical Cofounder disposable rehearsal test dependencies\n')
+    requirements = HERE.parent / 'docs/codex-rehearsal-requirements.txt'
+    run([str(venv / 'bin/python'), '-m', 'pip', 'install', '--disable-pip-version-check',
+         '-r', str(requirements)], project, out, 'checks-install')
+    return check_runtime(project, out)
+
+
 def live(project, second, out):
+    checks = check_runtime(project, out)
+    scope = fixture_scope(project, out.name)
     tmp = out / 'live-tmp'; tmp.mkdir()
     trace = out / 'native-hooks.jsonl'
     env = dict(os.environ, TMPDIR=str(tmp) + '/', TC_HOOK_TRACE=str(trace))
-    data = {'status': 'collecting', 'turns': [], 'counter_changes': []}
+    data = {'status': 'collecting', 'turns': [], 'counter_changes': [],
+            'fixture_scope': scope, 'check_runtime': checks}
     last = None
     def observe(value):
         nonlocal last
@@ -245,16 +312,15 @@ def live(project, second, out):
                 result = turn(rpc, tid, prompt)
                 result.update(label=command, counters_after=counters(tmp))
                 data['turns'].append(result)
-            patch_prompt = ('Use apply_patch to add work/r1-drive-probe.py containing probe = True. '
+            patch_prompt = ('Use apply_patch to add ' + scope['drive_path'] + ' containing probe = True. '
                             'Use the project drive map to place this file. Do not use a shell to create it. '
                             'Report any drive-map context supplied by the hook, then stop.')
             data['turns'].append(dict(label='apply-patch-drive', **turn(rpc, tid, patch_prompt)))
-            stop_prompt = ('Controlled Stop-hook test in a disposable project. For this test only, '
-                           'make the first final reply contain exactly 710 numbered words, from word1 to word710, '
-                           'separated by spaces. Do not write a file or use tools. The hook is expected to reject '
-                           'this first response; if it asks for a retry, reply with the single word done. '
-                           'Do not disable or edit any hook.')
-            data['turns'].append(dict(label='stop-retry', **turn(rpc, tid, stop_prompt)))
+            # The binding prompt budget tops out at 650 words, below Stop's 700.
+            # A compliant model cannot reliably trigger this defensive branch.
+            # Do not request a policy violation or count ordinary Stop as retry proof.
+            data['stop_retry'] = {'status': 'unproven',
+                                  'reason': 'Native oversized-response continuation requires a separately reviewed test design; synthetic guard tests are not native proof.'}
             # Quote actual generated instructions, not a substitute AGENTS fixture.
             instructions = (project / 'AGENTS.md').read_text()
             chosen = instruction_samples(instructions)
@@ -274,16 +340,15 @@ def live(project, second, out):
             if data['second_project_trusted']:
                 other = start_native_thread(rpc, second)
                 data['turns'].append(dict(label='second-project', **turn(rpc, other['thread']['id'], 'Make one exec_command call with command true, then reply done. No other tools.')))
-            # The source-controlled prompt is shared verbatim with friend-test step 4.
-            friend_path = project.parent / 'sources/tc/docs/codex-friend-task.txt'
+            # Collector task version may advance without reinstalling trusted hooks.
+            friend_path = HERE.parent / 'docs/codex-friend-task.txt'
+            data['friend_task_source'] = str(friend_path)
             data['friend_task_sha256'] = sha(friend_path)
-            friend_prompt = ('This is the R1 staged rehearsal. The engine is already provisioned with judge=none; '
-                             'preserve that setting in this row. Judge, tier routing and complete setup are later '
-                             'rows, so record those gaps explicitly. Stay inside this disposable project.\n\n' +
-                             friend_path.read_text().removeprefix('Run $tc-setup, preserving my existing profile. Then '))
-            data['friend_staging'] = 'R1 omits setup sentence per plan; shared build/verify task unchanged'
-            data['friend_effective_prompt_sha256'] = hashlib.sha256(friend_prompt.encode()).hexdigest()
-            data['turns'].append(dict(label='friend-step-4', **turn(rpc, tid, friend_prompt, seconds=1200)))
+            prompt = friend_prompt(scope)
+            (out / 'friend-effective-prompt.txt').write_text(prompt)
+            data['friend_staging'] = 'R1 omits setup sentence; shared build/verify task uses fresh run scope'
+            data['friend_effective_prompt_sha256'] = hashlib.sha256(prompt.encode()).hexdigest()
+            data['turns'].append(dict(label='friend-step-4', **turn(rpc, tid, prompt, seconds=1200)))
             data['status'] = 'collected_needs_review'
             return data
         except Exception as exc:
@@ -303,8 +368,11 @@ def main():
     parser.add_argument('--engine-source', default='https://github.com/Nova-Caelum/hyperspace-engine.git')
     parser.add_argument('--probes', default='R1')
     parser.add_argument('--turns', action='store_true')
+    parser.add_argument('--prepare-checks', action='store_true', help='Prepare test dependencies in an existing installation without reinstalling hooks')
     parser.add_argument('--runner', choices=['user-terminal', 'claude-code-shell'])
     args = parser.parse_args()
+    if args.turns and args.prepare_checks:
+        parser.error('--prepare-checks and --turns are separate phases')
     if args.probes != 'R1':
         parser.error('Only R1 is implemented; later rows must add explicit probes')
     if args.turns and (not args.runner or os.environ.get('CODEX_THREAD_ID') or os.environ.get('CODEX_SANDBOX')):
@@ -329,7 +397,16 @@ def main():
     trust_path = Path(os.environ.get('CODEX_HOME', Path.home() / '.codex')) / 'config.toml'
     data['global_config_before'] = sha(trust_path) if trust_path.exists() else None
     try:
-        if args.turns:
+        if args.prepare_checks:
+            if state.get('requested_refs') != data['requested_refs'] or not state.get('prepared'):
+                raise ValueError('Prepare these exact refs before --prepare-checks')
+            before, second_before = managed(project), managed(second)
+            data['check_runtime'] = prepare_checks(project, out)
+            data['managed_unchanged'] = before == managed(project) and second_before == managed(second)
+            if not data['managed_unchanged']:
+                raise ValueError('Managed files changed during checks preparation')
+            data['status'] = 'checks_prepared_live_pending'
+        elif args.turns:
             if state.get('requested_refs') != data['requested_refs'] or not state.get('prepared'):
                 raise ValueError('Prepare these exact refs first without --turns')
             data['versions'] = {'codex': run(['codex', '--version'], root, out, 'codex-version').stdout.strip(), 'python': sys.version}
@@ -362,6 +439,7 @@ def main():
             data['hook_definitions_identical'] = (project / '.codex/hooks.json').read_bytes() == (second / '.codex/hooks.json').read_bytes()
             if not data['hook_definitions_identical']:
                 raise ValueError('Hook definitions differ across projects')
+            data['check_runtime'] = prepare_checks(project, out)
             data['deterministic'] = deterministic(project, out)
             data['worklog'] = worklog(project, out)
             data['managed'] = managed(project)

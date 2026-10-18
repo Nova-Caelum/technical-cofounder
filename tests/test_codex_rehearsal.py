@@ -129,6 +129,7 @@ class Rehearsal(unittest.TestCase):
         rpc.send.side_effect = lambda message: events.append(message['method'])
         with tempfile.TemporaryDirectory() as d, patch.object(runner, 'RPC', return_value=rpc), \
                 patch.object(runner, 'trusted_hooks', return_value=True), \
+                patch.object(runner, 'check_runtime', return_value={}), \
                 patch.object(runner, 'turn', side_effect=RuntimeError('stop before model turn')):
             root = Path(d)
             with self.assertRaisesRegex(RuntimeError, 'stop before model turn'):
@@ -153,6 +154,78 @@ class Rehearsal(unittest.TestCase):
         self.assertGreater(samples[-1]['byte_offset'], 32768)
         with self.assertRaisesRegex(ValueError, 'each third'):
             runner.instruction_samples('too short')
+
+    def test_each_collection_uses_fresh_paths_and_fails_closed_on_collision(self):
+        with tempfile.TemporaryDirectory() as d:
+            project = Path(d)
+            first = runner.fixture_scope(project, 'R1-first')
+            second = runner.fixture_scope(project, 'R1-second')
+            self.assertNotEqual(first['drive_path'], second['drive_path'])
+            self.assertNotEqual(first['friend_dir'], second['friend_dir'])
+            self.assertNotEqual(first['external_id'], second['external_id'])
+            old = project / first['friend_dir']; old.mkdir(parents=True)
+            (old / 'keep.txt').write_text('old evidence')
+            with self.assertRaisesRegex(ValueError, 'exists'):
+                runner.fixture_scope(project, 'R1-first')
+            self.assertEqual((old / 'keep.txt').read_text(), 'old evidence')
+            with self.assertRaises(ValueError):
+                runner.fixture_scope(project, '../escape')
+            (project / 'work' / 'r1-R1-second').symlink_to('/tmp')
+            with self.assertRaisesRegex(ValueError, 'exists'):
+                runner.fixture_scope(project, 'R1-second')
+
+    def test_friend_task_files_graph_before_build_and_uses_registered_tests(self):
+        prompt = (ROOT / 'docs/codex-friend-task.txt').read_text()
+        self.assertIn('before creating implementation or test files', prompt)
+        self.assertIn('check_id=tests', prompt)
+        self.assertIn('pytest', prompt)
+        self.assertIn('read back', prompt)
+        scope = {'friend_dir': 'work/unique/greeting', 'external_id': 'R1-unique', 'drive_path': 'work/unique/drive.py'}
+        staged = runner.friend_prompt(scope)
+        self.assertIn('work/unique/greeting', staged)
+        self.assertIn('R1-unique', staged)
+        self.assertNotIn('Run $tc-setup', staged)
+        self.assertIn('judge=none', staged)
+
+    def test_check_environment_rejects_symlink_before_install(self):
+        with tempfile.TemporaryDirectory() as d, patch.object(runner, 'run') as run:
+            root = Path(d); project = root / 'project'; project.mkdir()
+            (project / '.venv').symlink_to('/tmp', target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, 'symlink'):
+                runner.prepare_checks(project, root)
+            run.assert_not_called()
+
+    def test_check_environment_preserves_unowned_venv(self):
+        with tempfile.TemporaryDirectory() as d, patch.object(runner, 'run') as run:
+            root = Path(d); venv = root / '.venv'; venv.mkdir()
+            (venv / 'keep').write_text('user-owned environment')
+            with self.assertRaisesRegex(ValueError, 'unowned'):
+                runner.prepare_checks(root, root)
+            run.assert_not_called()
+            self.assertEqual((venv / 'keep').read_text(), 'user-owned environment')
+
+    def test_preflight_uses_installed_verifier_and_checks_version(self):
+        selected = {'python': '/project/.venv/bin/python3', 'tests': ['-m', 'pytest', '-q']}
+        with tempfile.TemporaryDirectory() as d, patch.object(runner, 'run') as run:
+            root = Path(d)
+            run.side_effect = [Mock(stdout=json.dumps(selected)), Mock(stdout='pytest 8.4.2\n')]
+            self.assertEqual(runner.check_runtime(root, root)['pytest_version'], 'pytest 8.4.2')
+            self.assertIn('_resolve_interpreter', run.call_args_list[0].args[0][-1])
+            self.assertEqual(run.call_args_list[1].args[0], [selected['python'], '-I', '-m', 'pytest', '--version'])
+            run.side_effect = [Mock(stdout=json.dumps(selected)), Mock(stdout='pytest 7.0.0\n')]
+            with self.assertRaisesRegex(ValueError, 'prepare-checks'):
+                runner.check_runtime(root, root)
+            run.side_effect = [Mock(stdout=json.dumps(dict(selected, tests=['-m', 'unittest'])))]
+            with self.assertRaisesRegex(ValueError, 'command changed'):
+                runner.check_runtime(root, root)
+
+    def test_missing_test_runner_stops_before_native_server(self):
+        with tempfile.TemporaryDirectory() as d, patch.object(runner, 'RPC') as rpc, \
+                patch.object(runner, 'check_runtime', side_effect=ValueError('pytest missing')):
+            root = Path(d)
+            with self.assertRaisesRegex(ValueError, 'pytest missing'):
+                runner.live(root / 'project', root / 'second', root)
+            rpc.assert_not_called()
 
     def test_friend_prompt_is_the_documented_task(self):
         prompt = (ROOT / 'docs/codex-friend-task.txt').read_text().strip()
