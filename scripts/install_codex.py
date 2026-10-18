@@ -183,6 +183,14 @@ def build(project, engine, python):
     stable = shlex.quote(str(python)) + ' -I "$(git rev-parse --show-toplevel)/' + RUNTIME + '/adapter.py" '
     owned = {shlex.join(command + [a, '--project', str(project)]) for a in ('hook', 'freshness')}
     owned.update(stable + a for a in ('hook', 'freshness'))
+    labels = {
+        ('SessionStart', 'hook'): 'project-context-loader',
+        ('SessionStart', 'freshness'): 'tool-update-check',
+        ('UserPromptSubmit', 'hook'): 'concision-enforcer-1',
+        ('Stop', 'hook'): 'concision-enforcer-2',
+        ('PreToolUse', 'hook'): 'repeated-failure-circuit-breaker',
+        ('PostToolUse', 'hook'): 'repeated-failure-counter',
+    }
     # Remove only our exact current/legacy commands; preserve unrelated user hooks.
     for event in ('SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop'):
         groups = hooks['hooks'].setdefault(event, [])
@@ -191,7 +199,8 @@ def build(project, engine, python):
         hooks['hooks'][event] = [g for g in groups if g['hooks']]
         actions = ['hook', 'freshness'] if event == 'SessionStart' else ['hook']
         for action in actions:
-            group = {'hooks': [{'type': 'command', 'command': stable + action, 'timeout': 60}]}
+            group = {'hooks': [{'type': 'command', 'command': stable + action, 'timeout': 60,
+                                'statusMessage': labels[event, action]}]}
             if event in ('PreToolUse', 'PostToolUse'):
                 group['matcher'] = '*'
             hooks['hooks'][event].append(group)
