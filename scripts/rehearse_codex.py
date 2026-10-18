@@ -226,7 +226,9 @@ def live(project, second, out):
     with (out / 'native.stderr').open('w') as err:
         rpc = RPC(['codex', 'app-server', '--stdio'], env, err, observe, cwd=project)
         try:
-            rpc.call('initialize', {'clientInfo': {'name': 'tc_r1_rehearsal', 'version': '1'}})
+            # Granular approvals are experimental in the native app-server API.
+            rpc.call('initialize', {'clientInfo': {'name': 'tc_r1_rehearsal', 'version': '1'},
+                                    'capabilities': {'experimentalApi': True}})
             rpc.send({'method': 'initialized'})
             data['hooks'] = rpc.call('hooks/list', {'cwds': [str(project), str(second)]})
             if not trusted_hooks(data['hooks'], project):

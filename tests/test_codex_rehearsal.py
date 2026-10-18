@@ -108,6 +108,36 @@ class Rehearsal(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'boundary'):
                     runner.start_native_thread(rpc, Path('/tmp/project'))
 
+    def test_live_negotiates_granular_capability_before_starting_thread(self):
+        events = []
+        def call(method, params, **kwargs):
+            events.append(method)
+            if method == 'initialize':
+                self.assertIs(params.get('capabilities', {}).get('experimentalApi'), True)
+                return {}
+            if method == 'hooks/list':
+                self.assertEqual(events, ['initialize', 'initialized', 'hooks/list'])
+                return {}
+            if method == 'thread/start':
+                self.assertIn('granular', params['approvalPolicy'])
+                return {'thread': {'id': 'fixture'}, 'approvalPolicy': params['approvalPolicy'],
+                        'approvalsReviewer': 'auto_review',
+                        'sandbox': {'type': 'workspaceWrite', 'networkAccess': False, 'writableRoots': []}}
+            self.fail('Unexpected RPC: ' + method)
+        rpc = Mock()
+        rpc.call.side_effect = call
+        rpc.send.side_effect = lambda message: events.append(message['method'])
+        with tempfile.TemporaryDirectory() as d, patch.object(runner, 'RPC', return_value=rpc), \
+                patch.object(runner, 'trusted_hooks', return_value=True), \
+                patch.object(runner, 'turn', side_effect=RuntimeError('stop before model turn')):
+            root = Path(d)
+            with self.assertRaisesRegex(RuntimeError, 'stop before model turn'):
+                runner.live(root / 'project', root / 'second', root)
+            self.assertEqual(events, ['initialize', 'initialized', 'hooks/list', 'thread/start'])
+            saved = json.loads((root / 'live-collection.json').read_text())
+            self.assertEqual(saved['turns'], [])
+            rpc.close.assert_called_once()
+
     def test_instruction_samples_cover_bytes_not_long_line_subset(self):
         # Persona paragraphs are long; workspace rules are wrapped to 70 columns.
         # The old >90-character filter silently selected only the persona.
