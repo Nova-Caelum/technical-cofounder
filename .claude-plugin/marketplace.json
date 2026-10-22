@@ -3,7 +3,7 @@
   "owner": {
     "name": "Nova Caelum"
   },
-  "description": "Nova Caelum's technical-cofounder marketplace — base-novacaelum, a senior technical team for Claude Code, plus super-novacaelum, its opt-in research and documentation extras.",
+  "description": "The old install address for Technical Cofounder, kept so installs made from it keep working. It serves the 1 October 2026 version from commit 0d48114, where these folders still exist; the team now lives in plugins/technical-cofounder. New installs: claude plugin marketplace add Nova-Caelum/plugins.",
   "plugins": [
     {
       "name": "base-novacaelum",
@@ -13,7 +13,7 @@
         "path": "plugins/base-novacaelum",
         "sha": "0d481148d312570441ec01bbdbef7f23eb3628a7"
       },
-      "description": "A senior technical team for Claude Code: agents, guardrails, a working loop and a local verifier."
+      "description": "The team's old name, pinned to its 1 October 2026 version (plugins/base-novacaelum at commit 0d48114). New installs: technical-cofounder@nova-caelum from Nova-Caelum/plugins."
     },
     {
       "name": "super-novacaelum",
@@ -23,7 +23,7 @@
         "path": "plugins/super-novacaelum",
         "sha": "0d481148d312570441ec01bbdbef7f23eb3628a7"
       },
-      "description": "Opt-in extras for the base team — documentation lookup, web research and a cloud browser, using your own keys."
+      "description": "The research extras, pinned to their 1 October 2026 version (commit 0d48114). New installs: super-novacaelum@nova-caelum from Nova-Caelum/plugins."
     }
   ]
 }
